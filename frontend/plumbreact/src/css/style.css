@@ -1,0 +1,815 @@
+
+
+
+/* 
+Template Name: Electro - HTML Ecommerce Template
+Author: yaminncco
+
+Colors:
+	Body 		: #333
+	Headers 	: #2B2D42
+	Primary 	: #D10024
+	Dark 		: #15161D ##1E1F29
+	Grey 		: #E4E7ED #FBFBFC #8D99AE #B9BABC
+
+Fonts: Montserrat
+
+Table OF Contents
+------------------------------------
+1 > GENERAL
+------ Typography
+------ Buttons
+------ Inputs
+------ Sections
+------ Breadcrumb
+2 > HEADER
+------ Top header
+------ Logo
+------ Search
+------ Cart
+3 > NAVIGATION
+------ Main nav
+------ Responsive Nav
+4 > CATEGORY SHOP
+5 > HOT DEAL
+6 > PRODUCT
+------ Product
+------ Widget product
+------ Product slick
+007 > CATEGORY
+------ allcategories
+------categorynamelinktoproducts
+7 > STORE PAGE
+------ Aside
+------ Store
+8 > PRODUCT DETAILS PAGE
+------ Product view
+------ Product details
+------ Product tab
+9 > CHECKOUT PAGE
+10 > NEWSLETTER
+11 > FOOTER
+11 > SLICK STYLE
+12 > RESPONSIVE
+13 > /* CART_LIST */ /* CART STYLE  */
+/*=========================================================
+	78 -> Compare 
+===========================================================*/
+
+@import './carts.css';
+@import './AccountDashboard.css';
+@import './all_categories.css';
+@import './breadcrumb.css';
+@import './CategoryNameLinkToProducts.css';
+@import './CategoryProducts.css';
+@import './ProductDetail.css';
+@import './Wishlist.css';
+@import './ComparePage.css';
+@import './Profile.css';
+@import './Home.css';
+@import './Header.css';
+@import './carousel.css';
+@import './NewProducts.css';
+@import './Checkout.css';
+@import './OrderCard.css';
+@import './Newsletter.css';
+@import './HotDeal.css';
+@import './footer.css';
+@import './reviews.css';
+@import './rating.css';
+@import './slick.css';
+@import './slick-theme.css';
+@import './nouislider.min.css';
+@import './font-awesome.min.css';
+
+@import './AuthContainer.css';
+@import './OrdersReturns.css';
+@import './Delivery.css';
+@import './AboutCompany.css';
+@import './BannerSlider.css';
+@import './contacts.css';
+@import 'CallbackButton.css';
+
+
+
+
+.col-md-2, .col-sm-4, .col-6 {
+  padding-left: 15px;
+  padding-right: 15px;
+}
+
+
+.row-centered {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+/*=========================================================
+	01 -> GENERAL
+===========================================================*/
+
+/*=========================================================
+	011 -> account dashboard
+===========================================================*/
+
+/*----------------------------*\
+	Typography
+\*----------------------------*/
+
+
+
+
+body {
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 400;
+  color: #333;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  color: #2B2D42;
+  font-weight: 700;
+  margin: 0 0 10px;
+}
+
+a {
+  color: #2B2D42;
+  font-weight: 500;
+  -webkit-transition: 0.2s color;
+  transition: 0.2s color;
+}
+
+a:hover, a:focus {
+  color: #D10024;
+  text-decoration: none;
+  outline: none;
+}
+
+ul, ol {
+  margin: 0;
+  padding: 0;
+  list-style: none
+}
+
+img, .shop-img img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+ 
+
+
+
+/*----------------------------*\
+	Buttons
+\*----------------------------*/
+/* отвечает за размер инпута поиска */
+.primary-btn {
+  display: inline-block;
+  padding: 12px 30px;
+  background-color: #D10024;
+  border: none;
+  border-radius: 40px;
+  color: #FFF;
+  text-transform: uppercase;
+  font-weight: 700;
+  text-align: center;
+  -webkit-transition: 0.2s all;
+  transition: 0.2s all;
+}
+
+.primary-btn:hover, .primary-btn:focus {
+  opacity: 0.9;
+  color: #FFF;
+}
+
+/*----------------------------*\
+	Inputs
+\*----------------------------*/
+
+/*-- Text input --*/
+
+.input {
+  height: 40px;
+  padding: 0px 15px;
+  border: 1px solid #E4E7ED;
+  background-color: #FFF;
+  width: 100%;
+}
+
+textarea.input {
+  padding: 15px;
+  min-height: 90px;
+}
+
+/*-- Number input --*/
+
+.input-number {
+  position: relative;
+}
+
+.input-number input[type="number"]::-webkit-inner-spin-button, .input-number input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.input-number input[type="number"] {
+  -moz-appearance: textfield;
+  height: 40px;
+  width: 100%;
+  border: 1px solid #E4E7ED;
+  background-color: #FFF;
+  padding: 0px 35px 0px 15px;
+}
+
+.input-number .qty-up, .input-number .qty-down {
+  position: absolute;
+  display: block;
+  width: 20px;
+  height: 20px;
+  border: 1px solid #E4E7ED;
+  background-color: #FFF;
+  text-align: center;
+  font-weight: 700;
+  cursor: pointer;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+.input-number .qty-up {
+  right: 0;
+  top: 0;
+  border-bottom: 0px;
+}
+
+.input-number .qty-down {
+  right: 0;
+  bottom: 0;
+}
+
+.input-number .qty-up:hover, .input-number .qty-down:hover {
+  background-color: #E4E7ED;
+  color: #D10024;
+}
+
+/*-- Select input --*/
+
+.input-select {
+  padding: 0px 16.2px;
+  background: #FFF;
+  border: 1px solid #E4E7ED;
+  height: 40px;
+}
+
+/*-- checkbox & radio input --*/
+
+.input-radio, .input-checkbox {
+  position: relative;
+  display: block;
+}
+
+.input-radio input[type="radio"]:not(:checked), .input-radio input[type="radio"]:checked, .input-checkbox input[type="checkbox"]:not(:checked), .input-checkbox input[type="checkbox"]:checked {
+  position: absolute;
+  margin-left: -9999px;
+  visibility: hidden;
+}
+
+.input-radio label, .input-checkbox label {
+  font-weight: 500;
+  min-height: 20px;
+  padding-left: 20px;
+  margin-bottom: 5px;
+  cursor: pointer;
+}
+
+.input-radio input[type="radio"]+label span, .input-checkbox input[type="checkbox"]+label span {
+  position: absolute;
+  left: 0px;
+  top: 4px;
+  width: 14px;
+  height: 14px;
+  border: 2px solid #E4E7ED;
+  background: #FFF;
+}
+
+.input-radio input[type="radio"]+label span {
+  border-radius: 50%;
+}
+
+.input-radio input[type="radio"]+label span:after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  -webkit-transform: translate(-50%, -50%) scale(0);
+  -ms-transform: translate(-50%, -50%) scale(0);
+  transform: translate(-50%, -50%) scale(0);
+  background-color: #FFF;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  opacity: 0;
+  -webkit-transition: all 0.2s;
+  transition: all 0.2s;
+}
+
+.input-checkbox input[type="checkbox"]+label span:after {
+  content: '✔';
+  position: absolute;
+  top: -2px;
+  left: 1px;
+  font-size: 10px;
+  color: #FFF;
+  opacity: 0;
+  -webkit-transform: scale(0);
+  -ms-transform: scale(0);
+  transform: scale(0);
+  -webkit-transition: all 0.2s;
+  transition: all 0.2s;
+}
+
+.input-radio input[type="radio"]:checked+label span, .input-checkbox input[type="checkbox"]:checked+label span {
+  background-color: #D10024;
+  border-color: #D10024;
+}
+
+.input-radio input[type="radio"]:checked+label span:after {
+  opacity: 1;
+  -webkit-transform: translate(-50%, -50%) scale(1);
+  -ms-transform: translate(-50%, -50%) scale(1);
+  transform: translate(-50%, -50%) scale(1);
+}
+
+.input-checkbox input[type="checkbox"]:checked+label span:after {
+  opacity: 1;
+  -webkit-transform: scale(1);
+  -ms-transform: scale(1);
+  transform: scale(1);
+}
+
+.input-radio .caption, .input-checkbox .caption {
+  margin-top: 5px;
+  max-height: 0;
+  overflow: hidden;
+  -webkit-transition: 0.3s max-height;
+  transition: 0.3s max-height;
+}
+
+.input-radio input[type="radio"]:checked~.caption, .input-checkbox input[type="checkbox"]:checked~.caption {
+  max-height: 800px;
+}
+
+/*----------------------------*\
+	Section
+\*----------------------------*/
+
+.section {
+  padding-top: 30px;
+  padding-bottom: 30px;
+}
+
+
+
+
+
+
+
+
+/* Убрать стрелки у number input во всех браузерах */
+.quantity-input::-webkit-outer-spin-button,
+.quantity-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.quantity-input[type="number"] {
+  -moz-appearance: textfield; /* Firefox */
+}
+
+
+.quantity-input {
+  width: 50px;
+  padding: 5px;
+  text-align: center;
+  font-size: 16px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+
+/*=========================================================
+	03 -> Navigation
+===========================================================*/
+
+#navigation {
+  background: #FFF;
+  border-bottom: 2px solid #E4E7ED;
+  border-top: 3px solid #D10024;
+}
+
+/*----------------------------*\
+	Main nav
+\*----------------------------*/
+
+.main-nav>li+li {
+  margin-left: 30px
+}
+
+.main-nav>li>a {
+  padding: 20px 0px;
+}
+
+.main-nav>li>a:hover, .main-nav>li>a:focus, .main-nav>li.active>a {
+  color: #D10024;
+  background-color: transparent;
+}
+
+.main-nav>li>a:after {
+  content: "";
+  display: block;
+  width: 0%;
+  height: 2px;
+  background-color: #D10024;
+  -webkit-transition: 0.2s all;
+  transition: 0.2s all;
+}
+
+.main-nav>li>a:hover:after, .main-nav>li>a:focus:after, .main-nav>li.active>a:after {
+  width: 100%;
+}
+
+.header-ctn li.nav-toggle {
+  display: none;
+}
+
+
+
+
+
+
+.full-height-row {
+  display: flex;
+    flex-wrap: nowrap; /* важно, чтобы блоки не перенеслись */
+  align-items: stretch; /* чтобы колонки растягивались по высоте */
+}
+
+.row.full-height-row {
+  display: flex;
+  align-items: stretch;
+}
+
+
+
+/* Sidebar */
+.sidebar {
+  flex: 0 0 300px;
+  margin-left: 20px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  border: 1px solid #ccc;
+  /* padding: 15px; */
+  padding: 20px 15px; /* Так же как у shop-collection-section */
+  border-radius: 8px;
+  background: #fff;
+}
+
+/*-- Price Filter --*/
+
+#price-slider {
+  margin-bottom: 15px;
+}
+
+.noUi-target {
+  background-color: #FFF;
+  -webkit-box-shadow: none;
+  box-shadow: none;
+  border: 1px solid #E4E7ED;
+  border-radius: 0px;
+}
+
+.noUi-connect {
+  background-color: #D10024;
+}
+
+.noUi-horizontal {
+  height: 6px;
+}
+
+.noUi-horizontal .noUi-handle {
+  width: 12px;
+  height: 12px;
+  left: -6px;
+  top: -4px;
+  border: none;
+  background: #D10024;
+  -webkit-box-shadow: none;
+  box-shadow: none;
+  border-radius: 50%;
+}
+
+.noUi-handle:before, .noUi-handle:after {
+  display: none;
+}
+
+
+
+/*----------------------------*\
+	Store
+\*----------------------------*/
+
+/*=========================================================
+	09 -> CHECKOUT PAGE
+===========================================================*/
+
+.item-price {
+  font-weight: 600;
+  font-size: 16px;
+  color: #333;
+}
+
+
+.quantity-input {
+  width: 60px;
+  padding: 5px;
+}
+
+
+.quantity-input {
+  border: 1px solid #ccc;
+  padding: 5px;
+  font-size: 14px;
+  margin-left: 10px;
+
+  
+}
+
+/*=========================================================
+	12 -> SLICK STYLE
+===========================================================*/
+
+/*----------------------------*\
+	Arrows
+\*----------------------------*/
+
+
+/*----------------------------*\
+	Dots
+\*----------------------------*/
+
+.slick-dots li, .slick-dots li button, .slick-dots li button:before {
+  width: 10px;
+  height: 10px;
+}
+
+.slick-dots li button:before {
+  content: "";
+  opacity: 1;
+  background: #E4E7ED;
+  border-radius: 50%;
+}
+
+.slick-dots li.slick-active button:before {
+  background-color: #D10024;
+}
+
+.custom-dots .slick-dots {
+  position: static;
+  margin: 15px 0px;
+}
+
+/*=========================================================
+	13 -> RESPONSIVE
+===========================================================*/
+
+@media only screen and (max-width: 1201px) {}
+
+@media only screen and (max-width: 991px) {
+  #top-header .header-links.pull-left {
+    float: none !important;
+  }
+  #top-header .header-links.pull-right {
+    float: none !important;
+    margin-top: 5px;
+  }
+  .header-logo {
+    float: none;
+    text-align: center;
+  }
+  .header-logo .logo {
+    display: inline-block;
+  }
+
+
+  #rating {
+    text-align: center;
+  }
+  #reviews {
+    margin-top: 30px;
+    margin-bottom: 30px;
+  }
+}
+
+@media only screen and (max-width: 767px) {
+  .section-title .section-nav {
+    float: none;
+    margin-top: 10px;
+  }
+  .section-tab-nav li {
+    margin-top: 10px;
+  }
+}
+
+@media only screen and (max-width: 480px) {
+  [class*='col-xs'] {
+    width: 100%;
+  }
+  .store-grid {
+    float: none;
+    margin-top: 10px;
+  }
+  .store-pagination {
+    float: none;
+    margin-top: 10px;
+  }
+}
+
+
+
+/* OTHER */
+
+/* Для маленьких экранов (например, мобильных) */
+@media (max-width: 768px) {
+  #store .col-xs-6 {
+      flex: 0 0 48%; /* Две колонки в ряду на экранах до 768px */
+      max-width: 48%;
+      margin-bottom: 20px;
+  }
+}
+
+/* Для очень маленьких экранов (мобильные телефоны) */
+@media (max-width: 480px) {
+  #store .col-xs-6 {
+      flex: 0 0 100%; /* Одна колонка в ряду для мобильных устройств */
+      max-width: 100%;
+  }
+}
+
+
+/*----------------------------*\
+	responsive nav
+\*----------------------------*/
+
+@media only screen and (max-width: 991px) {
+  .header-ctn .menu-toggle {
+    display: inline-block;
+  }
+    .menu-toggle {
+    display: inline-block;
+    cursor: pointer;
+  }
+  #responsive-nav {
+    position: fixed;
+    left: 0;
+    top: 0;
+    background: #15161D;
+    height: 100vh;
+    max-width: 250px;
+    width: 0%;
+    /* overflow: hidden; */
+      overflow-y: auto;
+  overflow-x: hidden;
+    z-index: 22;
+    padding-top: 60px;
+    -webkit-transform: translateX(-100%);
+    -ms-transform: translateX(-100%);
+    transform: translateX(-100%);
+    -webkit-transition: 0.2s all;
+    transition: 0.2s all;
+    color: #190303;
+    font-size: 14px;
+  }
+  #responsive-nav.active {
+    -webkit-transform: translateX(0%);
+    -ms-transform: translateX(0%);
+    transform: translateX(0%);
+    width: 100%;
+  }
+
+  #responsive-nav .menu-content {
+  flex: 1 1 auto;
+  overflow-y: auto;  /* прокрутка именно здесь */
+  padding: 0 15px 15px 15px;
+}
+
+/* Блок с кнопками фиксируем снизу */
+#responsive-nav .sidebar-auth-section {
+  padding: 15px;
+  border-top: 1px solid #333;
+  background: #15161D;
+  flex-shrink: 0; /* чтобы не сжимался */
+  display: flex;
+  justify-content: space-between;
+}
+  .main-nav {
+    margin: 0px;
+    float: none;
+  }
+  .main-nav>li {
+    display: block;
+    float: none;
+  }
+  .main-nav>li+li {
+    margin-left: 0px;
+  }
+  .main-nav>li>a {
+    padding: 15px;
+    color: #FFF;
+  }
+
+    #responsive-nav .main-nav > li > a {
+    padding: 15px;
+    color: #fff;
+    display: block;
+    text-decoration: none;
+  }
+
+  #responsive-nav .main-nav > li > a:hover {
+    background: #333;
+    color: #00bfff;
+  }
+
+  /* Новый блок информации в меню */
+  #responsive-nav .sidebar-info-section {
+    padding: 15px;
+    color: #fff;
+    font-size: 14px;
+  }
+
+    #responsive-nav .sidebar-info-section h4 {
+    margin-top: 20px;
+    margin-bottom: 8px;
+    font-weight: 600;
+  }
+
+  #responsive-nav .sidebar-info-section p {
+    margin-bottom: 8px;
+    line-height: 1.4;
+  
+  opacity: 1 !important;
+  }
+
+  #responsive-nav .sidebar-info-section a {
+    color: #00bfff;
+    text-decoration: none;
+  }
+
+  #responsive-nav .sidebar-info-section a:hover {
+    text-decoration: underline;
+  }
+
+  /* Отступы для блоков */
+  #responsive-nav .info-block {
+    margin-bottom: 15px;
+    color: #0d0101 !important;
+  }
+}
+
+
+@media (min-width: 992px) {
+  #responsive-nav .sidebar-info-section {
+    display: none;
+  }
+}
+
+/* На мобильных — показываем */
+@media (max-width: 991px) {
+  #responsive-nav .sidebar-info-section {
+    display: block;
+  }
+}
+
+
+@media (max-width: 768px) {
+  .container {
+    padding: 0 10px;
+    max-width: 100%; 
+  }
+
+  .section-title .title {
+    font-size: 20px;
+    text-align: center;
+  }
+
+  .section-title .section-nav {
+    float: none;
+    text-align: center;
+    margin-top: 10px;
+  }
+
+  .section-tab-nav li {
+    margin: 5px;
+  }
+}
+

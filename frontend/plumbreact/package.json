@@ -1,0 +1,103 @@
+{
+  "name": "plumbreact",
+  "version": "0.1.0",
+  "private": true,
+  "homepage": "/",
+  "dependencies": {
+    "@fingerprintjs/fingerprintjs": "^4.6.2",
+    "@testing-library/jest-dom": "^5.14.1",
+    "@testing-library/react": "^12.1.5",
+    "@testing-library/user-event": "^13.2.1",
+    "@types/jest": "^27.0.1",
+    "@types/node": "^16.7.13",
+    "antd": "4.16.13",
+    "availity-reactstrap-validation": "2.6.0",
+    "axios": "^0.25.0",
+    "bootstrap": "3.3.7",
+    "chalk": "2.4.1",
+    "chart.js": "^2.8.0",
+    "css-loader": "^6.7.1",
+    "font-awesome": "^4.7.0",
+    "jquery": "^3.6.0",
+    "lodash": "^4.17.21",
+    "popper.js": "^1.16.1",
+    "react": "18.2.0",
+    "react-bootstrap": "^2.2.1",
+    "react-chartjs": "^1.2.0",
+    "react-chartjs-2": "^2.7.6",
+    "react-ckeditor-component": "^1.1.0",
+    "react-countup": "^4.2.0",
+    "react-data-grid": "^6.1.0",
+    "react-datepicker": "^2.8.0",
+    "react-dom": "^18.2.0",
+    "react-dropzone": "^10.1.6",
+    "react-dropzone-uploader": "^2.10.1",
+    "react-feather": "^2.0.3",
+    "react-fontawesome": "^1.6.1",
+    "react-google-charts": "^3.0.14",
+    "react-helmet": "^6.1.0",
+    "react-icons": "^5.5.0",
+    "react-images-upload": "^1.2.7",
+    "react-redux": "^7.1.0",
+    "react-responsive-modal": "^4.0.1",
+    "react-router-dom": "^5.3.4",
+    "react-router-scroll-4": "^1.0.0-beta.2",
+    "react-scripts": "5.0.0",
+    "react-slick": "^0.24.0",
+    "react-smart-data-table": "^0.7.1",
+    "react-star-rating-component": "^1.4.1",
+    "react-table": "^6.10.0",
+    "react-tabs": "^3.0.0",
+    "react-toastify": "^5.3.2",
+    "reactstrap": "^9.0.1",
+    "slick-carousel": "^1.8.1",
+    "style-loader": "^3.3.1",
+    "typescript": "^4.4.2",
+    "ua-parser-js": "^2.0.4",
+    "web-vitals": "^2.1.0"
+  },
+  "scripts": {
+    "start": "react-scripts start --host 0.0.0.0",
+    "build": "react-scripts build",
+    "test": "react-scripts test",
+    "eject": "react-scripts eject"
+  },
+  "eslintConfig": {
+    "extends": [
+      "react-app",
+      "react-app/jest"
+    ]
+  },
+  "reactSnap": {
+    "include": [
+      "/",
+      "/category/",
+      "/products/",
+      "/login",
+      "/register"
+    ],
+    "exclude": [
+      "/account/*",
+      "/checkout/*"
+    ],
+    "inlineCss": true,
+    "puppeteerArgs": [
+      "--no-sandbox"
+    ]
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  },
+  "devDependencies": {
+    "react-snap": "^1.23.0"
+  }
+}

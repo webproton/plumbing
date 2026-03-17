@@ -1,0 +1,65 @@
+{% extends "admin/change_list.html" %}
+{% load static %}
+
+{% block content %}
+<h2>Статистика телеметрии</h2>
+
+<canvas id="eventTypeChart" width="400" height="200"></canvas>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+const ctx1 = document.getElementById('eventTypeChart').getContext('2d');
+const data = {
+    event_counts: {{ event_counts|safe }}
+};
+
+const eventTypeChart = new Chart(ctx1, {
+    type: 'bar',
+    data: {
+        labels: data.event_counts.map(e => e.event_type),
+        datasets: [{
+            label: 'Количество событий',
+            data: data.event_counts.map(e => e.count),
+            backgroundColor: data.event_counts.map(e => e.color),
+            borderColor: data.event_counts.map(e => e.color.replace('0.7','1')),
+            borderWidth: 1
+        }]
+    },
+    options: {
+        responsive: true,
+        plugins: {
+            legend: { display: false },
+            tooltip: { mode: 'index', intersect: false }
+        }
+    }
+});
+</script>
+
+<h3>Последние события</h3>
+<table style="width:100%; border-collapse: collapse; margin-top: 10px;">
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Тип</th>
+            <th>Пользователь</th>
+            <th>Устройство</th>
+            <th>Страна</th>
+            <th>Время</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for event in latest_events %}
+        <tr>
+            <td>{{ event.id }}</td>
+            <td>{{ event.event_type }}</td>
+            <td>{{ event.user }}</td>
+            <td>{{ event.device_type }}</td>
+            <td>{{ event.country }}</td>
+            <td>{{ event.created_at }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+{{ block.super }}
+{% endblock %}

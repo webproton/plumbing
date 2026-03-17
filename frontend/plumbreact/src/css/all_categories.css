@@ -1,0 +1,96 @@
+.all-categories-wrapper {
+  margin-top: 40px; /* или 60px — подбери визуально */
+  margin-bottom: 60px;
+}
+
+.all-categories-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  justify-content: flex-start;
+}
+
+.all-categories-item {
+  flex: 0 1 calc(20% - 20px); /* 5 в ряд при ширине >1200px */
+  max-width: calc(20% - 20px);
+  background-color: #fff;
+  border-radius: 6px;
+  box-shadow: 0px 0px 1px 1px #E4E7ED;
+  padding: 10px;
+  text-align: center;
+  transition: box-shadow 0.2s ease;
+}
+
+.all-categories-item:hover {
+  box-shadow: 0 0 5px 1px #D10024;
+}
+
+.all-categories-item img {
+  max-width: 100%;
+  height: 150px;
+  object-fit: contain;
+  margin-bottom: 10px;
+}
+
+@media (max-width: 768px) {
+  .all-categories-grid {
+    display: flex;       /* оставляем flex */
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 15px;
+  }
+
+  .all-categories-item h5 {
+    font-size: 0.9rem;
+  }
+
+    .all-categories-item {
+    flex: 0 1 calc(30% - 5px); /* 5 карточек в ряд с учетом gap */
+    max-width: calc(30% - 5px);
+    aspect-ratio: 1 / 1;        /* квадрат */
+    padding: 5px;
+    display: flex;
+    flex-direction: column;
+    background-color: #fff;
+    border-radius: 6px;
+    box-shadow: 0 0 1px 1px #E4E7ED;
+    overflow: hidden;
+  }
+
+  .all-categories-item img {
+    width: 100%;
+    height: auto;
+    flex-grow: 1;
+    object-fit: cover;
+    margin-bottom: 10px;
+    border-radius: 6px;
+  }
+
+.all-categories-item h5 {
+  font-size: 0.9rem;
+  white-space: normal;      /* чтобы заголовок переносился */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin: 0;
+  flex-shrink: 0;           /* не сжимать заголовок */
+  line-height: 1.2em;
+  max-height: 2.4em; 
+}
+}
+
+@media (max-width: 480px) {
+  .all-categories-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+    padding: 0 10px;
+  }
+
+  .all-categories-item {
+    padding: 8px;
+  }
+
+  .all-categories-item h5 {
+    font-size: 0.85rem;
+  }
+}

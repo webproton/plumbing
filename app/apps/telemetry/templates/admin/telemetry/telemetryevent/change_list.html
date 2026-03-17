@@ -1,0 +1,174 @@
+{% extends "admin/change_list.html" %}
+{% load static %}
+
+{% block content %}
+{{ block.super }}
+
+<h2>📊 Дашборд телеметрии</h2>
+
+<!-- Фильтр по дате -->
+<div style="margin-bottom: 20px;">
+    <label>С:</label>
+    <input type="date" id="startDate">
+    <label>По:</label>
+    <input type="date" id="endDate">
+    <button id="updateCharts" class="button">Обновить</button>
+</div>
+
+<!-- Графики -->
+<div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap:40px; margin-bottom: 40px;">
+    <div>
+        <h3>Распределение событий по типам</h3>
+        <canvas id="eventTypePie"></canvas>
+    </div>
+    <div>
+        <h3>Динамика событий по дням</h3>
+        <canvas id="eventTimelineChart"></canvas>
+    </div>
+    <div>
+        <h3>События по устройствам/странам</h3>
+        <canvas id="deviceCountryChart"></canvas>
+    </div>
+</div>
+
+<!-- Топ-10 пользователей -->
+<h3>Топ-10 пользователей по активности</h3>
+<table class="adminlist" style="width:50%; border-collapse: collapse; margin-bottom:40px;">
+    <thead>
+        <tr>
+            <th>Пользователь</th>
+            <th>Количество событий</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for u in top_users %}
+        <tr>
+            <td>{{ u.user__email }}</td>
+            <td>{{ u.count }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<!-- Последние события -->
+<h3>Последние события</h3>
+<table class="adminlist" style="width:100%; border-collapse: collapse;">
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Тип</th>
+            <th>Пользователь</th>
+            <th>Устройство</th>
+            <th>Страна</th>
+            <th>Время</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for event in latest_events %}
+        <tr>
+            <td>{{ event.id }}</td>
+            <td>{{ event.event_type }}</td>
+            <td>{{ event.user }}</td>
+            <td>{{ event.device_type }}</td>
+            <td>{{ event.country }}</td>
+            <td>{{ event.created_at|date:"Y-m-d H:i:s" }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+let eventTypePie, eventTimelineChart, deviceCountryChart;
+
+// Загрузка данных
+async function loadChartData(start, end) {
+    const url = new URL(window.location.href);
+    if (start) url.searchParams.set("start_date", start);
+    if (end) url.searchParams.set("end_date", end);
+
+    const response = await fetch(url, {
+        headers: {'X-Requested-With': 'XMLHttpRequest'}
+    });
+    return response.json();
+}
+
+// Инициализация графиков
+function initCharts(data) {
+    const ctxPie = document.getElementById('eventTypePie').getContext('2d');
+    const ctxTimeline = document.getElementById('eventTimelineChart').getContext('2d');
+    const ctxBar = document.getElementById('deviceCountryChart').getContext('2d');
+
+    if (eventTypePie) eventTypePie.destroy();
+    if (eventTimelineChart) eventTimelineChart.destroy();
+    if (deviceCountryChart) deviceCountryChart.destroy();
+
+    // Pie chart
+    eventTypePie = new Chart(ctxPie, {
+        type: 'pie',
+        data: {
+            labels: data.event_counts.map(e => e.event_type),
+            datasets: [{
+                data: data.event_counts.map(e => e.count),
+                backgroundColor: data.event_counts.map(e => e.color || 'rgba(54, 162, 235, 0.5)')
+            }]
+        }
+    });
+
+    // Line chart (по дням)
+    eventTimelineChart = new Chart(ctxTimeline, {
+        type: 'line',
+        data: {
+            labels: data.timeline.map(e => e.date),
+            datasets: [{
+                label: 'Количество событий',
+                data: data.timeline.map(e => e.count),
+                fill: false,
+                borderColor: 'rgba(75, 192, 192, 1)',
+                tension: 0.2
+            }]
+        },
+        options: {
+            scales: {
+                y: { beginAtZero: true }
+            }
+        }
+    });
+
+    // Bar chart (устройство/страна)
+    deviceCountryChart = new Chart(ctxBar, {
+        type: 'bar',
+        data: {
+            labels: data.device_country_counts.map(e => e.label),
+            datasets: [{
+                label: 'Количество событий',
+                data: data.device_country_counts.map(e => e.count),
+                backgroundColor: 'rgba(255, 99, 132, 0.5)',
+                borderColor: 'rgba(255, 99, 132, 1)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: { legend: { display: false } },
+            scales: { y: { beginAtZero: true } }
+        }
+    });
+}
+
+// Обновление по кнопке
+document.getElementById('updateCharts').addEventListener('click', async () => {
+    const start = document.getElementById('startDate').value;
+    const end = document.getElementById('endDate').value;
+    const data = await loadChartData(start, end);
+    initCharts(data);
+});
+
+// Первичная загрузка
+document.addEventListener('DOMContentLoaded', async () => {
+    const data = await loadChartData();
+    initCharts(data);
+});
+</script>
+{% endblock %}

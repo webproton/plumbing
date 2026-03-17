@@ -1,0 +1,175 @@
+/* Общий стиль кнопок */
+.new-products-wrapper .product-btns button {
+  width: 40px;
+  height: 40px;
+  border: 1px solid #ddd;
+  border-radius: 50%;
+  background: #fff;
+  color: #333;
+  font-size: 16px;
+  cursor: pointer;
+  margin-right: 8px;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.new-products-wrapper .product-btns button:hover {
+  background: #D10024;
+  color: #fff;
+  border-color: #D10024;
+}
+
+/* Чтобы все три кнопки выглядели одинаково */
+.add-to-wishlist,
+.add-to-compare,
+.add-to-cart-btn {
+ composes: product-btns button;
+}
+
+/* Контейнер кнопок */
+.product-btns {
+  display: flex;
+  align-items: center;
+  margin-top: 10px;
+}
+
+/* Попап "Добавлено" */
+.cart-popup {
+  position: absolute;
+  background: #d10024;
+  color: #fff;
+  padding: 5px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  pointer-events: none;
+  z-index: 999;
+  margin-top: 5px;
+}
+
+.btn-wrapper {
+  position: relative;
+  display: inline-block;
+}
+
+/* Анимация исчезновения */
+@keyframes fadeOut {
+  0% { opacity: 1; }
+  70% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+
+.new-products-wrapper {
+  width: 100%;
+  /* overflow-x: hidden;
+   */
+    overflow: visible; /* вместо overflow-x: hidden */
+  padding: 15px;
+  margin-top: 30px;
+
+}
+
+
+.new_products {
+  width: 87%;
+}
+
+.row.equal-height {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  margin-left: -15px;  /* стандартный bootstrap reset */
+  margin-right: -15px;
+}
+
+.row.equal-height > [class*="col-"] {
+  display: flex; /* тянем карточку на всю высоту */
+  padding-left: 15px;
+  padding-right: 15px;
+  margin-bottom: 20px; /* отступ между рядами */
+}
+
+
+
+.product {
+    flex: 1;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid #eee;
+  margin-bottom: 20px;
+  background: #fff;
+  height: 100%; /* карточка растягивается на всю высоту колонки */
+}
+
+.new-products-inner {
+  width: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+.new-products-section {
+  padding-top: 0;
+  padding-bottom: 0;
+  overflow: visible;
+  position: relative;
+  z-index: 1;
+}
+
+.section-title {
+  position: relative;
+  margin-bottom: 30px;
+  margin-top: 15px;
+}
+
+.section-title .title {
+  display: inline-block;
+  text-transform: uppercase;
+  margin: 0px;
+}
+
+.section-title .section-nav {
+  float: right;
+}
+
+.section-title .section-nav .section-tab-nav {
+  display: inline-block;
+}
+
+.section-tab-nav li {
+  display: inline-block;
+  margin-right: 15px;
+}
+
+.section-tab-nav li:last-child {
+  margin-right: 0px;
+}
+
+.section-tab-nav li a {
+  font-weight: 700;
+  color: #8D99AE;
+}
+
+.section-tab-nav li a:after {
+  content: "";
+  display: block;
+  width: 0%;
+  height: 2px;
+  background-color: #D10024;
+  -webkit-transition: 0.2s all;
+  transition: 0.2s all;
+}
+
+.section-tab-nav li.active a {
+  color: #D10024;
+}
+
+.section-tab-nav li a:hover:after, .section-tab-nav li a:focus:after, .section-tab-nav li.active a:after {
+  width: 100%;
+}
+
+.section-title .section-nav .products-slick-nav {
+  top: 0px;
+  right: 0px;
+}

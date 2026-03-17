@@ -1,0 +1,60 @@
+.category-sidebar-container {
+  margin-bottom: 100px;
+  /* убираем границы и фон, чтобы не было рамки вокруг категорий */
+  border: none;
+  background: none;
+  padding: 0;
+}
+
+
+
+/* Заголовок категории */
+.sidebar-title {
+  font-weight: 700;
+  margin-bottom: 20px;
+  font-size: 20px;
+
+  border-bottom: 1px solid #ddd;
+  padding-bottom: 5px;
+}
+
+.category-list {
+  display: flex;
+  flex-direction: column;
+  margin: 15px 20px 44px 20px; /* уменьшил боковые отступы */
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: 0px 0px 1px 1px #E4E7ED;
+  padding: 25px 20px;
+  border-radius: 6px;
+  background-color: #fff;
+  width: 100%; /* делает блок широким в рамках колонки */
+}
+
+
+
+.category-list-products-links {
+  padding: 14px 0;
+  line-height: 5px;
+  border-bottom: 1px solid #eee;
+  margin-bottom: 8px;
+}
+
+
+.category-link {
+  text-decoration: none;
+  color: #444;
+  font-size: 16px;
+  font-weight: 500;
+  transition: color 0.2s ease;
+}
+
+.category-link:hover {
+  color: #007bff;
+    text-decoration: underline;
+}
+
+
+.category-list-products-links:last-child {
+  border-bottom: none;
+}

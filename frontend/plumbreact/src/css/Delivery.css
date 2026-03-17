@@ -1,0 +1,133 @@
+/* Delivery.css */
+
+.delivery-page {
+  max-width: 1000px;
+  margin: 40px auto;
+  padding: 20px;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+  font-family: Arial, sans-serif;
+  color: #333;
+}
+
+.delivery-page h2 {
+  font-size: 28px;
+  margin-bottom: 20px;
+  color: #D10024;
+  text-align: center;
+}
+
+.delivery-page p {
+  font-size: 16px;
+  line-height: 1.6;
+  margin-bottom: 25px;
+}
+
+.delivery-page .info-blocks {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.delivery-page .info-block {
+  background: #f9f9f9;
+  padding: 20px;
+  border-left: 5px solid #D10024;
+  border-radius: 5px;
+}
+
+.delivery-page .info-block h4 {
+  font-size: 20px;
+  margin-bottom: 10px;
+  color: #15161D;
+}
+
+.delivery-page .info-block p {
+  font-size: 15px;
+  line-height: 1.5;
+  color: #555;
+}
+
+/* Таблички */
+.delivery-page .delivery-table {
+  background: #fff5f5;
+  border: 1px solid #D10024;
+  padding: 20px;
+  margin-top: 30px;
+  border-radius: 6px;
+}
+
+.delivery-page .delivery-table h4 {
+  color: #D10024;
+  margin-bottom: 10px;
+}
+
+.delivery-page .delivery-table p,
+.delivery-page .delivery-table li {
+  font-size: 15px;
+  line-height: 1.6;
+  margin-bottom: 10px;
+}
+
+.delivery-page ul {
+  padding-left: 20px;
+}
+
+/* ==============================
+   Адаптивность для мобильных
+   ============================== */
+@media (max-width: 768px) {
+  .delivery-page {
+    margin: 20px;
+    padding: 15px;
+  }
+
+  .delivery-page h2 {
+    font-size: 24px;
+  }
+
+  .delivery-page p,
+  .delivery-page .info-block p,
+  .delivery-page .delivery-table p,
+  .delivery-page .delivery-table li {
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  .delivery-page .info-block {
+    padding: 15px;
+  }
+
+  .delivery-page .delivery-table {
+    padding: 15px;
+    font-size: 14px;
+  }
+}
+
+@media (max-width: 480px) {
+  .delivery-page {
+    margin: 10px;
+    padding: 10px;
+  }
+
+  .delivery-page h2 {
+    font-size: 20px;
+  }
+
+  .delivery-page .info-block h4,
+  .delivery-page .delivery-table h4 {
+    font-size: 18px;
+  }
+
+  .delivery-page p,
+  .delivery-page .info-block p,
+  .delivery-page .delivery-table p,
+  .delivery-page .delivery-table li {
+    font-size: 13px;
+  }
+
+  .delivery-page ul {
+    padding-left: 15px;
+  }
+}

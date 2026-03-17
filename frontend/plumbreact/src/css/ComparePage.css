@@ -1,0 +1,201 @@
+.compare-remove-desktop {
+  background: transparent;
+  border: 1px solid #ccc;
+  color: #d10024;
+  padding: 4px 6px;
+  border-radius: 50%;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  line-height: 1;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.compare-remove-desktop:hover {
+  background: #d10024;
+  color: #fff;
+  border-color: #d10024;
+}
+
+
+
+.compare-table {
+  overflow-x: auto; /* если таблица будет слишком широкой, будет прокрутка */
+  margin-top: 20px;
+}
+
+
+
+.compare-table td {
+  white-space: pre-wrap; /* переносим по символам перевода строки */
+}
+
+.compare-table th,
+.compare-table td {
+  white-space: pre-wrap; /* перенос по пробелам и символам перевода строки */
+  word-break: normal; /* не ломаем слова */
+  overflow-wrap: break-word; /* перенос длинных слов */
+  word-wrap: break-word; /* для старых браузеров */
+  max-width: 200px; /* ограничение ширины ячейки */
+  vertical-align: top;
+  padding: 8px 10px;
+  text-align: left;
+  border-bottom: 1px solid #ddd;
+}
+
+.compare-table th {
+  background-color: #f7f7f7;
+  font-weight: 600;
+}
+
+
+.compare-table td a {
+  display: inline;               /* ссылка ведет себя как обычный текст */
+  word-break: break-word;
+  white-space: normal;
+}
+
+.compare-table td img {
+  max-width: 60px;
+  max-height: 60px;
+  display: block;
+  margin: auto;
+  border-radius: 4px;
+}
+
+
+.compare-table button {
+  background: #130505;
+  border: none;
+  color: white;
+  padding: 6px 10px;
+  font-size: 16px;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background 0.3s ease;
+}
+
+.compare-table button:hover {
+  background: #d9363e;
+}
+
+/* Можно задать конкретную ширину для важных колонок */
+.compare-table th:nth-child(1),
+.compare-table td:nth-child(1) {
+  width: 70px; /* фото */
+}
+
+.compare-table th:nth-child(2),
+.compare-table td:nth-child(2) {
+  width: 180px; /* название */
+}
+
+.compare-table th:nth-child(3),
+.compare-table td:nth-child(3) {
+  width: 80px; /* цена */
+}
+
+
+/* Wishlist и Compare общие стили */
+.wishlist-btn,
+.compare-btn {
+  background: none;
+  border: none;
+  color: #d10024;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 0;
+  font-size: 14px;
+  display: inline-flex;
+  align-items: center;
+}
+
+.wishlist-btn:hover,
+.compare-btn:hover {
+  text-decoration: underline;
+}
+
+
+
+
+/* Скрываем или показываем блоки в зависимости от экрана */
+.desktop-only {
+  display: block;
+}
+
+.mobile-only {
+  display: none;
+}
+@media (max-width: 768px) {
+
+  .compare-mobile {
+    margin-top: 1rem;
+    overflow-x: auto;
+  }
+
+  .desktop-only {
+    display: none;
+  }
+
+  .mobile-only {
+    display: block;
+  }
+
+
+
+    .compare-scroll {
+    display: flex;
+    gap: 12px;
+    overflow-x: auto;
+    padding-bottom: 10px;
+  }
+
+
+  .compare-card {
+    flex: 0 0 180px; /* ширина карточки — можно уменьшить ещё */
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    padding: 10px;
+    background: #fff;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    font-size: 13px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+  }
+
+  .compare-photo {
+    width: 100%;
+    height: auto;
+    border-radius: 4px;
+    margin-bottom: 8px;
+  }
+
+ .compare-info {
+    margin-bottom: 4px;
+    word-break: break-word;
+  }
+
+  .compare-remove-btn {
+    margin-top: auto;
+    background: #060001;
+    color: white;
+    border: none;
+    padding: 6px 8px;
+    border-radius: 4px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: background 0.3s ease;
+  }
+
+   .compare-remove-btn:hover {
+    background: #a8001d;
+  }
+
+}
+
+

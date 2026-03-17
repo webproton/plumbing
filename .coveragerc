@@ -1,0 +1,20 @@
+[run]
+
+omit = /myvenv/,
+        *myvenv*,
+        *config*,
+        *__init__.py*,
+        *migration*,
+        *test*,
+        *apps.py,
+        *migrations/*.py,
+        *settings*.py,
+        *tests/*.py,
+        *urls.py,
+        *wsgi.py,
+        *asgi.py,
+        *test.py,
+        manage.py
+[report]
+fail_under = 95
+precision = 2

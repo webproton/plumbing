@@ -1,0 +1,251 @@
+/* === AccountDashboard Sidebar === */
+
+/* style={{ display: "flex", padding: "2rem", maxWidth: "1200px", margin: "0 auto" }} */
+
+.wishlist-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr); 
+  gap: 12px;
+  justify-content: stretch;
+  margin: 0 auto;
+}
+
+.product-card {
+  width: 100%;           
+  aspect-ratio: 311 / 275; 
+  box-sizing: border-box;
+  background: #fff;
+  border-radius: 6px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+}
+
+
+.account-container {
+  display: flex;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem;
+  box-sizing: border-box;
+}
+.account-sidebar {
+  width: 250px;
+  border-right: 2px solid #eee;
+  padding-right: 1rem;
+}
+
+.account-sidebar h3 {
+  margin-bottom: 1.5rem;
+  color: #D10024;
+}
+
+.account-sidebar ul {
+  list-style: none;
+  padding: 0;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.account-sidebar li {
+  margin-bottom: 1rem;
+}
+
+.account-sidebar a {
+  color: #333;
+  text-decoration: none;
+}
+
+.account-sidebar a i {
+  margin-right: 8px;
+}
+
+.account-sidebar .active-link {
+  color: #D10024;
+  font-weight: bold;
+}
+
+.account-sidebar ul li {
+  margin-bottom: 1rem;
+}
+
+.account-sidebar ul li a {
+  color: #2B2D42;
+  font-weight: 500;
+  transition: color 0.2s;
+}
+
+.account-sidebar ul li a:hover {
+  color: #D10024;
+}
+
+
+.active-link {
+  color: #D10024;
+  font-weight: bold;
+}
+
+
+
+.link-btn {
+  background: none;
+  border: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  padding: 0;
+  text-align: left;
+}
+
+
+
+
+
+
+.modal-content {
+  background: #fff;
+  padding: 2rem;
+  border-radius: 10px;
+  width: 95%;
+  max-width: 800px;  /* шире */
+  max-height: 80vh;
+  overflow-y: auto;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  
+}
+
+
+.close-btn {
+  position: absolute;
+  top: 10px;
+  right: 15px;
+  background: transparent;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+}
+
+
+
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+
+
+/* Стили для кнопки-бургера */
+.sidebar-toggle-btn {
+  display: none; /* по умолчанию скрываем */
+  position: fixed;
+  top: 1rem;
+  left: 1rem;
+  z-index: 150;
+  background: #D10024;
+  border: none;
+  color: white;
+  font-size: 1.8rem;
+  padding: 0.4rem 0.8rem;
+  border-radius: 6px;
+  cursor: pointer;
+}
+/* * Контент справа */
+.account-content {
+  flex: 1;
+  padding: 1rem;       /* Внутренний отступ, чтобы контент не прилегал к краям */
+  max-width: 100%;    /* Ограничиваем максимальную ширину правой части */
+  box-sizing: border-box;
+  overflow-x: hidden;  /* Чтобы не было горизонтальной прокрутки */
+
+  /* height: calc(100vh - 100px); подогнать под высоту страницы */
+}
+
+.sidebar-toggle-wrapper {
+  position: sticky;
+  top: 100px; /* или сколько нужно по высоте от верха, чтобы быть на уровне карточек */
+  z-index: 300;
+  margin-bottom: 1rem;
+  padding-left: -10rem; /* отступ от края экрана */
+}
+
+/* На мобилках показываем кнопку */
+@media (max-width: 768px) {
+   .sidebar-toggle-btn {
+    position: relative; /* убираем fixed */
+    display: block;
+    background: #d10024;
+    border: none;
+    color: white;
+    font-size: 1.8rem;
+    padding: 0.4rem 0.8rem;
+    border-radius: 6px;
+    cursor: pointer;
+    width: 28px;
+    height: 28px;
+    line-height: 23px;
+    text-align: center;
+  }
+
+    /* .sidebar-toggle-wrapper {
+    position: sticky;
+    top: 100px;
+    left: 0;
+    padding-left: 0.5rem;
+  } */
+
+  .account-sidebar {
+    position: fixed;
+    
+    top: 0;
+    left: 0;
+    height: 100vh;
+    width: 250px;
+    max-width: 80vw;
+    background: white;
+    border-right: 1px solid #eee;
+    padding: 1rem;
+    box-shadow: 2px 0 8px rgba(0,0,0,0.15);
+    transform: translateX(-100%);
+    transition: transform 0.3s ease;
+    z-index: 200;
+  }
+  
+  .account-sidebar.open {
+    transform: translateX(0);
+  }
+  
+  .account-sidebar.closed {
+    transform: translateX(-100%);
+  }
+  
+  /* Чтобы клик по затемнению закрывал меню */
+  .sidebar-overlay {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100vw; height: 100vh;
+    background: rgba(0,0,0,0.3);
+    z-index: 150;
+  }
+
+  /* Скрываем стационарный сайдбар на мобилках */
+  .account-sidebar:not(.open) {
+    pointer-events: none; /* чтоб не кликалось */
+  }
+
+  /* Правый контент растягиваем */
+  .account-content {
+    max-width: 100%;
+    padding-left: 1rem;
+  }
+}
