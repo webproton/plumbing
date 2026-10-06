@@ -1,0 +1,49 @@
+core.py
+
+
+row_text
+safe_float
+clean
+normalize_text
+join_split_sku
+is_numeric_sku
+is_text_sku
+extract_qty (универсальный)
+
+
+detect.py (определение поставщика)
+
+
+def detect_supplier(rows):
+    text = "\n".join([" ".join(map(str, r)) for r in rows]).lower()
+
+    if "аквадом" in text:
+        return "aquadom"
+
+    if "балабанов" in text:
+        return "balabanov"
+
+    return "default"
+
+
+
+грок 
+
+
+warehouse/parsers/
+├── __init__.py
+├── registry.py          # ← Главный реестр
+├── base.py              # ← Базовый класс парсера
+├── core/                # Универсальные утилиты (без бизнес-логики)
+│   ├── __init__.py
+│   ├── text_utils.py
+│   ├── numbers.py
+│   ├── sku.py
+│   └── helpers.py
+├── detectors.py         # ← Улучшенный детектор
+└── suppliers/
+    ├── __init__.py
+    ├── aquadom.py
+    ├── ber.py
+    ├── default.py
+    └── ... (другие поставщики)

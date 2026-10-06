@@ -14,3 +14,4 @@ class TelemetryEventSerializer(serializers.ModelSerializer):
         else:
             validated_data["user"] = None  # или raise serializers.ValidationError("User must be authenticated")
         return super().create(validated_data)
+webproton norm no ne polnuy 

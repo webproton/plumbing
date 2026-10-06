@@ -229,6 +229,8 @@ INSTALLED_APPS = [
     'app.apps.products',
     'app.apps.orders',
     'app.apps.callback',
+    'app.apps.sellers',
+    'app.apps.warehouse',
     # 'app.apps.telemetry',
     'rest_framework_simplejwt',
     # 'django.contrib.sitemaps',

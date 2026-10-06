@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Поиск товара по сканеру</title>
+    <style>
+        body { font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 40px auto; padding: 20px; background: #f0f2f5; color: #333; }
+        .card { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); margin-bottom: 20px; }
+        h2, h3 { margin-top: 0; color: #1e293b; }
+        .form-group { margin-bottom: 20px; }
+        label { display: block; margin-bottom: 8px; font-weight: 600; color: #475569; }
+        input { width: 100%; padding: 14px; border: 2px solid #cbd5e1; border-radius: 8px; box-sizing: border-box; font-size: 18px; transition: all 0.2s; }
+        input:focus { border-color: #3b82f6; outline: none; background: #f8fafc; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15); }
+        
+        /* Переключатель режима */
+        .mode-container { display: flex; align-items: center; justify-content: space-between; margin-bottom: 25px; padding: 12px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0; }
+        .switch { position: relative; display: inline-block; width: 60px; height: 34px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #cbd5e1; transition: .4s; border-radius: 34px; }
+        .slider:before { position: absolute; content: ""; height: 26px; width: 26px; left: 4px; bottom: 4px; background-color: white; transition: .4s; border-radius: 50%; }
+        input:checked + .slider { background-color: #10b981; }
+        input:checked + .slider:before { transform: translateX(26px); }
+        .mode-label { font-weight: bold; color: #1e293b; }
+
+        /* Стили карточек результатов */
+        #log { margin-top: 20px; display: none; }
+        .product-card { display: flex; gap: 20px; background: #fff; border-radius: 10px; border: 1px solid #e2e8f0; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
+        .product-img { width: 120px; height: 120px; object-fit: cover; border-radius: 6px; background: #f1f5f9; border: 1px solid #e2e8f0; }
+        .product-info { flex: 1; }
+        .product-title { font-size: 20px; font-weight: bold; color: #1e293b; margin-bottom: 8px; }
+        .product-meta { font-size: 14px; color: #64748b; margin-bottom: 4px; }
+        .product-price { font-size: 24px; font-weight: 800; color: #2563eb; margin-top: 10px; }
+        
+        .not_found_card { background: #fef3c7; border: 1px solid #fde68a; color: #92400e; padding: 20px; border-radius: 10px; }
+        .error_card { background: #fee2e2; border: 1px solid #fca5a5; color: #991b1b; padding: 20px; border-radius: 10px; }
+        
+        .badge { display: inline-block; padding: 4px 8px; background: #3b82f6; color: white; border-radius: 4px; font-size: 12px; margin-top: 5px; }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <h2>🔍 Поиск товара по сканеру</h2>
+    
+    <div class="mode-container">
+        <span class="mode-label" id="mode_text">📱 Режим: Покупатель (Розничные цены)</span>
+        <label class="switch">
+            <input type="checkbox" id="mode_toggle">
+            <span class="slider"></span>
+        </label>
+    </div>
+    
+    {% csrf_token %}
+
+    <div class="form-group">
+        <label for="query">Сканируйте штрихкод:</label>
+        <input type="text" id="query" placeholder="Пикните сканером сюда..." autofocus autocomplete="off">
+        <span class="badge" id="status_badge">Статус: Ожидание сканирования</span>
+    </div>
+
+    <div id="log"></div>
+</div>
+
+{% include "./product_create_form.html" %}
+
+<script>
+const queryInput = document.getElementById('query');
+    const logDiv = document.getElementById('log');
+    const statusBadge = document.getElementById('status_badge');
+    const modeToggle = document.getElementById('mode_toggle');
+    const modeText = document.getElementById('mode_text');
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+    const createFormContainer = document.getElementById('create_form_container');
+    const formBarcode = document.getElementById('form_barcode');
+
+
+    // --- ЛОГИКА УМНОГО ПОИСКА РОДИТЕЛЬСКОГО ТОВАРА ---
+    const productSearchInput = document.getElementById('product_search');
+    const searchDropdown = document.getElementById('search_results_dropdown');
+    const formProductId = document.getElementById('form_product_id');
+    const btnCreateNewParent = document.getElementById('btn_create_new_parent');
+    const btnCancelCreate = document.getElementById('btn_cancel_create');
+
+    // Закрыть форму по кнопке "Отмена"
+    if (btnCancelCreate) {
+        btnCancelCreate.addEventListener('click', () => {
+            createFormContainer.style.display = 'none';
+            queryInput.focus();
+        });
+    }
+
+    let lastFoundProduct = null;
+    let accumulatedBarcode = ""; 
+
+    // Очищаем скрытый буфер сканера, если пользователь сам кликнул в поле для ручного ввода
+    queryInput.addEventListener('focus', () => {
+        accumulatedBarcode = ""; 
+    });
+    queryInput.addEventListener('click', () => {
+        accumulatedBarcode = ""; 
+    });
+
+    // Переключение режима
+    modeToggle.addEventListener('change', function() {
+        if (this.checked) {
+            modeText.textContent = "🔑 Режим: Хозяин (Полные данные)";
+            modeText.style.color = "#10b981";
+        } else {
+            modeText.textContent = "📱 Режим: Покупатель (Розничные цены)";
+            modeText.style.color = "#1e293b";
+        }
+        if (lastFoundProduct) {
+            renderProductCard(lastFoundProduct);
+        }
+        queryInput.focus();
+    });
+
+    const keyboardMap = {
+        'Digit1': '1', 'Digit2': '2', 'Digit3': '3', 'Digit4': '4', 'Digit5': '5',
+        'Digit6': '6', 'Digit7': '7', 'Digit8': '8', 'Digit9': '9', 'Digit0': '0',
+        'KeyA': 'a', 'KeyB': 'b', 'KeyC': 'c', 'KeyD': 'd', 'KeyE': 'e', 'KeyF': 'f',
+        'KeyG': 'g', 'KeyH': 'h', 'KeyI': 'i', 'KeyJ': 'j', 'KeyK': 'k', 'KeyL': 'l',
+        'KeyM': 'm', 'KeyN': 'n', 'KeyO': 'o', 'KeyP': 'p', 'KeyQ': 'q', 'KeyR': 'r',
+        'KeyS': 's', 'KeyT': 't', 'KeyU': 'u', 'KeyV': 'v', 'KeyW': 'w', 'KeyX': 'x',
+        'KeyY': 'y', 'KeyZ': 'z', 'Minus': '-', 'Equal': '=', 'BracketLeft': '[', 
+        'BracketRight': ']', 'Semicolon': ';', 'Quote': "'", 'Comma': ',', 'Period': '.', 
+        'Slash': '/'
+    };
+
+    function showCustomContent(htmlContent) {
+        logDiv.innerHTML = htmlContent;
+        logDiv.style.display = 'block';
+    }
+
+    function renderProductCard(t) {
+        const isAdminMode = modeToggle.checked;
+        let displayName = t.variant_name || t.product_name || (t.product && t.product.name) || "Без названия";
+        let imgUrl = t.photo || t.banner_url || "https://placehold.co/150?text=Нет+фото"; 
+
+        let brandName = t.brand ? (t.brand.name || t.brand.title || "—") : "—";
+        let colorName = t.color ? (t.color.name || t.color.title || t.color.value || "—") : "—";
+        
+        let sizeStr = "";
+        if (t.dimensions_width || t.dimensions_height || t.dimensions_depth) {
+            sizeStr = `${t.dimensions_width || 0}x${t.dimensions_height || 0}x${t.dimensions_depth || 0} мм`;
+        } else {
+            sizeStr = "Не указаны";
+        }
+
+        if (isAdminMode) {
+            let stockCurrent = t.stock_current !== undefined ? parseFloat(t.stock_current) : 0;
+            let stockTotal = t.stock_total !== undefined ? parseFloat(t.stock_total) : (t.stock ? parseFloat(t.stock) : 0);
+
+            let economicsHtml = "";
+            if (t.cost_price) {
+                let uahCost = parseFloat(t.cost_price);
+                let uahPrice = parseFloat(t.price);
+                let usdCost = t.cost_price_usd ? parseFloat(t.cost_price_usd).toFixed(2) : "—";
+                let usdPrice = t.price_usd ? parseFloat(t.price_usd).toFixed(2) : "—";
+                
+                let profit = uahPrice - uahCost;
+                let markup = uahCost > 0 ? ((profit / uahCost) * 100).toFixed(0) : 0;
+
+                economicsHtml = `
+                    <div class="product-meta" style="font-size: 15px; margin-top: 10px;">
+                        💰 <b>Розничная цена:</b> ${uahPrice.toFixed(2)} грн. | <span style="color: #2563eb;">$${usdPrice}</span>
+                    </div>
+                    <div class="product-meta" style="font-size: 15px; color: #dc2626;">
+                        📉 <b>Себестоимость:</b> ${uahCost.toFixed(4)} грн. | <span style="color: #2563eb;">$${usdCost}</span>
+                    </div>
+                    <div class="product-meta" style="font-size: 14px; color: #10b981; font-weight: bold; margin-bottom: 10px;">
+                        📈 Наценка: ${markup}% (Прибыль: +${profit.toFixed(2)} грн.)
+                    </div>
+                `;
+            } else {
+                economicsHtml = `
+                    <div class="product-meta" style="font-size: 15px; margin-top: 10px;">💰 <b>Розничная цена:</b> ${parseFloat(t.price).toFixed(2)} грн.</div>
+                    <div class="product-meta" style="color: #94a3b8; margin-bottom: 10px;">📉 <b>Себестоимость:</b> не указана</div>
+                `;
+            }
+
+            let supplierHtml = "";
+            if (t.last_supplier) {
+                supplierHtml = `
+                    <div class="product-meta" style="background: #f8fafc; padding: 8px; border-radius: 6px; border: 1px dashed #cbd5e1; margin-top: 10px;">
+                        🚚 <b>Последний поставщик:</b> ${t.last_supplier}<br>
+                        <span style="font-size: 12px; color: #64748b;">(Партия от ${t.last_delivery_date || '—'}, док №${t.last_document_number || '—'})</span>
+                    </div>
+                `;
+            }
+
+            showCustomContent(`
+                <div class="product-card" style="border-left: 5px solid #10b981;">
+                    <img src="${imgUrl}" class="product-img" alt="Товар" onerror="this.src='https://placehold.co/120?text=Нет+фото'">
+                    <div class="product-info">
+                        <div class="product-title">${displayName}</div>
+                        <div class="product-meta"><b>Артикул / Код:</b> <code>${t.code || t.sku || '—'}</code></div>
+                        <div class="product-meta"><b>Штрихкод:</b> ${t.barcode || '—'}</div>
+                        <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 10px 0;">
+                        <div class="product-meta" style="color: #1e293b; font-size: 16px;">📍 <b>На текущем складе:</b> <span style="color: #2563eb; font-weight: bold;">${stockCurrent}</span> шт/м.</div>
+                        <div class="product-meta" style="color: #1e293b; font-size: 16px; margin-bottom: 10px;">🌐 <b>Общий остаток (Сеть):</b> <span style="color: #10b981; font-weight: bold;">${stockTotal}</span> шт/м.</div>
+                        <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 10px 0;">
+                        ${economicsHtml}
+                        ${supplierHtml}
+                    </div>
+                </div>
+            `);
+        } else {
+            let discountBadge = "";
+            if (t.discount && parseInt(t.discount) > 0) {
+                discountBadge = `<span style="background: #ef4444; color: white; padding: 4px 8px; border-radius: 6px; font-size: 14px; font-weight: bold; margin-left: 10px;">-${t.discount}%</span>`;
+            }
+
+            showCustomContent(`
+                <div class="product-card" style="border-left: 5px solid #3b82f6; align-items: center;">
+                    <img src="${imgUrl}" class="product-img" style="width: 160px; height: 160px;" alt="Товар" onerror="this.src='https://placehold.co/160?text=Товар'">
+                    <div class="product-info">
+                        <div class="product-title" style="font-size: 24px; margin-bottom: 12px;">${displayName}</div>
+                        <div class="product-meta" style="font-size: 16px; margin-bottom: 6px;"><b>Производитель:</b> ${brandName}</div>
+                        <div class="product-meta" style="font-size: 16px; margin-bottom: 6px;"><b>Цвет:</b> ${colorName}</div>
+                        <div class="product-meta" style="font-size: 16px; margin-bottom: 6px;"><b>Габариты:</b> ${sizeStr}</div>
+                        <div style="display: flex; align-items: center; margin-top: 15px;">
+                            <div class="product-price" style="font-size: 32px; color: #10b981; margin-top: 0;">${parseFloat(t.price).toFixed(2)} грн.</div>
+                            ${discountBadge}
+                        </div>
+                    </div>
+                </div>
+            `);
+        }
+    }
+
+    queryInput.addEventListener('keydown', function(event) {
+        if (event.key === 'Enter') {
+            event.preventDefault(); 
+
+            // 🔥 ИСПРАВЛЕНО: Если в самом инпуте что-то написано, берем строго значение ИНПУТА (для ручного ввода). 
+            // Буфер сканера используем только если инпут визуально пустой.
+            const scanValue = queryInput.value.trim() || accumulatedBarcode.trim();
+            accumulatedBarcode = ""; 
+            
+            if (!scanValue) return;
+
+            if (createFormContainer) createFormContainer.style.display = 'none';
+
+            statusBadge.textContent = "Ищу в базе...";
+            statusBadge.style.background = "#e67e22";
+
+            const url = '/warehouse/stock-movements/find_by_barcode_or_sku/';
+            
+            fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+                body: JSON.stringify({ query: scanValue, mode: 'admin' }) 
+            })
+            .then(response => response.json().then(data => ({ status: response.status, body: data })))
+            .then(result => {
+                if (result.status === 200) {
+                    lastFoundProduct = result.body;
+                    renderProductCard(lastFoundProduct);
+                } else if (result.status === 404) {
+                    lastFoundProduct = null;
+                    showCustomContent(`
+                        <div class="not_found_card">
+                            <b>❓ Товар не зарегистрирован</b><br>
+                            Этого штрихкода нет в системе: <code>${scanValue}</code>
+                        </div>
+                    `);
+                    
+                    if (createFormContainer && formBarcode) {
+                        formBarcode.value = scanValue;
+                        createFormContainer.style.display = 'block';
+                        document.getElementById('form_product_id').focus();
+                    }
+                } else {
+                    lastFoundProduct = null;
+                    showCustomContent(`<div class="error_card">❌ Ошибка сервера (${result.status})</div>`);
+                }
+            })
+            .catch(error => {
+                console.error(error);
+                showCustomContent('<div class="error_card">💥 Ошибка соединения с Django.</div>');
+            })
+            .finally(() => {
+                queryInput.value = '';
+                // Фокусируемся на поиске только если форма создания НЕ открыта
+                if (!createFormContainer || createFormContainer.style.display !== 'block') {
+                    queryInput.focus();
+                }
+                statusBadge.textContent = "Статус: Ожидание сканирования";
+                statusBadge.style.background = "#3b82f6";
+            });
+            return;
+        }
+
+        if (keyboardMap[event.code]) {
+            let char = keyboardMap[event.code];
+            if (event.shiftKey) char = char.toUpperCase();
+            accumulatedBarcode += char;
+        }
+    });
+
+
+
+    // Кнопка "Создать новый родительский продукт"
+    if (btnCreateNewParent) {
+            btnCreateNewParent.addEventListener('click', () => {
+                formProductId.value = ""; // Очищаем ID, бэкенд сделает всё сам
+                productSearchInput.value = "🆕 Создастся автоматически вместе с модификацией";
+                productSearchInput.style.background = "#ecfdf5";
+            });
+        }
+
+    // Живой поиск при вводе текста в инпут
+    let searchTimeout = null;
+    productSearchInput.addEventListener('input', function() {
+        clearTimeout(searchTimeout);
+        const query = this.value.trim();
+        
+        if (query.length < 2) {
+            searchDropdown.style.display = 'none';
+            return;
+        }
+
+        // Задержка, чтобы не спамить сервер при каждой букве
+        searchTimeout = setTimeout(() => {
+            // Ищем продукты по имени или артикулу через твой API продуктов
+            fetch(`/products/products/?search=${encodeURIComponent(query)}`, {
+                headers: { 'X-CSRFToken': csrfToken }
+            })
+            .then(res => res.json())
+            .then(data => {
+                // Предполагаем, что бэкенд возвращает список в data или data.results
+                 // const products = Array.isArray(data) ? data : (data.results || []);
+                const products = data.results || data || [];
+
+                if (products.length === 0) {
+                    searchDropdown.innerHTML = '<div style="padding: 10px; color: #64748b;">Ничего не найдено</div>';
+                    searchDropdown.style.display = 'block';
+                    return;
+                }
+
+                searchDropdown.innerHTML = '';
+                products.forEach(p => {
+                    const item = document.createElement('div');
+                    item.style.padding = '10px';
+                    item.style.cursor = 'pointer';
+                    item.style.borderBottom = '1px solid #f1f5f9';
+                    item.className = 'dropdown-item-product';
+                    item.textContent = `[ID: ${p.id}] ${p.name}`;
+                    
+                    // Клик по найденному товару из списка
+                    item.addEventListener('click', () => {
+                        formProductId.value = p.id;
+                        productSearchInput.value = p.name;
+                        searchDropdown.style.display = 'none';
+                    });
+                    searchDropdown.appendChild(item);
+                });
+                searchDropdown.style.display = 'block';
+            });
+        }, 300);
+    });
+
+    // Закрывать выпадающий список при клике мимо него
+    document.addEventListener('click', function(e) {
+        if (e.target !== productSearchInput && e.target !== searchDropdown) {
+            searchDropdown.style.display = 'none';
+        }
+    });
+
+    // Обработка формы создания
+    const createFormEl = document.getElementById('product_create_form');
+    if (createFormEl) {
+        createFormEl.addEventListener('submit', function(e) {
+            e.preventDefault();
+            // Вместо JSON используем FormData, так как отправляем файл фотографии
+            const formData = new FormData();
+            
+            formData.append('barcode', formBarcode.value);
+            formData.append('variant_name', document.getElementById('form_variant_name').value.trim());
+            formData.append('price', document.getElementById('form_price').value);
+            
+            const costPriceValue = document.getElementById('form_cost_price').value;
+            if (costPriceValue) formData.append('cost_price', costPriceValue);
+            
+            const codeValue = document.getElementById('form_code').value.trim();
+            if (codeValue) formData.append('code', codeValue);
+
+            // Обрабатываем родительский продукт
+            const pId = formProductId.value;
+            if (pId) {
+                formData.append('product', pId);
+            }
+
+            // Обработка фото (приоритет у файла с камеры/ПК, если его нет — берем ссылку)
+            const fileInput = document.getElementById('form_image_file');
+            const urlInput = document.getElementById('form_image_url').value.trim();
+            
+            if (fileInput.files.length > 0) {
+                formData.append('photo', fileInput.files[0]); // отправляем файл
+            } else if (urlInput) {
+                formData.append('photo_url', urlInput); // отправляем ссылку строкой
+            }
+
+            // Отправляем на бэкенд накладной/быстрого создания
+            fetch('/warehouse/stock-movements/create_and_add/', {
+                method: 'POST',
+                headers: { 'X-CSRFToken': csrfToken }, // Content-Type указывать НЕ надо, браузер поставит multipart/form-data сам!
+                body: formData
+            })
+            .then(response => response.json().then(data => ({ status: response.status, body: data })))
+            .then(result => {
+                if (result.status === 201 || result.status === 200) {
+                    alert('🎉 Успешно сохранено и связано!');
+                    createFormContainer.style.display = 'none'; 
+                    createFormEl.reset(); 
+                    formProductId.value = "";
+                    productSearchInput.style.background = "white";
+                    
+                    lastFoundProduct = result.body;
+                    renderProductCard(lastFoundProduct);
+                } else {
+                    alert('❌ Ошибка: ' + JSON.stringify(result.body));
+                }
+            })
+            .catch(() => alert('💥 Ошибка соединения при отправке.'))
+            .finally(() => queryInput.focus());
+        });
+    }
+
+    // 🔥 ИСПРАВЛЕНО: Автофокус возвращается в строку поиска ТОЛЬКО если форма создания Скрыта!
+    document.addEventListener('click', (event) => {
+        const isFormOpen = createFormContainer && createFormContainer.style.display === 'block';
+        
+        // Если форма создания открыта — не трогаем фокус, даем пользователю заполнить поля
+        if (isFormOpen) return; 
+
+        if (document.activeElement.tagName !== 'INPUT' || document.activeElement.id === 'query') {
+            queryInput.focus();
+        }
+    });
+</script>
+</body>
+</html>

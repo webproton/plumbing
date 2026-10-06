@@ -1,14 +1,22 @@
 from django.db import models
-from transliterate import translit, get_available_language_codes  # Добавь импорт
+from transliterate import translit 
 from model_utils import Choices
 from django.utils.translation import gettext_lazy as _
 from django.contrib.postgres.fields import ArrayField
 from django.contrib.auth import get_user_model
 from django.utils.text import slugify
-from PIL import Image
 from decimal import Decimal,ROUND_HALF_UP
+from app.apps.sellers.models import Seller
 import random
 import string
+import uuid
+from io import BytesIO
+# import barcode
+from barcode import get_barcode_class
+from barcode.writer import ImageWriter
+import qrcode
+from django.core.files import File
+from model_utils.models import StatusModel, TimeStampedModel
 
 User = get_user_model()
 
@@ -101,13 +109,16 @@ class InteriorStyle(models.Model):
         return self.name
 
 # Create your models here.
-class Category(models.Model):
+class Category(TimeStampedModel):
     """категорії продукта """
 
     name = models.CharField(max_length=255, verbose_name="category name")
     description = models.TextField(verbose_name="description", blank=True, null=True)
     photo = models.ImageField(upload_to="category/", verbose_name="photo", blank=True, null=True)
     slug = models.SlugField(max_length=255,unique=True,blank=True,null=True)
+    barcode_type = models.CharField(max_length=20, choices=[("EAN13","EAN13"),("CODE128","CODE128"),("QR","QR")], default="QR")
+    barcode_image = models.ImageField(upload_to="categories/barcodes/", blank=True, null=True)
+    barcode = models.CharField(max_length=50, unique=True, blank=True, null=True, verbose_name="Штрихкод")
 
     def save(self, *args, **kwargs):
         if not self.slug and self.name:
@@ -119,8 +130,21 @@ class Category(models.Model):
                 counter += 1
             self.slug = slug
 
-        super().save(*args, **kwargs)
+        if not self.barcode:
+            # Генерируем уникальный код для категории
+            self.barcode = f"C{uuid.uuid4().int % 10**12:012d}"
 
+        super().save(*args, **kwargs)
+    def generate_barcode_image(self):
+        buffer = BytesIO()
+        qr = qrcode.QRCode(version=1, box_size=10, border=4)
+        qr.add_data(self.barcode)
+        qr.make(fit=True)
+        img = qr.make_image(fill_color="black", back_color="white")
+        img.save(buffer, format="PNG")
+        buffer.seek(0)
+        filename = f"{self.slug}_{self.barcode}.png"
+        self.barcode_image.save(filename, File(buffer), save=False)
         # if self.photo:
         #     img = Image.open(self.photo.path)
         #     new_size = (355, 187)
@@ -215,10 +239,19 @@ class ColorProduct(models.Model):
         return str(self.name)
 
 
-class Product(models.Model):
+
+
+class Product(TimeStampedModel):
     """products
         базова модель продукту 
         в цілому все влаштовує )  """
+        
+#     seller = models.ForeignKey(
+#     Seller,
+#     on_delete=models.CASCADE,
+#     related_name="products", blank=True, null=True
+# )
+    seller = models.ForeignKey(Seller, on_delete=models.CASCADE, related_name='products', blank=True, null=True)  # ← обязательно!
     name = models.CharField(max_length=255, verbose_name="product name", blank=True, null=True)
     category = models.ForeignKey(Category, on_delete=models.CASCADE, related_name='products',
                                  verbose_name="category", blank=True, null=True)
@@ -227,7 +260,7 @@ class Product(models.Model):
     photo = models.ImageField(upload_to='products/', verbose_name="photo", blank=True, null=True)
 
     slug = models.SlugField(max_length=255,unique=True,blank=True,null=True)
-    
+
 
     def __str__(self):
         return self.name
@@ -246,16 +279,49 @@ class Product(models.Model):
                 counter += 1
             self.slug = slug
         super().save(*args, **kwargs)
-
-class ProductVariant(models.Model):
+# products/models.py → в ProductVariant
+class ProductVariant(TimeStampedModel):
     """
     Вариант продукта.
     У одного продукта может быть несколько вариантов (цвет, размер, материал, комплектация).
     Используется для отображения разных конфигураций товара в магазине.
     """
+    
+    
+    CURRENCY_CHOICES = [
+        ('UAH', 'Гривна ₴'),
+        ('USD', 'Доллар $'),
+        ('EUR', 'Евро €'),
+    ]
+    
+    # Валюта, в которой ведется закупка этого товара
+    purchase_currency = models.CharField(
+        max_length=3, 
+        choices=CURRENCY_CHOICES, 
+        default='UAH',
+        verbose_name="Валюта закупки",
+        blank=True,
+        null=True
+    )
+    
+    
     slug = models.SlugField(max_length=255,blank=True,null=True)
     code = models.CharField(max_length=50, verbose_name="Код товара", unique=True, blank=True, null=True)
-
+    
+    
+    barcode = models.CharField(max_length=50, unique=True, blank=True, null=True, verbose_name="Штрихкод (EAN13 / SKU)")
+    #Скорее всего дублирование логики вместо stock & reserved  испол StockMovement (журнал склада)
+    stock = models.PositiveIntegerField(default=0, verbose_name="Общий остаток")
+    reserved = models.PositiveIntegerField(default=0)
+    
+    
+    barcode_image = models.ImageField(upload_to="products/barcodes/", blank=True, null=True)
+    barcode_type = models.CharField(
+        max_length=20,
+        choices=[("EAN13","EAN13"),("CODE128","CODE128"),("QR","QR")],
+        default="CODE128",
+        verbose_name="Тип штрихкода"
+    )
     # 📦 Основные данные
     product = models.ForeignKey(
         Product, on_delete=models.CASCADE, related_name='variants'
@@ -650,13 +716,20 @@ class ProductVariant(models.Model):
     is_color_customizable = models.BooleanField(default=False, verbose_name="Цвет по заказу")
 
 
+    
+
+
     # 💲 Цена и наличие
     price = models.DecimalField(
-        verbose_name="Цена", max_digits=20, decimal_places=2,
+        verbose_name="Цена продажи", max_digits=20, decimal_places=4,
         blank=True, null=True, default=100
     )
     discount = models.PositiveIntegerField(default=0, verbose_name="Скидка %")
-    original_price = models.DecimalField(max_digits=20, decimal_places=2, blank=True, null=True, verbose_name="Оригинальная цена")
+    original_price = models.DecimalField(max_digits=20, decimal_places=4, blank=True, null=True, verbose_name="Оригинальная цена(Старая цена (маркетинг)")
+    
+    # Новое поле:
+    cost_price = models.DecimalField(max_digits=10, decimal_places=4, blank=True, null=True, verbose_name="Себестоимость (закупка)")
+    
     available = models.BooleanField(
         verbose_name="В наличии", default=True, blank=True, null=True
     )
@@ -664,13 +737,13 @@ class ProductVariant(models.Model):
     class Meta:
         unique_together = ('product', 'slug')
 
-    def save(self, *args, **kwargs):
+   
 
+    def save(self, *args, **kwargs):
+        # Генерация slug
         if not self.slug:
-            # Транслитерируем кириллицу в латиницу перед slugify
             text_to_slug = f"{self.product.name}-{self.variant_name}" if self.variant_name else self.product.name
-            # Транслит на русский -> английский (latin)
-            translit_text = translit(text_to_slug, 'ru', reversed=True)  # reversed=True для кириллица -> латиница
+            translit_text = translit(text_to_slug, 'ru', reversed=True)
             base_slug = slugify(translit_text)
             slug = base_slug
             counter = 1
@@ -678,52 +751,112 @@ class ProductVariant(models.Model):
                 slug = f"{base_slug}-{counter}"
                 counter += 1
             self.slug = slug
-        # ---------- CODE ----------
+
+        # Генерация кода и штрихкода
         if not self.code:
             self.code = self.generate_unique_code()
-        # ---------- PRICE ----------
-        if self.price is None:
-            self.price = Decimal('100.00')  # default price
+        if not self.barcode:
+            self.barcode = self.generate_barcode()
+        if not self.barcode_image:
+            self.generate_barcode_image()
 
-        if self.discount > 0:
-            if not self.original_price:
-                self.original_price = self.price
-            # Используем Decimal для деления
-            self.price = self.original_price * (Decimal('1.0') - Decimal(self.discount) / Decimal('100'))
-        else:
-            if self.original_price:
-                self.price = self.original_price
-                self.original_price = None
+        # Цены и скидки
+        if self.discount > 0 and not self.original_price:
+            self.original_price = Decimal(str(self.price)) if self.price is not None else None
+            if self.original_price is not None:
+                self.price = self.original_price * (Decimal('1.0') - Decimal(self.discount) / Decimal('100'))
+        elif self.discount == 0 and self.original_price:
+            self.price = Decimal(str(self.original_price)) if self.original_price is not None else None
+            self.original_price = None
 
-        # # ✅ Всегда округляем цену до целого с .00
-        # self.price = self.price.quantize(Decimal("1.00"), rounding=ROUND_HALF_UP)
-
-        # 🟢 Округляем к .00 после всех вычислений
-        if self.original_price is not None:
-            self.original_price = self.original_price.quantize(Decimal("1"), rounding=ROUND_HALF_UP).quantize(Decimal("1.00"))
-
+        # Округление цен
         if self.price is not None:
-            self.price = self.price.quantize(Decimal("1"), rounding=ROUND_HALF_UP).quantize(Decimal("1.00"))
-
+            self.price = Decimal(str(self.price)).quantize(Decimal("1.00"), rounding=ROUND_HALF_UP)
+        if self.original_price is not None:
+            self.original_price = Decimal(str(self.original_price)).quantize(Decimal("1.00"), rounding=ROUND_HALF_UP)
+            
+            
+        # 🔥 ДОБАВИТЬ: Защитная проверка себестоимости
+        if self.cost_price is not None:
+            self.cost_price = Decimal(str(self.cost_price)).quantize(Decimal("1.00"), rounding=ROUND_HALF_UP)
+            if self.price is not None and self.cost_price > self.price:
+                # Можно просто кидать предупреждение в лог или вызывать ValidationError
+                # Но для работы через API лучше оставить как предупреждение или не давать сохранять:
+                pass
 
         super().save(*args, **kwargs)
-
-
+    
+    # def generate_unique_code(self):
+    #     prefix = "PRD"  # можно любой префикс
+    #     while True:
+    #         random_part = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
+    #         code = f"{prefix}-{self.product.id}-{random_part}"
+    #         if not ProductVariant.objects.filter(code=code).exists():
+    #             return code
+            
+          
+    
+    
     def generate_unique_code(self):
-        prefix = "PRD"  # можно любой префикс
-        while True:
-            random_part = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
-            code = f"{prefix}-{self.product.id}-{random_part}"
-            if not ProductVariant.objects.filter(code=code).exists():
-                return code
+        prefix = "P"
+        product_part = f"{self.product_id:04d}"[-4:]
+
+        random_part = ''.join(
+            random.choices(string.ascii_uppercase + string.digits, k=8)
+        )
+
+        return f"{prefix}{product_part}{random_part}"
+        
+    def generate_code(self):
+        return f"P{uuid.uuid4().hex[:8].upper()}"
+
+
+    def generate_barcode(self):
+        return f"2{uuid.uuid4().int % 10**12:012d}"
+    
+    
+    def generate_barcode_image(self):
+        """
+        Генерация картинки штрихкода или QR-кода для печати.
+        """
+        if not self.barcode:
+            self.barcode = self.generate_barcode()
+
+        buffer = BytesIO()
+
+        if self.barcode_type == "QR":
+            qr = qrcode.QRCode(version=1, box_size=10, border=4)
+            qr.add_data(self.barcode)
+            qr.make(fit=True)
+            img = qr.make_image(fill_color="black", back_color="white")
+            img.save(buffer, format="PNG")
+        else:
+            
+            bc_class = get_barcode_class(self.barcode_type)
+            # Для EAN13 нужно убрать любые буквы и взять 12 цифр
+            code_value = self.barcode
+            if self.barcode_type == "EAN13":
+                code_value = ''.join(filter(str.isdigit, self.barcode))[:12]
+            bc = bc_class(code_value, writer=ImageWriter())
+            bc.write(buffer)
+            
+            
+            
+            
+            
+            # bc_class = barcode.get_barcode_class(self.barcode_type)
+            # bc = bc_class(self.barcode, writer=ImageWriter())
+            # bc.write(buffer)
+
+        buffer.seek(0)
+        filename = f"{self.slug}_{self.barcode}.png"
+        self.barcode_image.save(filename, File(buffer), save=False)
             
     def __str__(self):
         return f"{self.product.name} - Variant"
 
-
-
     
-class Wishlist(models.Model):
+class Wishlist(TimeStampedModel):
     # Залогиненный пользователь → user записывается.
 
     # Анонимный пользователь → session_key сохраняется.

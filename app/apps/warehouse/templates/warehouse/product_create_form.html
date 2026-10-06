@@ -1,0 +1,63 @@
+<div id="create_form_container" style="display: none; margin-top: 20px;" class="card">
+    <h3 style="color: #b45309;">🆕 Регистрация нового товара в системе</h3>
+    <form id="product_create_form" enctype="multipart/form-data">
+        
+        <div class="form-group">
+            <label>Сканированный Штрихкод:</label>
+            <input type="text" id="form_barcode" readonly style="background: #f1f5f9; color: #64748b;">
+        </div>
+
+        <div class="form-group" style="position: relative;">
+            <label for="product_search">Родительский продукт (Поиск по имени/коду):</label>
+            <input type="text" id="product_search" placeholder="Начните вводить название товара..." autocomplete="off">
+            <input type="hidden" id="form_product_id" value="">
+            
+            <div id="search_results_dropdown" style="display: none; position: absolute; width: 100%; max-height: 200px; overflow-y: auto; background: white; border: 1px solid #cbd5e1; border-radius: 8px; z-index: 1000; box-shadow: 0 4px 6px rgba(0,0,0,0.1);"></div>
+            
+            <div style="margin-top: 6px;">
+                <button type="button" id="btn_create_new_parent" style="background: #64748b; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 13px;">
+                    ➕ Создать абсолютно новый продукт
+                </button>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label for="form_variant_name">Название модификации (Размер/Характеристика):</label>
+            <input type="text" id="form_variant_name" placeholder="Например: 5мм старт или Красный, XL" required>
+        </div>
+
+        <div class="form-group">
+            <label for="form_code">Артикул / Код завода:</label>
+            <input type="text" id="form_code" placeholder="Например: 5141">
+        </div>
+
+        <div class="form-group">
+            <label for="form_price">Розничная цена (Грн):</label>
+            <input type="number" id="form_price" step="0.01" placeholder="0.00" required>
+        </div>
+
+        <div class="form-group">
+            <label for="form_cost_price">Себестоимость (Закупка Грн):</label>
+            <input type="number" id="form_cost_price" step="0.0001" placeholder="0.0000">
+        </div>
+
+        <div class="form-group" style="background: #f8fafc; padding: 15px; border-radius: 8px; border: 1px dashed #cbd5e1;">
+            <label style="margin-bottom: 4px;">🖼 Фотография товара:</label>
+            
+            <div style="margin-bottom: 10px;">
+                <span style="font-size: 13px; color: #64748b;">Вариант А: Загрузить файл (с ПК или Камеры телефона)</span>
+                <input type="file" id="form_image_file" accept="image/*" style="font-size: 14px; padding: 5px; border: none;">
+            </div>
+
+            <div>
+                <span style="font-size: 13px; color: #64748b;">Вариант Б: Или вставьте ссылку на картинку</span>
+                <input type="url" id="form_image_url" placeholder="https://example.com/image.jpg" style="padding: 8px; font-size: 14px;">
+            </div>
+        </div>
+
+        <div style="display: flex; gap: 10px; margin-top: 25px;">
+            <button type="submit" style="flex: 1; background: #10b981; color: white; border: none; padding: 14px; border-radius: 8px; font-size: 18px; font-weight: bold; cursor: pointer;">💾 Сохранить в базу</button>
+            <button type="button" id="btn_cancel_create" style="background: #ef4444; color: white; border: none; padding: 14px; border-radius: 8px; font-size: 16px; cursor: pointer;">Отмена</button>
+        </div>
+    </form>
+</div>
