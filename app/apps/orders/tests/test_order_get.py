@@ -60,7 +60,7 @@ def test_user_cannot_use_another_users_cart(api_client, user, django_user_model)
     assert response.status_code == 400
     errors = response.json()
     assert "cart_uuid" in errors
-    assert "Cart not found or already associated with an order" in str(errors["cart_uuid"])
+    assert "Корзина не найдена или заказ по ней уже оформлен" in str(errors["cart_uuid"])
 
 
 @pytest.mark.django_db

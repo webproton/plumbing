@@ -128,7 +128,7 @@ def test_create_order_fails_if_order_already_exists(api_client, user):
 
     errors = response.json()
     assert "cart_uuid" in errors
-    assert "already associated with an order" in str(errors["cart_uuid"])
+    assert "заказ по ней уже оформлен" in str(errors["cart_uuid"])
 
 
 @pytest.mark.django_db
@@ -155,10 +155,10 @@ def test_create_order_fails_if_customer_name_missing(api_client, user):
     response = api_client.post(url, payload, format="json")
 
     # assert response.status_code == 400
-    # assert "Необходимо указать имя клиента." in str(response.json()['customer_name'])
+    # assert "Укажите имя получателя" in str(response.json()['customer_name'])
     errors = response.json()
     assert "customer_name" in errors
-    assert "Необходимо указать имя клиента." in str(errors["customer_name"])
+    assert "Укажите имя получателя" in str(errors["customer_name"])
 
 
 @pytest.mark.django_db
@@ -182,7 +182,7 @@ def test_create_order_fails_if_customer_name_invalid(api_client, user):
     response = api_client.post(url, payload, format="json")
 
     assert response.status_code == 400
-    assert "Имя клиента должно содержать только буквы." in str(response.json()['customer_name'])
+    assert "Имя может содержать только буквы" in str(response.json()['customer_name'])
 
 
 @pytest.mark.django_db
@@ -242,7 +242,7 @@ def test_user_cannot_use_another_users_cart(api_client, user, another_user):
     # В твоем validate нужно добавить проверку на принадлежность корзины пользователю
     # Тогда здесь можно ловить конкретную ошибку
     assert "cart" in errors or "cart_uuid" in errors
-    assert "Cart not found or already associated with an order" in str(errors.get("cart", errors.get("cart_uuid", "")))
+    assert "Корзина не найдена или заказ по ней уже оформлен" in str(errors.get("cart", errors.get("cart_uuid", "")))
 
     # И точно нет заказов на чужую корзину
     assert not Order.objects.filter(cart=foreign_cart).exists()

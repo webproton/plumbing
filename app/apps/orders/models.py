@@ -1,4 +1,5 @@
 import uuid
+from decimal import Decimal
 from django.db import models
 from model_utils import Choices
 from django.utils.translation import gettext_lazy as _
@@ -18,10 +19,8 @@ class Cart(models.Model):
     created_at = models.DateTimeField(default=timezone.now, verbose_name="Creation date")  # Новое поле
 
     def calculate_total_price(self):
-        total = 0
-        for item in self.cart_items.select_related('variant'):
-            total += item.total_price  # Используем уже готовое свойство из CartItems
-        return total
+        """Текущая стоимость корзины (по актуальным ценам). Цена заказа фиксируется в OrderItem."""
+        return sum((item.total_price for item in self.cart_items.select_related('variant')), Decimal("0"))
 
 
     def __str__(self):
@@ -39,7 +38,7 @@ class CartItems(models.Model):
     def total_price(self):
         if self.variant and self.variant.price:
             return self.variant.price * self.quantity
-        return 0
+        return Decimal("0")
       
     def clean(self):
         # Custom validation to ensure product and cart relationships are valid
@@ -161,14 +160,53 @@ class Order(models.Model):
         null=True, blank=True
     )
 
+    # Состояние товара по заказу (меняется только через app.apps.orders.services)
+    STOCK_STATE = Choices(
+        ("none", "Не резервировался"),       # заказы до введения резервов
+        ("reserved", "Зарезервирован"),
+        ("written_off", "Списан со склада"),
+        ("released", "Резерв снят"),
+    )
+    stock_state = models.CharField(
+        max_length=20, choices=STOCK_STATE, default=STOCK_STATE.none, verbose_name="Состояние товара"
+    )
+
+    class Meta:
+        ordering = ["-creation_date"]
+        indexes = [
+            models.Index(fields=["customer", "-creation_date"], name="order_customer_date_idx"),
+            models.Index(fields=["status_order"], name="order_status_idx"),
+        ]
+
     def clean(self):
-        # Валидация типа оплаты
         if self.payment_type not in dict(self.PAYMENT_CHOICES).keys():
             raise ValidationError({"payment_type": "Выбран неверный способ оплаты."})
 
-    def save(self, *args, **kwargs):
-        # Если total_price пустое, вычисляем стоимость на основе корзины
-        if self.total_price is None and self.cart:
-            self.total_price = self.cart.calculate_total_price()
-        super().save(*args, **kwargs)
+    def __str__(self):
+        return f"Заказ #{self.pk}"
+
+
+class OrderItem(models.Model):
+    """Позиция заказа: снимок товара и цены на момент оформления."""
+    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name="items")
+    product = models.ForeignKey(Product, on_delete=models.SET_NULL, null=True, related_name="+")
+    variant = models.ForeignKey(ProductVariant, on_delete=models.PROTECT, related_name="order_items")
+    name = models.CharField(max_length=512, verbose_name="Наименование")
+    sku = models.CharField(max_length=50, blank=True, default="", verbose_name="Артикул")
+    unit_price = models.DecimalField(max_digits=12, decimal_places=2, verbose_name="Цена за единицу")
+    quantity = models.DecimalField(max_digits=12, decimal_places=3, verbose_name="Количество")
+
+    class Meta:
+        verbose_name = "Позиция заказа"
+        verbose_name_plural = "Позиции заказа"
+        constraints = [
+            models.CheckConstraint(check=models.Q(quantity__gt=0), name="orderitem_quantity_positive"),
+        ]
+
+    @property
+    def line_total(self):
+        return (self.unit_price * self.quantity).quantize(Decimal("0.01"))
+
+    def __str__(self):
+        return f"{self.name} × {self.quantity}"
   
