@@ -8,7 +8,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ('sellers', '0002_alter_seller_options_alter_shop_options'),
-        ('products', '0004_productvariant_cost_price_and_more'),
+        ('products', '0013_productvariant_original_price_and_more'),
         ('warehouse', '0008_variantmatchmemory'),
     ]
 

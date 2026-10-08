@@ -27,9 +27,7 @@ wait-for-it.sh
 **/media/**
 **/staticfiles/**
 **/cassettes/**
-!**/migrations/__init__.py
 *.csv
-*__init__.py
 planFinger
 prod
 prod.txt
@@ -50,3 +48,5 @@ frontend/plumbreact/node_modules
 shema.txt
 nginx_hz.txt
 notes
+private_media/
+staticfiles/

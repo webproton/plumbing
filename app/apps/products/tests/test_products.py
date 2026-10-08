@@ -17,7 +17,7 @@ photo_file = SimpleUploadedFile(
 # -----------------------------
 def test_category_list(client: APIClient):
     cat = Category.objects.create(name="Category 1")
-    url = reverse("apps.products:category-list")
+    url = reverse("products:category-list")
     response = client.get(url)
     assert response.status_code == 200
     data = response.json()
@@ -25,7 +25,7 @@ def test_category_list(client: APIClient):
 
 def test_category_detail(client: APIClient):
     cat = Category.objects.create(name="Category 2")
-    url = reverse("apps.products:category-detail", args=[cat.id])
+    url = reverse("products:category-detail", args=[cat.slug])
     response = client.get(url)
     assert response.status_code == 200
     assert response.json()["id"] == cat.id
@@ -40,14 +40,14 @@ def test_product_list_and_detail(client: APIClient):
     variant = ProductVariant.objects.create(product=product, price=100)
     
     # Список продуктов
-    url = reverse("apps.products:product-list")
+    url = reverse("products:product-list")
     response = client.get(url)
     assert response.status_code == 200
-    data = response.json()
+    data = response.json()["results"]
     assert any(p["id"] == product.id for p in data)
 
     # Детали продукта
-    url_detail = reverse("apps.products:product-detail", args=[product.id])
+    url_detail = reverse("products:product-detail", args=[product.slug])
     response = client.get(url_detail)
     assert response.status_code == 200
     detail_data = response.json()
@@ -67,9 +67,9 @@ def test_product_filter_by_category(client: APIClient):
     ProductVariant.objects.create(product=prod1, price=50)
     ProductVariant.objects.create(product=prod2, price=100)
 
-    url = reverse("apps.products:product-list")
-    response = client.get(url, {"category": cat1.id})
-    data = response.json()
+    url = reverse("products:product-list")
+    response = client.get(url, {"category": cat1.slug})
+    data = response.json()["results"]
     assert len(data) == 1
     assert data[0]["id"] == prod1.id
 
@@ -80,8 +80,8 @@ def test_product_search(client: APIClient):
     ProductVariant.objects.create(product=prod1, price=50)
     ProductVariant.objects.create(product=prod2, price=100)
 
-    url = reverse("apps.products:product-list")
+    url = reverse("products:product-list")
     response = client.get(url, {"search": "Alpha"})
-    data = response.json()
+    data = response.json()["results"]
     assert len(data) == 1
     assert data[0]["name"] == "Alpha"
