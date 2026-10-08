@@ -3,7 +3,7 @@ from rest_framework.routers import DefaultRouter
 from .views import *
 
 
-app_name = "apps.orders"
+app_name = "orders"
 
 router = DefaultRouter()
 

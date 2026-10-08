@@ -7,7 +7,7 @@ import django.db.models.deletion
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('products', '0003_category_barcode_category_barcode_image_and_more'),
+        ('products', '0013_productvariant_original_price_and_more'),
         ('warehouse', '0005_inventorydocument_document_number_and_more'),
     ]
 

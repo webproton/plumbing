@@ -134,7 +134,7 @@ class CategorySerializer(serializers.ModelSerializer):
     def get_product_list(self, category):
         # Generate the URL for the filtered product list for the category
         # request = self.context.get('request')
-        return reverse('apps.products:product-list') + f'?category={category.id}'
+        return reverse('products:product-list') + f'?category={category.id}'
 
     def get_products(self, category):
         products = category.products.all()

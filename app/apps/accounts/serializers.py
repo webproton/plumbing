@@ -7,7 +7,6 @@ from django.contrib.auth import get_user_model
 from rest_framework import serializers
 from django.conf import settings
 User = get_user_model()
-from django.contrib.auth import authenticate
 
 import logging
 logger = logging.getLogger(__name__)
@@ -107,35 +106,9 @@ class CustomRegisterSerializer(RegisterSerializer):
 
 
 class CustomLoginSerializer(LoginSerializer):
+    """Вход по email. Проверку пароля и подтверждения email выполняет базовый LoginSerializer."""
     username = None
     email = serializers.EmailField(required=True)
-    # Указываем, что USERNAME_FIELD для модели — email
-    username_field = User.USERNAME_FIELD
-
-
-    """override LoginSerializer for custom sign in"""
-    def __init__(self, *args, **kwargs):
-        logger.info("✅ CustomLoginSerializer инициализирован")
-        super().__init__(*args, **kwargs)
-
-    def validate(self, attrs):
-        # вызов базовой валидации LoginSerializer (он сам создаёт user)
-        attrs = super().validate(attrs)
-        email = attrs.get('email')
-        password = attrs.get('password')
-        if not email or not password:
-            raise serializers.ValidationError("Email и пароль обязательны")
-
-        if "password" in password.lower():
-            raise serializers.ValidationError("Нельзя использовать 'password' в пароле")
-
-        # Используем стандартную функцию authenticate с email вместо username
-        user = authenticate(username=email, password=password)
-        if not user:
-            raise serializers.ValidationError("Неверные email или пароль")
-
-        attrs['user'] = user
-        return attrs
 
 
 class UserSerializer(UserDetailsSerializer):

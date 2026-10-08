@@ -39,7 +39,6 @@ class OrderFactory(DjangoModelFactory):
     email = factory.Faker('email')
     intent_id = factory.LazyFunction(lambda: str(uuid.uuid4()))
     department_number = "1"
-    region = factory.Faker('state')  # ✅ добавлено новое поле
     city = factory.Faker('state')  # ✅ добавлено новое поле
     telegram = factory.Faker('user_name')
     whatsapp = factory.Faker('phone_number')

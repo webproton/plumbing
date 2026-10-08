@@ -5,7 +5,7 @@ from app.apps.products.views import ProductListView, CategoryList, NewProducts, 
 from django.conf import settings
 from django.conf.urls.static import static
 
-app_name = "apps.products"
+app_name = "products"
 
 router = DefaultRouter()
 router.register(r"products", ProductListView, basename="product")
