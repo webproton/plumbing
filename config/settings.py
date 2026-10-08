@@ -6,7 +6,6 @@ Django settings for the plumbing project.
 для локальной разработки переопределяются в .env (см. .env.example).
 """
 
-import os
 import sys
 from datetime import timedelta
 from pathlib import Path
@@ -183,6 +182,7 @@ REST_AUTH = {
 # ==============================
 REST_FRAMEWORK = {
     "DEFAULT_RENDERER_CLASSES": ["rest_framework.renderers.JSONRenderer"],
+    "EXCEPTION_HANDLER": "app.core.exceptions.api_exception_handler",
     "DEFAULT_PARSER_CLASSES": [
         "rest_framework.parsers.JSONParser",
         "rest_framework.parsers.MultiPartParser",

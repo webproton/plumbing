@@ -310,9 +310,10 @@ class ProductVariant(TimeStampedModel):
     
     
     barcode = models.CharField(max_length=50, unique=True, blank=True, null=True, verbose_name="Штрихкод (EAN13 / SKU)")
-    #Скорее всего дублирование логики вместо stock & reserved  испол StockMovement (журнал склада)
-    stock = models.PositiveIntegerField(default=0, verbose_name="Общий остаток")
-    reserved = models.PositiveIntegerField(default=0)
+    # Кэш остатков. Источник истины — журнал warehouse.StockMovement.
+    # Меняются только через app.apps.warehouse.stock (queryset.update, без save()).
+    stock = models.DecimalField(max_digits=12, decimal_places=3, default=0, verbose_name="Физический остаток")
+    reserved = models.DecimalField(max_digits=12, decimal_places=3, default=0, verbose_name="Зарезервировано")
     
     
     barcode_image = models.ImageField(upload_to="products/barcodes/", blank=True, null=True)
@@ -776,13 +777,9 @@ class ProductVariant(TimeStampedModel):
             self.original_price = Decimal(str(self.original_price)).quantize(Decimal("1.00"), rounding=ROUND_HALF_UP)
             
             
-        # 🔥 ДОБАВИТЬ: Защитная проверка себестоимости
         if self.cost_price is not None:
-            self.cost_price = Decimal(str(self.cost_price)).quantize(Decimal("1.00"), rounding=ROUND_HALF_UP)
-            if self.price is not None and self.cost_price > self.price:
-                # Можно просто кидать предупреждение в лог или вызывать ValidationError
-                # Но для работы через API лучше оставить как предупреждение или не давать сохранять:
-                pass
+            # Себестоимость храним с точностью накладной (4 знака), а не округляем до копеек.
+            self.cost_price = Decimal(str(self.cost_price)).quantize(Decimal("0.0001"), rounding=ROUND_HALF_UP)
 
         super().save(*args, **kwargs)
     
@@ -797,6 +794,11 @@ class ProductVariant(TimeStampedModel):
           
     
     
+    @property
+    def available_stock(self):
+        """Доступно к продаже = физический остаток − резерв."""
+        return max(self.stock - self.reserved, Decimal("0"))
+
     def generate_unique_code(self):
         prefix = "P"
         product_part = f"{self.product_id:04d}"[-4:]

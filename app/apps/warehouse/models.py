@@ -1,12 +1,9 @@
 # app/apps/warehouse/models.py
 from django.db import models
-from django.utils import timezone
 from app.apps.sellers.models import Seller
 from app.apps.products.models import ProductVariant
 from django.utils.translation import gettext_lazy as _
-from django.core.exceptions import ValidationError
-from django.db.models import Sum, Q
-
+from django.db.models import Q
 
 
 class CurrencyRate(models.Model):
@@ -16,8 +13,7 @@ class CurrencyRate(models.Model):
 
     def __str__(self):
         return f"1 {self.code} = {self.rate} UAH"
-    
-    
+
 
 class Supplier(models.Model):
     """Поставщики товаров"""
@@ -28,7 +24,7 @@ class Supplier(models.Model):
     address = models.TextField(blank=True)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
-    
+
     class Meta:
         verbose_name = _("Поставщик")
         verbose_name_plural = _("Поставщики")
@@ -40,7 +36,7 @@ class Supplier(models.Model):
 
 class Warehouse(models.Model):
     """Склады"""
-    seller = models.ForeignKey(Seller, on_delete=models.CASCADE, related_name='warehouses')
+    seller = models.ForeignKey(Seller, on_delete=models.PROTECT, related_name='warehouses')
     name = models.CharField(max_length=100, verbose_name="Название склада")
     address = models.CharField(max_length=255, blank=True)
     is_default = models.BooleanField(default=False)
@@ -57,82 +53,105 @@ class Warehouse(models.Model):
 
 
 class StockMovement(models.Model):
-    """Главный журнал прихода/расхода/возврата"""
+    """
+    Журнал движений товара — единственный источник истины об остатках.
+    Записи не редактируются и не удаляются: ошибки исправляются встречным движением.
+    Создавать движения нужно только через app.apps.warehouse.stock (он же обновляет кэши остатков).
+    """
+    IN = "in"
+    OUT = "out"
+    RETURN_IN = "return_in"
+    RETURN_OUT = "return_out"
+    ADJUSTMENT = "adjustment"
+    ADJUSTMENT_OUT = "adjustment_out"
+    TRANSFER_OUT = "transfer_out"
+    TRANSFER_IN = "transfer_in"
+
     TYPE_CHOICES = [
-        ('in', 'Приход (поставка)'),
-        ('out', 'Расход (продажа)'),
-        ('return_in', 'Возврат от клиента'),
-        ('return_out', 'Возврат поставщику'),
-        ('adjustment', 'Корректировка остатка'),
-        ('transfer_out', 'Перемещение (Убытие)'), # 🔥 Разделили типы перемещения для точного учета
-        ('transfer_in', 'Перемещение (Прибытие)'),
+        (IN, "Приход (поставка)"),
+        (OUT, "Расход (продажа)"),
+        (RETURN_IN, "Возврат от клиента"),
+        (RETURN_OUT, "Возврат поставщику"),
+        (ADJUSTMENT, "Инвентаризация: излишек"),
+        (ADJUSTMENT_OUT, "Инвентаризация: недостача"),
+        (TRANSFER_OUT, "Перемещение (убытие)"),
+        (TRANSFER_IN, "Перемещение (прибытие)"),
     ]
-    
+    INCOMING_TYPES = (IN, RETURN_IN, ADJUSTMENT, TRANSFER_IN)
+    OUTGOING_TYPES = (OUT, RETURN_OUT, ADJUSTMENT_OUT, TRANSFER_OUT)
+
     inventory_document = models.ForeignKey(
         'InventoryDocument',
-        on_delete=models.SET_NULL,
+        on_delete=models.PROTECT,
         null=True,
         blank=True,
         verbose_name=_("Связанный документ"),
         related_name="stock_movements"
     )
-    
+
     exchange_rate = models.DecimalField(
-        max_digits=10, 
-        decimal_places=4, 
-        default=1.00, 
+        max_digits=10,
+        decimal_places=4,
+        default=1,
         verbose_name="Курс валюты к UAH"
     )
 
-    variant = models.ForeignKey(ProductVariant, on_delete=models.CASCADE, related_name='movements', verbose_name=_("Вариант товара"))
-    seller = models.ForeignKey(Seller, on_delete=models.CASCADE, verbose_name=_("Продавец"))
-    warehouse = models.ForeignKey(Warehouse, on_delete=models.CASCADE, verbose_name=_("Склад"))
+    variant = models.ForeignKey(
+        ProductVariant, on_delete=models.PROTECT, related_name='movements', verbose_name=_("Вариант товара")
+    )
+    seller = models.ForeignKey(Seller, on_delete=models.PROTECT, verbose_name=_("Продавец"))
+    warehouse = models.ForeignKey(Warehouse, on_delete=models.PROTECT, verbose_name=_("Склад"))
     movement_type = models.CharField(max_length=20, choices=TYPE_CHOICES, verbose_name=_("Тип движения"))
-    # quantity = models.IntegerField(verbose_name=_("Количество"))
-    
-    quantity = models.DecimalField(max_digits=10, decimal_places=3, verbose_name=_("Количество"))
-    price_per_unit = models.DecimalField(max_digits=10, decimal_places=4, null=True, blank=True, verbose_name=_("Цена за единицу"))
+    quantity = models.DecimalField(max_digits=12, decimal_places=3, verbose_name=_("Количество"))
+    price_per_unit = models.DecimalField(
+        max_digits=12, decimal_places=4, null=True, blank=True, verbose_name=_("Цена за единицу")
+    )
     document_number = models.CharField(max_length=50, blank=True, null=True, verbose_name="Номер накладной")
     supplier = models.ForeignKey(Supplier, on_delete=models.SET_NULL, null=True, blank=True, verbose_name=_("Поставщик"))
     comment = models.TextField(blank=True, verbose_name=_("Комментарий"))
     created_at = models.DateTimeField(auto_now_add=True, verbose_name=_("Дата создания"))
     created_by = models.ForeignKey('accounts.User', on_delete=models.SET_NULL, null=True, blank=True)
-    
+
     class Meta:
         verbose_name = _("Движение по складу")
         verbose_name_plural = _("Движения по складу")
         ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=["variant", "warehouse", "movement_type"], name="stockmove_var_wh_type_idx"),
+            models.Index(fields=["-created_at"], name="stockmove_created_idx"),
+        ]
+        constraints = [
+            models.CheckConstraint(check=Q(quantity__gt=0), name="stockmove_quantity_positive"),
+        ]
 
     def __str__(self):
         return f"{self.get_movement_type_display()} — {self.variant} ({self.quantity})"
-    
-    def clean(self):
-        # Проверка обязательного наличия склада
-        if not self.warehouse:
-            raise ValidationError("Склад обязателен для любого движения товара")
 
-        # 🔥 ИСПРАВЛЕНО: Логика проверки остатков (учитывает новые маркеры transfer_in / transfer_out)
-        if self.movement_type in ['out', 'transfer_out', 'return_out']:
-            if self.variant and self.warehouse:
-                current_stock = self.variant.movements.filter(
-                    warehouse=self.warehouse
-                ).aggregate(
-                    total_in=Sum('quantity', filter=Q(movement_type__in=['in', 'return_in', 'adjustment', 'transfer_in'])),
-                    total_out=Sum('quantity', filter=Q(movement_type__in=['out', 'return_out', 'transfer_out']))
-                )
-                
-                # Если это редактирование старой записи, не учитываем её вес в текущем расходе
-                total_out_val = current_stock['total_out'] or 0
-                if self.pk:
-                    total_out_val -= self.quantity
+    @property
+    def signed_quantity(self):
+        return self.quantity if self.movement_type in self.INCOMING_TYPES else -self.quantity
 
-                balance = (current_stock['total_in'] or 0) - total_out_val
-                if self.quantity > balance:
-                    raise ValidationError(f"На складе {self.warehouse.name} недостаточно товара. Доступно: {balance} шт., запрашивается: {self.quantity} шт.")
 
-        # Проверка поставщика для прихода
-        if self.movement_type in ['in', 'return_out'] and not self.supplier:
-            raise ValidationError("Для операций прихода или возврата поставщику необходимо указать поставщика.")
+class StockBalance(models.Model):
+    """
+    Текущий остаток варианта на конкретном складе (кэш журнала StockMovement).
+    Строка блокируется select_for_update при каждой складской операции —
+    это и защищает от гонок при одновременных списаниях.
+    """
+    variant = models.ForeignKey(ProductVariant, on_delete=models.PROTECT, related_name="balances")
+    warehouse = models.ForeignKey(Warehouse, on_delete=models.PROTECT, related_name="balances")
+    quantity = models.DecimalField(max_digits=12, decimal_places=3, default=0)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = _("Остаток на складе")
+        verbose_name_plural = _("Остатки на складах")
+        constraints = [
+            models.UniqueConstraint(fields=["variant", "warehouse"], name="stockbalance_variant_warehouse_uniq"),
+        ]
+
+    def __str__(self):
+        return f"{self.variant} @ {self.warehouse}: {self.quantity}"
 
 
 class InventoryDocument(models.Model):
@@ -143,10 +162,10 @@ class InventoryDocument(models.Model):
         ('return', 'Возврат'),
         ('other', 'Другое'),
     ]
-    
+
     document_number = models.CharField(max_length=100, blank=True, null=True)
     supplier = models.ForeignKey(Supplier, on_delete=models.SET_NULL, null=True, blank=True)
-    seller = models.ForeignKey(Seller, on_delete=models.CASCADE, verbose_name=_("Продавец"))
+    seller = models.ForeignKey(Seller, on_delete=models.PROTECT, verbose_name=_("Продавец"))
     document_type = models.CharField(max_length=20, choices=DOCUMENT_TYPE, verbose_name=_("Тип документа"))
     file = models.FileField(upload_to='invoices/%Y/%m/%d/', verbose_name="Фото/скан накладной")
     uploaded_at = models.DateTimeField(auto_now_add=True, verbose_name=_("Загружено"))
@@ -175,8 +194,8 @@ class ProductBarcode(models.Model):
 
     def __str__(self):
         return self.code
-    
-    
+
+
 class VariantMatchMemory(models.Model):
     """Обучение системы сопоставления номенклатуры поставщиков с базой"""
     supplier = models.ForeignKey("warehouse.Supplier", on_delete=models.CASCADE, null=True, blank=True)
