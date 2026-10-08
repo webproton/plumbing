@@ -1,65 +1,43 @@
 # warehouse/permissions.py
-
 from rest_framework import permissions
 
-from .models import *
+from .models import InventoryDocument, StockMovement, Supplier, Warehouse
 
 
+def get_active_seller(user):
+    """Профиль продавца, если пользователь — активный и одобренный продавец, иначе None."""
+    if not user or not user.is_authenticated:
+        return None
+    seller = getattr(user, "seller_profile", None)
+    if seller is None or not seller.is_approved or not seller.is_active:
+        return None
+    return seller
 
-class IsSellerWarehouseOwner(permissions.BasePermission):
-    """Только владелец продавца может работать со своими складами/движениями"""
-    
-    
+
+class IsWarehouseStaff(permissions.BasePermission):
+    """Доступ к складу: суперпользователь или одобренный активный продавец (только свои объекты)."""
+
+    message = "Доступ к складу есть только у одобренных продавцов."
+
+    def has_permission(self, request, view):
+        user = request.user
+        return bool(user and user.is_authenticated and (user.is_superuser or get_active_seller(user)))
+
     def has_object_permission(self, request, view, obj):
         if request.user.is_superuser:
             return True
-
-        seller_profile = getattr(request.user, 'seller_profile', None)
-        if not seller_profile:
-            return False
-
+        seller = get_active_seller(request.user)
         if isinstance(obj, (Warehouse, StockMovement, InventoryDocument)):
-            return obj.seller == seller_profile
+            return obj.seller_id == seller.pk
         if isinstance(obj, Supplier):
-            return True  # поставщики общие
+            return True  # справочник поставщиков общий
         return False
-    
-    # def has_object_permission(self, request, view, obj):
-    #     if request.user.is_superuser:
-    #         return True
-    #     seller_profile = getattr(request.user, 'seller_profile', None)
-        
-    #     if hasattr(request.user, 'seller_profile'):
-    #         if isinstance(obj, Warehouse):
-    #             return obj.seller == request.user.seller_profile
-    #         if isinstance(obj, StockMovement):
-    #             return obj.seller == request.user.seller_profile
-    #         if isinstance(obj, InventoryDocument):
-    #             return obj.seller == request.user.seller_profile
-    #         if isinstance(obj, Supplier):
-    #             return True  # поставщики общие
-    #     return False
-    
-
-    def has_permission(self, request, view):
-        # Суперюзер всегда может
-        if request.user.is_superuser:
-            return True
-        
-        # Чтение разрешено всем аутентифицированным продавцам
-        seller_profile = getattr(request.user, 'seller_profile', None)
-        if request.method in permissions.SAFE_METHODS :
-            return seller_profile is not None and seller_profile.is_active
-        
-        # Запись только для активных продавцов
-        seller_profile = getattr(request.user, 'seller_profile', None)
-        return seller_profile is not None and seller_profile.is_active
 
 
-class IsSellerOrAdminReadOnly(permissions.BasePermission):
+class IsWarehouseStaffOrReadOnly(IsWarehouseStaff):
+    """Чтение — любому авторизованному, изменения — продавцу/админу (справочник поставщиков)."""
+
     def has_permission(self, request, view):
         if request.method in permissions.SAFE_METHODS:
-            return True
-        return request.user.is_authenticated and (
-            request.user.is_superuser or hasattr(request.user, 'seller_profile')
-        )
+            return bool(request.user and request.user.is_authenticated)
+        return super().has_permission(request, view)

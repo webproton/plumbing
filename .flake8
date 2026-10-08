@@ -1,20 +1,10 @@
 [flake8]
-
+max-line-length = 130
 exclude =
-        .gitignore,
-        ./myvenv,
-        __pycache__,
-        .pytest_cashe
-        manage.py,
-        */migrations/*,
-        settings.py,
-        locustfile.py
-ignore = 
-        # W503 : line break before binary operator
-        W503.
-        # F811 : redefinition of unused name from line N
-        F811.
-        F841
-
-
-max-line-length = 120
+    .git,
+    __pycache__,
+    */migrations/*,
+    node_modules,
+    frontend
+# W503: line break before binary operator (конфликтует с W504/black)
+extend-ignore = W503

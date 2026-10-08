@@ -1,26 +1,34 @@
 # app/apps/warehouse/services.py
-from decimal import ROUND_HALF_UP, Decimal
-import os
-from rapidfuzz import process, fuzz
+"""
+Проведение накладных поставщиков: парсинг → сопоставление строк с вариантами → приход на склад.
+Все изменения остатков — через app.apps.warehouse.stock.
+"""
+import logging
+from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
+
+from django.db import transaction
+from rapidfuzz import fuzz
 
 from parsers.core.loader import load_rows
 from parsers.registry import parse as run_invoice_parser
 
-from app.apps.warehouse.models import InventoryDocument, ProductBarcode, StockMovement, Supplier, VariantMatchMemory, Warehouse
-from django.db import transaction
-from django.core.exceptions import ValidationError
-from django.db.models import Sum, Q  # 🔥 Добавили Q и Sum для оптимизации остатков
-from app.apps.products.models import ProductVariant, Product
+from app.apps.products.models import Product, ProductVariant
+from app.apps.warehouse import stock
+from app.apps.warehouse.models import InventoryDocument, ProductBarcode, VariantMatchMemory, Warehouse
+
+logger = logging.getLogger(__name__)
+
+RETAIL_MARKUP = Decimal("1.40")
 
 
 def build_variant_cache():
     """ Кэширует базу товаров в ОЗУ для ускорения поиска в 50+ раз """
     variants = ProductVariant.objects.all().values("id", "variant_name", "code", "barcode")
-    
+
     cache = {
         "by_id": {},
-        "code": {},       
-        "barcode": {},    
+        "code": {},
+        "barcode": {},
     }
 
     for v in variants:
@@ -40,8 +48,8 @@ def build_variant_cache():
 
 def match_variant_learning(row, cache, supplier=None):
     """ Умное сопоставление строки из накладной с товаром из кэша базы """
-    row_sku = str(row.get("sku") or "").strip().lower()       
-    row_barcode = str(row.get("barcode") or "").strip().lower() 
+    row_sku = str(row.get("sku") or "").strip().lower()
+    row_barcode = str(row.get("barcode") or "").strip().lower()
     name = str(row.get("name") or "").strip()
 
     # 1. MEMORY (1С-логика)
@@ -100,7 +108,7 @@ def match_variant_learning(row, cache, supplier=None):
 
 def learn_variant_match(row, variant, supplier=None):
     """ 1С-логика: запоминаем выбор сопоставления товара """
-    code = str(row.get("sku") or "").strip() 
+    code = str(row.get("sku") or "").strip()
     name = str(row.get("name") or "").strip()
 
     if not name:
@@ -122,232 +130,94 @@ def learn_variant_match(row, variant, supplier=None):
         obj.save()
 
 
-def return_to_supplier(variant, warehouse, supplier, quantity, user):
-    """Возврат поставщику"""
-    StockMovement.objects.create(
-        variant=variant,
-        seller=warehouse.seller,
-        warehouse=warehouse,
-        movement_type='return_out',
-        quantity=quantity,
-        supplier=supplier,
-        created_by=user,
-        comment="Возврат поставщику"
-    )
-
-
-@transaction.atomic
-def transfer_between_warehouses(variant, from_warehouse, to_warehouse, quantity, user):
-    """Перемещение между складами"""
-    if from_warehouse == to_warehouse:
-        raise ValidationError("Склады одинаковые")
-
-    # 🔥 ИСПРАВЛЕНО: Убытие со склада-отправителя (transfer_out)
-    StockMovement.objects.create(
-        variant=variant,
-        seller=from_warehouse.seller,
-        warehouse=from_warehouse,
-        movement_type='transfer_out',
-        quantity=quantity,
-        created_by=user,
-        comment=f"Перемещение → {to_warehouse.name}"
-    )
-
-    # 🔥 ИСПРАВЛЕно: Прибытие на склад-получатель (transfer_in)
-    StockMovement.objects.create(
-        variant=variant,
-        seller=to_warehouse.seller,
-        warehouse=to_warehouse,
-        movement_type='transfer_in',
-        quantity=quantity,
-        created_by=user,
-        comment=f"Перемещение ← {from_warehouse.name}"
-    )
-
-def recalculate_variant_stock(variant):
-    """ Полный принудительный пересчет кэша остатка по всей истории движений """
-    from django.db.models import Sum
-    
-    inc = StockMovement.objects.filter(variant=variant, movement_type="in").aggregate(total=Sum('quantity'))['total'] or Decimal('0')
-    out = StockMovement.objects.filter(variant=variant, movement_type="out").aggregate(total=Sum('quantity'))['total'] or Decimal('0')
-    
-    variant.stock = inc - out
-    variant.save(update_fields=['stock'])
-
 @transaction.atomic
 def process_inventory_document(document: InventoryDocument, warehouse: Warehouse, created_by):
     """
-    Универсальная обработка накладной (Экспорт данных -> Умный поиск -> Движения склада).
-    
-    Включает в себя:
-    1. Парсинг файла через новый гибкий TableEngine движок.
-    2. Скоростной поиск товаров через кэширование всей базы в ОЗУ.
-    3. Четырехуровневый матчинг (Память сопоставлений -> Штрихкоды -> SKU -> Fuzzy Match).
-    4. Автоматическое обучение системы (1С-логика) на будущее.
-    5. Регистрацию штрихкодов для складского сканера Ruidida.
+    Проводит накладную: парсинг файла (или ранее распознанные данные) → сопоставление строк →
+    приход каждой строки на склад. Идемпотентно: документ блокируется, повторное проведение запрещено.
+    Возвращает отчёт {"received": int, "skipped": [{"row": n, "reason": str}]}.
     """
+    document = InventoryDocument.objects.select_for_update().get(pk=document.pk)
+    if document.processed:
+        raise stock.StockError("Документ уже проведён")
+    if warehouse.seller_id != document.seller_id:
+        raise stock.StockError("Склад не принадлежит продавцу документа")
 
-    # =========================================================================
-    # ШАГ 1: ПОЛУЧЕНИЕ ДАННЫХ (ПАРСИНГ ИЛИ КЭШ ДОКУМЕНТА)
-    # =========================================================================
-    
-    # Проверяем защиту: если накладную уже парсили ранее и JSON лежит в базе,
-    # мы берем готовые данные, чтобы не тратить ресурсы сервера на повторный OCR/парсинг.
     if document.extracted_data and "items" in document.extracted_data:
         parsed_data = document.extracted_data
     else:
-        file_path = document.file.path
-        rows = load_rows(file_path)
+        rows = load_rows(document.file.path)
         parsed_data = run_invoice_parser(rows)
         document.extracted_data = parsed_data
-        # Если парсер смог вытащить реальный номер накладной из шапки файла, 
-        # а в нашей модели поле еще пустое — автоматически обновляем его
         extracted_num = parsed_data.get("meta", {}).get("number")
         if extracted_num and not document.document_number:
             document.document_number = extracted_num
-            
-            
-            
-    # 🔥 ШАГ 0: Если у документа нет поставщика, пробуем подтянуть его автоматически
-    if not document.supplier:
-        detected_slug = parsed_data.get("detected_supplier") or parsed_data.get("supplier_code")
-        if detected_slug:
-            # Ищем поставщика по коду/слагу в нашей базе
-            auto_supplier = Supplier.objects.filter(code=detected_slug).first()
-            if auto_supplier:
-                document.supplier = auto_supplier
-                document.save(update_fields=['supplier'])
 
-    items = parsed_data.get("items", [])
+    supplier = document.supplier
     variant_cache = build_variant_cache()
+    report = {"received": 0, "skipped": []}
 
-    for row in items:
-        variant_code = row.get("sku")        
-        name = row.get("name")               
-        quantity = row.get("qty") or 0       
-        price = row.get("price") or 0        
-        barcode = row.get("barcode")         
-
+    for position, row in enumerate(parsed_data.get("items", []), start=1):
+        name = row.get("name")
         if not name:
+            report["skipped"].append({"row": position, "reason": "нет наименования"})
+            continue
+        try:
+            qty = stock.to_quantity(row.get("qty"))
+        except stock.StockError:
+            report["skipped"].append({"row": position, "name": name, "reason": f"некорректное количество: {row.get('qty')!r}"})
+            continue
+        try:
+            invoice_price = Decimal(str(row.get("price") or 0)).quantize(Decimal("0.0001"), rounding=ROUND_HALF_UP)
+        except (InvalidOperation, ValueError):
+            report["skipped"].append({"row": position, "name": name, "reason": f"некорректная цена: {row.get('price')!r}"})
             continue
 
-        variant, confidence = match_variant_learning(row, variant_cache, supplier=document.supplier)
-        # 🔥 Переводим цену в Decimal с точностью до 4 знаков (защита от округлений 1.269)
-        invoice_price = Decimal(str(price)).quantize(Decimal("0.0001"), rounding=ROUND_HALF_UP)
-        # Переводим количество в Decimal (для метров, граммов и штук)
-        qty_decimal = Decimal(str(quantity)).quantize(Decimal("0.001"), rounding=ROUND_HALF_UP)
-        
-        
-        if not variant:
-            product = Product.objects.create(name=name, seller=document.seller)
-            
-            
-            # Переводим цену закупки из накладной в Decimal
-            # invoice_price = Decimal(str(price))
-            # 🔥 РАССЧИТЫВАЕМ РОЗНИЧНУЮ ЦЕНУ (Пример: наценка 40%)
-            # Вы можете изменить коэффициент "1.40" на ваш стандартный или оставить просто invoice_price
-            recommended_retail_price = (invoice_price * Decimal("1.40")).quantize(Decimal("0.01"))
-            
+        variant_code = row.get("sku")
+        barcode = row.get("barcode")
+        variant, confidence = match_variant_learning(row, variant_cache, supplier=supplier)
 
-            # Создаем конкретную модификацию/вариант
+        if not variant:
+            # Новый товар скрыт из каталога, пока продавец не проверит карточку.
+            product = Product.objects.create(name=name, seller=document.seller)
             variant = ProductVariant.objects.create(
                 product=product,
                 variant_name=name,
-                code=variant_code or "",
-                # price=Decimal(str(price)),
-                
-                cost_price=invoice_price,            # 🔥 ТЕПЕРЬ ЗАПИСЫВАЕМ СЮДА ЗАКУПКУ
-                price=recommended_retail_price,      # 🔥 СЮДА ИДЕТ РОЗНИЦА С НАЦЕНКОЙ
-                barcode=barcode or ""  
+                code=variant_code or None,
+                cost_price=invoice_price,
+                price=(invoice_price * RETAIL_MARKUP).quantize(Decimal("0.01")),
+                barcode=barcode or None,
+                available=False,
             )
-            
-            variant_cache["by_id"][variant.id] = {
-                "id": variant.id, 
-                "variant_name": name, 
-                "code": variant_code, 
-                "barcode": barcode
-            }
+            variant_cache["by_id"][variant.id] = {"id": variant.id, "variant_name": name,
+                                                  "code": variant_code, "barcode": barcode}
             if variant_code:
                 variant_cache["code"][str(variant_code).strip().lower()] = variant.id
             if barcode:
                 variant_cache["barcode"][str(barcode).strip().lower()] = variant.id
-                
-        else:
-            # 🔥 2. Если товар СУЩЕСТВУЕТ — обновляем его закупочную цену, если она изменилась
-            # Розничную цену (price) НЕ трогаем, чтобы не сбить настройки продавца!
-            if variant.cost_price != invoice_price:
-                variant.cost_price = invoice_price
-                variant.save(update_fields=['cost_price'])
+            confidence = 1.0
+        elif variant.cost_price != invoice_price:
+            # Розничную цену не трогаем — это настройка продавца.
+            ProductVariant.objects.filter(pk=variant.pk).update(cost_price=invoice_price)
 
-        learn_variant_match(row, variant, supplier=document.supplier)
-
+        learn_variant_match(row, variant, supplier=supplier)
         if barcode:
-            ProductBarcode.objects.get_or_create(variant=variant, code=str(barcode).strip())
+            ProductBarcode.objects.get_or_create(code=str(barcode).strip(), defaults={"variant": variant})
 
-        # price_decimal = Decimal(str(price)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-        if StockMovement.objects.filter(inventory_document=document, variant=variant).exists():
-            continue  # Пропускаем дубль, чтобы не накрутить остаток!
-        
-        
-        StockMovement.objects.create(
+        stock.receive(
+            variant, warehouse, qty,
+            user=created_by,
+            supplier=supplier,
             inventory_document=document,
-            variant=variant,
-            seller=document.seller,
-            warehouse=warehouse,
-            movement_type="in",
-            quantity=qty_decimal,             # 🔥 ТЕПЕРЬ СЮДА ПИШЕТСЯ ДРОБНОЕ ЧИСЛО (Decimal)
-            # quantity=int(quantity),
-            supplier=document.supplier,
             document_number=document.document_number,
-            price_per_unit=invoice_price,     # Закупка с точностью до 4 знаков
-            # price_per_unit=price_decimal,
-            created_by=created_by,
-            comment=f"Импорт ({parsed_data.get('detected_supplier', 'unknown')}) | Точность: {int(confidence * 100)}%"
+            price_per_unit=invoice_price,
+            comment=f"Импорт ({parsed_data.get('detected_supplier', 'unknown')}), строка {position}, "
+                    f"точность сопоставления {int(confidence * 100)}%",
         )
-        
-        # 3. 🔥 ОБНОВЛЯЕМ КЭШ ОСТАТКА В КАРТОЧКЕ ТОВАРA
-        variant.stock += qty_decimal
-        variant.save(update_fields=['stock']) # update_fields критически важен для скорости и безопасности!
+        report["received"] += 1
 
+    parsed_data["processing_report"] = report
+    document.extracted_data = parsed_data
     document.processed = True
     document.save()
-
-
-def get_variant_stock(variant, warehouse=None):
-    """
-    🔥 ПОЛНОСТЬЮ ИСПРАВЛЕНО И ОПТИМИЗИРОВАНО
-    Считает чистый остаток товара на складе прямо в базе данных (быстрее в 100+ раз).
-    """
-    movements = StockMovement.objects.filter(variant=variant)
-    if warehouse:
-        movements = movements.filter(warehouse=warehouse)
-
-    # Синхронизированный с моделями подсчет приходов и расходов
-    stock_summary = movements.aggregate(
-        total_in=Sum('quantity', filter=Q(movement_type__in=['in', 'return_in', 'adjustment', 'transfer_in'])),
-        total_out=Sum('quantity', filter=Q(movement_type__in=['out', 'return_out', 'transfer_out']))
-    )
-
-    return (stock_summary['total_in'] or 0) - (stock_summary['total_out'] or 0)
-
-
-def inventory_adjustment(variant, warehouse, real_quantity, user):
-    """Инвентаризация склада"""
-    current = get_variant_stock(variant, warehouse)
-    diff = real_quantity - current
-
-    if diff == 0:
-        return
-    
-    # Оставляем использование базовых 'in' / 'out', так как они корректно подхватываются агрегацией остатков
-    movement_type = 'in' if diff > 0 else 'out'
-    
-    StockMovement.objects.create(
-        variant=variant,
-        seller=warehouse.seller,
-        warehouse=warehouse,
-        movement_type=movement_type,
-        quantity=abs(diff),
-        created_by=user,
-        comment=f"Инвентаризация. Было {current}, стало {real_quantity}"
-    )
+    return report

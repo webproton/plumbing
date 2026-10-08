@@ -61,7 +61,8 @@ class ProductAdmin(admin.ModelAdmin):
 
 class ProductVariantAdmin(admin.ModelAdmin):
     """Product Variant Admin with search functionality for Product field"""
-    readonly_fields = []
+    # Остатки меняются только складскими операциями (журнал движений), не руками.
+    readonly_fields = ["stock", "reserved"]
     autocomplete_fields = ['product']
     list_editable = ("color",)  
     list_display = ["code",'product', "photo_preview" ,"color",'product_id','id',"discount","price","original_price"]

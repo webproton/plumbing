@@ -247,7 +247,7 @@ const queryInput = document.getElementById('query');
             statusBadge.textContent = "Ищу в базе...";
             statusBadge.style.background = "#e67e22";
 
-            const url = '/warehouse/stock-movements/find_by_barcode_or_sku/';
+            const url = '/api/warehouse/stock-movements/find_by_barcode_or_sku/';
             
             fetch(url, {
                 method: 'POST',
@@ -326,7 +326,7 @@ const queryInput = document.getElementById('query');
         // Задержка, чтобы не спамить сервер при каждой букве
         searchTimeout = setTimeout(() => {
             // Ищем продукты по имени или артикулу через твой API продуктов
-            fetch(`/products/products/?search=${encodeURIComponent(query)}`, {
+            fetch(`/api/products/?search=${encodeURIComponent(query)}`, {
                 headers: { 'X-CSRFToken': csrfToken }
             })
             .then(res => res.json())
@@ -405,7 +405,7 @@ const queryInput = document.getElementById('query');
             }
 
             // Отправляем на бэкенд накладной/быстрого создания
-            fetch('/warehouse/stock-movements/create_and_add/', {
+            fetch('/api/warehouse/stock-movements/create_and_add/', {
                 method: 'POST',
                 headers: { 'X-CSRFToken': csrfToken }, // Content-Type указывать НЕ надо, браузер поставит multipart/form-data сам!
                 body: formData
