@@ -50,3 +50,5 @@ nginx_hz.txt
 notes
 private_media/
 staticfiles/
+.DS_Store
+*.pem
