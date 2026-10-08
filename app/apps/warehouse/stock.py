@@ -278,15 +278,17 @@ def release(lines):
 
 
 @transaction.atomic
-def write_off_reserved(lines, *, user=None, comment="", **fields):
+def write_off_reserved(lines, *, user=None, comment="", from_reserve=True, **fields):
     """
-    Списывает ранее зарезервированный товар (выдача/отгрузка заказа).
+    Списывает товар по заказу (выдача/отгрузка).
+    from_reserve=True — товар был зарезервирован этим заказом, резерв уменьшается вместе с остатком;
+    from_reserve=False — заказ не резервировал товар (старые заказы), чужие резервы не трогаются.
     Склады выбираются автоматически: сначала склад по умолчанию, затем с наибольшим остатком.
     """
     movements = []
     for variant_id, qty in _sorted_lines(lines):
         locked = _lock_variant(variant_id)
-        consume = min(qty, locked.reserved)
+        consume = min(qty, locked.reserved) if from_reserve else ZERO
         remaining = qty
         balances = (
             StockBalance.objects.select_for_update(of=("self",))
