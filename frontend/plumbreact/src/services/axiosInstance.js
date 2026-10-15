@@ -4,7 +4,7 @@ import { getCookie } from "../utils/csrf";
 
 // const BASE_URL = "http://localhost:8000"; // Или импортируй из .env файла
 // const BASE_URL = process.env.REACT_APP_API_URL; // Или импортируй из .env файла
-const BASE_URL = process.env.REACT_APP_API_URL ||  "http://192.168.68.109:8000";
+const BASE_URL = process.env.REACT_APP_API_URL || "";
 // const BASE_URL = process.env.REACT_APP_API_URL
 
 
@@ -50,9 +50,9 @@ axiosInstance.interceptors.response.use(
       const refresh = localStorage.getItem("refresh");
       if (refresh) {
         try {
-          const res = await axios.post(`${BASE_URL}/dj-rest-auth/token/refresh/`, { refresh });
+          const res = await axios.post(`${BASE_URL}/api/dj-rest-auth/token/refresh/`, { refresh });
 
-          // const res = await axios.post("http://localhost:8000/dj-rest-auth/token/refresh/", { refresh });
+          // const res = await axios.post("/api/dj-rest-auth/token/refresh/", { refresh });
           localStorage.setItem("access", res.data.access);
           originalRequest.headers.Authorization = `Bearer ${res.data.access}`;
           return axiosInstance(originalRequest);

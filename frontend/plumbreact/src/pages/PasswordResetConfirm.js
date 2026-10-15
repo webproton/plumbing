@@ -18,7 +18,7 @@ export default function PasswordResetConfirm() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      await axiosInstance.post("/dj-rest-auth/password/reset/confirm/", {
+      await axiosInstance.post("/api/dj-rest-auth/password/reset/confirm/", {
         uid,
         token,
         new_password1: newPassword1,

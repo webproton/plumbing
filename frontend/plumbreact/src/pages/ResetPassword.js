@@ -9,7 +9,7 @@ export default function ResetPassword() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      await axiosInstance.post("/dj-rest-auth/password/reset/", { email });
+      await axiosInstance.post("/api/dj-rest-auth/password/reset/", { email });
       setMessage("Письмо для сброса пароля отправлено!");
     } catch (error) {
       setMessage("Ошибка при сбросе пароля.");

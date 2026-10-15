@@ -1,0 +1,22 @@
+# Локальная разработка: БД и Redis в контейнерах, Django и фронтенд — локально.
+#   docker compose -f docker-compose.dev.yml up -d
+#   python app/manage.py migrate && python app/manage.py runserver
+# В .env: POSTGRES_HOST=localhost, POSTGRES_PORT=5432, REDIS_URL=redis://localhost:6379/1, DEBUG=True
+
+services:
+  db:
+    image: postgis/postgis:14-3.2
+    env_file: .env
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - ./data/db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "127.0.0.1:6379:6379"
