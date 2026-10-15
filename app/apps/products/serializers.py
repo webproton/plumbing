@@ -1,73 +1,102 @@
-from rest_framework import serializers
-from .models import (Product, Category, Brand,
-                      ProductThread, Thread, Manufacturer,
-                        MaterialProduct, ProductPhoto, 
-                        ColorProduct, ProductVariant, Wishlist, Ball,
-                        IncludedItem,BodyMaterial,Pattern,
-                        BedType,Filling,Armrest,UpholsteryMaterial,
-                        Mechanism,MattressBase,ColorOption,TypeOfProduct,Form
-                        
-                        )
-from django.urls import reverse
 from django.db.models import Min
+from django.urls import reverse
+from rest_framework import serializers
 
+from .models import (
+    Armrest,
+    Ball,
+    BedType,
+    BodyMaterial,
+    Brand,
+    Category,
+    ColorOption,
+    ColorProduct,
+    Filling,
+    Form,
+    IncludedItem,
+    Manufacturer,
+    MaterialProduct,
+    MattressBase,
+    Mechanism,
+    Pattern,
+    Product,
+    ProductPhoto,
+    ProductThread,
+    ProductVariant,
+    Thread,
+    TypeOfProduct,
+    UpholsteryMaterial,
+    Wishlist,
+)
 
 # --- простые сериализаторы для связанных моделей ---
+
 
 class FormSerializer(serializers.ModelSerializer):
     class Meta:
         model = Form
         fields = ["id", "name"]
 
+
 class TypeOfProductSerializer(serializers.ModelSerializer):
     class Meta:
         model = TypeOfProduct
         fields = ["id", "name"]
+
 
 class IncludedItemSerializer(serializers.ModelSerializer):
     class Meta:
         model = IncludedItem
         fields = ["id", "name"]
 
+
 class BodyMaterialSerializer(serializers.ModelSerializer):
     class Meta:
         model = BodyMaterial
         fields = ["id", "name"]
+
 
 class PatternSerializer(serializers.ModelSerializer):
     class Meta:
         model = Pattern
         fields = ["id", "name"]
 
+
 class BedTypeSerializer(serializers.ModelSerializer):
     class Meta:
         model = BedType
         fields = ["id", "name"]
+
 
 class FillingSerializer(serializers.ModelSerializer):
     class Meta:
         model = Filling
         fields = ["id", "name"]
 
+
 class ArmrestSerializer(serializers.ModelSerializer):
     class Meta:
         model = Armrest
         fields = ["id", "name"]
+
 
 class UpholsteryMaterialSerializer(serializers.ModelSerializer):
     class Meta:
         model = UpholsteryMaterial
         fields = ["id", "name"]
 
+
 class MattressBaseSerializer(serializers.ModelSerializer):
     class Meta:
         model = MattressBase
         fields = ["id", "name"]
 
+
 class MechanismSerializer(serializers.ModelSerializer):
     class Meta:
         model = Mechanism
         fields = ["id", "name"]
+
 
 class ColorOptionSerializer(serializers.ModelSerializer):
     class Meta:
@@ -76,7 +105,7 @@ class ColorOptionSerializer(serializers.ModelSerializer):
 
 
 class ColorSerializer(serializers.ModelSerializer):
-    """Product color multiple serilizer """
+    """Product color multiple serilizer"""
 
     class Meta:
         model = ColorProduct
@@ -84,7 +113,7 @@ class ColorSerializer(serializers.ModelSerializer):
 
 
 class ProductPhotoSerializer(serializers.ModelSerializer):
-    """Product Photos multiple serilizer """
+    """Product Photos multiple serilizer"""
 
     class Meta:
         model = ProductPhoto
@@ -96,7 +125,7 @@ class ThreadSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Thread
-        fields = ['inches', 'id']
+        fields = ["inches", "id"]
 
 
 class ProductThreadSerializer(serializers.ModelSerializer):
@@ -104,7 +133,7 @@ class ProductThreadSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ProductThread
-        fields = ['thread_type', 'id']
+        fields = ["thread_type", "id"]
 
 
 class BrandSerializer(serializers.ModelSerializer):
@@ -121,6 +150,7 @@ class ManufacturerSerializer(serializers.ModelSerializer):
 
 class CategorySerializer(serializers.ModelSerializer):
     """Категория + ссылка на отфильтрованный каталог."""
+
     product_list = serializers.SerializerMethodField()
 
     class Meta:
@@ -128,11 +158,12 @@ class CategorySerializer(serializers.ModelSerializer):
         fields = ["id", "slug", "name", "product_list", "photo"]
 
     def get_product_list(self, category):
-        return reverse('products:product-list') + f'?category={category.slug}'
+        return reverse("products:product-list") + f"?category={category.slug}"
 
 
 class MaterialProductSerializer(serializers.ModelSerializer):
-    """ material of products"""
+    """material of products"""
+
     class Meta:
         model = MaterialProduct
         fields = ["id", "name"]
@@ -149,14 +180,14 @@ class BallSerializer(serializers.ModelSerializer):
 class ProductSerializer(serializers.ModelSerializer):
     class Meta:
         model = Product
-        fields = ["id", "slug", "name"] 
+        fields = ["id", "slug", "name"]
+
 
 class ProductVariantSerializer(serializers.ModelSerializer):
     product = ProductSerializer(read_only=True)  # вместо просто ID
 
     productSlug = serializers.CharField(source="product.slug", read_only=True)
     variantSlug = serializers.CharField(source="slug", read_only=True)
-
 
     brand = BrandSerializer(read_only=True)
     ball = BallSerializer(read_only=True)
@@ -169,7 +200,6 @@ class ProductVariantSerializer(serializers.ModelSerializer):
     product_name = serializers.CharField(source="product.name", read_only=True)
     photo = serializers.SerializerMethodField()
     banner_url = serializers.SerializerMethodField()
-
 
     included_items = IncludedItemSerializer(many=True, read_only=True)
     body_material = BodyMaterialSerializer(read_only=True)
@@ -188,17 +218,54 @@ class ProductVariantSerializer(serializers.ModelSerializer):
     class Meta:
         model = ProductVariant
         fields = [
-            "id","slug","product","productSlug","discount","original_price", "code","variantSlug", "product_name", "price", "brand","thread_size",
-            "product_thread", "manufacturer",
-            "material", "ball", "dimensions_width",
-            "dimensions_height","dimensions_weight", 
-            "dimensions_thickness", "type_of_product",
-            "color", "available","photo","description","banner_url",
-            "included_items","body_material","pattern","bed_type","filling",
-            "seat_depth","armrests","storage_niche","upholstery_materials","mattress_base",
-            "mechanism","color_options","features","custom_size_available","bed_length",
-            "bed_width","sleeping_places","dimensions_depth","seat_height","bed_type_form",
-            "in_stock", "available_qty",
+            "id",
+            "slug",
+            "product",
+            "productSlug",
+            "discount",
+            "original_price",
+            "code",
+            "variantSlug",
+            "product_name",
+            "price",
+            "brand",
+            "thread_size",
+            "product_thread",
+            "manufacturer",
+            "material",
+            "ball",
+            "dimensions_width",
+            "dimensions_height",
+            "dimensions_weight",
+            "dimensions_thickness",
+            "type_of_product",
+            "color",
+            "available",
+            "photo",
+            "description",
+            "banner_url",
+            "included_items",
+            "body_material",
+            "pattern",
+            "bed_type",
+            "filling",
+            "seat_depth",
+            "armrests",
+            "storage_niche",
+            "upholstery_materials",
+            "mattress_base",
+            "mechanism",
+            "color_options",
+            "features",
+            "custom_size_available",
+            "bed_length",
+            "bed_width",
+            "sleeping_places",
+            "dimensions_depth",
+            "seat_height",
+            "bed_type_form",
+            "in_stock",
+            "available_qty",
         ]
 
     def get_in_stock(self, obj):
@@ -209,10 +276,10 @@ class ProductVariantSerializer(serializers.ModelSerializer):
             return obj.photo.url
         # fallback: если фото нет у варианта, взять фото из продукта
         return obj.product.photo.url if obj.product.photo else None
-    
 
     def get_banner_url(self, obj):
         return f"/media/banners/{obj.id}_banner.png"
+
 
 class ProductDetailSerializer(serializers.ModelSerializer):
     # только видимые варианты (Prefetch to_attr="visible_variants" во view)
@@ -222,26 +289,36 @@ class ProductDetailSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Product
-        fields = ["id", "slug", "name", "category", "photo","photos", "variants", 'description']
+        fields = ["id", "slug", "name", "category", "photo", "photos", "variants", "description"]
 
 
 class ProductListSerializer(serializers.ModelSerializer):
-    """products 
-    """
+    """products"""
+
     category = serializers.CharField(source="category.name", read_only=True)
     category_id = serializers.IntegerField(source="category.id", read_only=True)
     photo = serializers.SerializerMethodField()
     first_variant = serializers.SerializerMethodField()
     price = serializers.SerializerMethodField()
     banner_url = serializers.SerializerMethodField()
-    
+
     class Meta:
         model = Product
-        fields = ["id","slug", "name",  "category","category_id", "price", "photo","banner_url", "first_variant",]
+        fields = [
+            "id",
+            "slug",
+            "name",
+            "category",
+            "category_id",
+            "price",
+            "photo",
+            "banner_url",
+            "first_variant",
+        ]
 
     def get_banner_url(self, obj):
         return f"/media/banners/{obj.id}_banner.png"
-    
+
     def get_first_variant(self, product):
         variants = getattr(product, "visible_variants", None)
         if variants is None:

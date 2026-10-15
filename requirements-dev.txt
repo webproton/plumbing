@@ -7,5 +7,5 @@ factory-boy>=3.3
 Faker>=24
 coverage>=7.4
 
-flake8>=7
+ruff>=0.6
 pre-commit>=3.6

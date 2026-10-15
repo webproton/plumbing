@@ -33,8 +33,17 @@ class OrderItemInline(admin.TabularInline):
 
 @admin.register(Order)
 class OrderAdmin(admin.ModelAdmin):
-    list_display = ["id", "creation_date", "customer_name", "phone_number", "status_order",
-                    "payment_status", "stock_state", "total_price", "manager"]
+    list_display = [
+        "id",
+        "creation_date",
+        "customer_name",
+        "phone_number",
+        "status_order",
+        "payment_status",
+        "stock_state",
+        "total_price",
+        "manager",
+    ]
     list_filter = ["status_order", "payment_status", "stock_state", "manager"]
     search_fields = ["id", "customer_name", "phone_number", "email"]
     readonly_fields = ["cart", "customer", "total_price", "stock_state", "creation_date"]

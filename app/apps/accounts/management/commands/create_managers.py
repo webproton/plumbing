@@ -1,8 +1,9 @@
 import os
-from django.core.management.base import BaseCommand
+
 from django.contrib.auth.models import Group
+from django.core.management.base import BaseCommand
+
 from app.apps.accounts.models import User  # ⚡️ поправь путь под своё приложение
-from django.conf import settings
 
 
 class Command(BaseCommand):
@@ -23,7 +24,7 @@ class Command(BaseCommand):
         managers_group, _ = Group.objects.get_or_create(name="Managers")
 
         for i, email in enumerate(emails, start=1):
-            telegram_id = TELEGRAM_MANAGERS[i-1] if i-1 < len(TELEGRAM_MANAGERS) else None
+            telegram_id = TELEGRAM_MANAGERS[i - 1] if i - 1 < len(TELEGRAM_MANAGERS) else None
 
             user, created = User.objects.get_or_create(
                 email=email,

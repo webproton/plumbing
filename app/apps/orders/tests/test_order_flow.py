@@ -5,6 +5,7 @@ import pytest
 from django.core import mail
 from django.db import connection
 from django.urls import reverse
+from rest_framework.exceptions import ValidationError
 from rest_framework.test import APIClient
 
 from app.apps.accounts.tests.factories import UserFactory
@@ -53,6 +54,7 @@ def client():
 
 # --- оформление и резерв -------------------------------------------------
 
+
 @pytest.mark.django_db
 def test_order_reserves_stock_and_snapshots_price(client, django_capture_on_commit_callbacks):
     variant = _variant(price="250.00", stock_qty=5)
@@ -100,6 +102,7 @@ def test_reserved_stock_is_not_sold_twice(client):
 
 # --- статусы ------------------------------------------------------------
 
+
 @pytest.mark.django_db
 def test_customer_cancel_releases_reserve(client):
     user = UserFactory()
@@ -129,7 +132,7 @@ def test_completion_writes_off_and_blocks_cancel(client):
     assert (v.stock, v.reserved) == (3, 0)
     assert stock.journal_balance(variant.pk) == 3
 
-    with pytest.raises(Exception):
+    with pytest.raises(ValidationError):
         services.change_status(order, Order.STATUS.canceled)
 
 
@@ -149,12 +152,15 @@ def test_legacy_order_completion_keeps_other_reservations(client):
 
 # --- корзина ------------------------------------------------------------
 
+
 @pytest.mark.django_db
 def test_cart_sync_replaces_quantities(client):
     a, b = _variant(), _variant()
     url = reverse("orders:cart-list")
-    items = [{"product": a.product_id, "variant": a.pk, "quantity": 2},
-             {"product": b.product_id, "variant": b.pk, "quantity": 1}]
+    items = [
+        {"product": a.product_id, "variant": a.pk, "quantity": 2},
+        {"product": b.product_id, "variant": b.pk, "quantity": 1},
+    ]
     first = client.post(url, {"cart_items": items}, format="json").json()
     cart_uuid = first["cart_uuid"]
 
@@ -173,9 +179,11 @@ def test_cart_item_reports_price_of_selected_variant(client):
     product = ProductFactory()
     ProductVariantFactory(product=product, price=Decimal("10"))
     expensive = ProductVariantFactory(product=product, price=Decimal("500"))
-    resp = client.post(reverse("orders:cart-list"),
-                       {"cart_items": [{"product": product.pk, "variant": expensive.pk, "quantity": 1}]},
-                       format="json")
+    resp = client.post(
+        reverse("orders:cart-list"),
+        {"cart_items": [{"product": product.pk, "variant": expensive.pk, "quantity": 1}]},
+        format="json",
+    )
     assert Decimal(resp.json()["cart_items"][0]["price"]) == Decimal("500")
 
 
@@ -202,6 +210,7 @@ def test_order_history_requires_auth(client):
 
 
 # --- гонки --------------------------------------------------------------
+
 
 @pytest.mark.django_db(transaction=True)
 def test_double_submit_creates_single_order():

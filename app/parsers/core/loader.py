@@ -1,5 +1,6 @@
 # parsers/core/loader.py
 """Загрузка файла накладной в универсальный вид: список строк (каждая — список ячеек)."""
+
 import logging
 import os
 
@@ -91,14 +92,16 @@ def _yml_catalog_rows(root):
             sku = _text(offer, "vendorCode") or offer.get("id") or ""
             price = _text(offer, "price", "0")
             currency = _text(offer, "currencyId", "UAH")
-            rows.append([
-                _text(offer, "name"),
-                sku,
-                "",
-                f"{price} {currency}",
-                "шт",
-                categories.get(_text(offer, "categoryId"), ""),
-            ])
+            rows.append(
+                [
+                    _text(offer, "name"),
+                    sku,
+                    "",
+                    f"{price} {currency}",
+                    "шт",
+                    categories.get(_text(offer, "categoryId"), ""),
+                ]
+            )
 
     logger.debug("YML: %s строк", len(rows))
     return rows

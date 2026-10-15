@@ -1,16 +1,18 @@
 import pytest
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import reverse
 from rest_framework.test import APIClient
-from app.apps.products.models import Product, ProductVariant, Category
-from django.core.files.uploadedfile import SimpleUploadedFile
+
+from app.apps.products.models import Category, Product, ProductVariant
 
 pytestmark = pytest.mark.django_db
 
 photo_file = SimpleUploadedFile(
-    name='test.jpg',
-    content=b'',  # можно оставить пустое содержимое
-    content_type='image/jpeg'
+    name="test.jpg",
+    content=b"",  # можно оставить пустое содержимое
+    content_type="image/jpeg",
 )
+
 
 # -----------------------------
 # Category tests
@@ -23,12 +25,14 @@ def test_category_list(client: APIClient):
     data = response.json()
     assert any(item["id"] == cat.id for item in data)
 
+
 def test_category_detail(client: APIClient):
     cat = Category.objects.create(name="Category 2")
     url = reverse("products:category-detail", args=[cat.slug])
     response = client.get(url)
     assert response.status_code == 200
     assert response.json()["id"] == cat.id
+
 
 # -----------------------------
 # Product list and detail tests
@@ -38,7 +42,7 @@ def test_product_list_and_detail(client: APIClient):
     category = Category.objects.create(name="Cat 1")
     product = Product.objects.create(name="Prod 1", category=category)
     variant = ProductVariant.objects.create(product=product, price=100)
-    
+
     # Список продуктов
     url = reverse("products:product-list")
     response = client.get(url)
@@ -56,6 +60,7 @@ def test_product_list_and_detail(client: APIClient):
     assert len(detail_data["variants"]) == 1
     assert detail_data["variants"][0]["id"] == variant.id
 
+
 # -----------------------------
 # Product filtering / search tests
 # -----------------------------
@@ -72,6 +77,7 @@ def test_product_filter_by_category(client: APIClient):
     data = response.json()["results"]
     assert len(data) == 1
     assert data[0]["id"] == prod1.id
+
 
 def test_product_search(client: APIClient):
     cat = Category.objects.create(name="C1")

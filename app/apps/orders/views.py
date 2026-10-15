@@ -19,8 +19,7 @@ from .serializers import (
 logger = logging.getLogger(__name__)
 
 
-class CartViewSet(viewsets.GenericViewSet, mixins.CreateModelMixin, mixins.RetrieveModelMixin,
-                  mixins.UpdateModelMixin):
+class CartViewSet(viewsets.GenericViewSet, mixins.CreateModelMixin, mixins.RetrieveModelMixin, mixins.UpdateModelMixin):
     permission_classes = [permissions.AllowAny, IsCartOwnerOrAnonWithUUID]
 
     def get_queryset(self):
@@ -39,8 +38,9 @@ class CartViewSet(viewsets.GenericViewSet, mixins.CreateModelMixin, mixins.Retri
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         cart = serializer.save()
-        return Response(CartDetailSerializer(cart, context=self.get_serializer_context()).data,
-                        status=status.HTTP_201_CREATED)
+        return Response(
+            CartDetailSerializer(cart, context=self.get_serializer_context()).data, status=status.HTTP_201_CREATED
+        )
 
     @action(detail=False, methods=["get"], url_path="by-uuid")
     def get_by_uuid(self, request):
@@ -56,6 +56,7 @@ class CartViewSet(viewsets.GenericViewSet, mixins.CreateModelMixin, mixins.Retri
 
 class OrderListView(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.RetrieveModelMixin):
     """История заказов текущего пользователя."""
+
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
@@ -76,11 +77,15 @@ class OrderListView(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.Retri
 
 class OrderView(viewsets.GenericViewSet, mixins.CreateModelMixin):
     """Оформление заказа (в т.ч. гостевое)."""
+
     permission_classes = [permissions.AllowAny]
     serializer_class = OrderCreateSerializer
     queryset = Order.objects.none()
 
     def perform_create(self, serializer):
         order = serializer.save()
-        logger.info("Создан заказ #%s (пользователь: %s)", order.pk,
-                    self.request.user.pk if self.request.user.is_authenticated else "гость")
+        logger.info(
+            "Создан заказ #%s (пользователь: %s)",
+            order.pk,
+            self.request.user.pk if self.request.user.is_authenticated else "гость",
+        )

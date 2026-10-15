@@ -1,12 +1,12 @@
 # parsers/suppliers/aquadom.py
+import re
+
 from parsers.core.date_utils import extract_date
+from parsers.core.numbers import extract_numbers
+from parsers.core.table_engine import TableEngine
+from parsers.core.text_utils import normalize_text, row_text
 
 from ..base import BaseInvoiceParser
-from parsers.core.numbers import extract_numbers
-from parsers.core.text_utils import normalize_text, row_text
-from parsers.core.table_engine import TableEngine
-
-import re
 
 
 class AquadomParser(BaseInvoiceParser):
@@ -16,8 +16,7 @@ class AquadomParser(BaseInvoiceParser):
     # CONTACT ENGINE
     # =========================
     def extract_contact_and_phones(self, rows, context):
-        import re
-        from parsers.core.text_utils import row_text, normalize_text
+        from parsers.core.text_utils import normalize_text, row_text
 
         phones = []
         candidates = []
@@ -40,7 +39,6 @@ class AquadomParser(BaseInvoiceParser):
             # CLEAN CONTACT CANDIDATE LINE
             # =========================
             if found_phones or "тел" in lower:
-
                 cleaned = text
                 cleaned = re.sub(r"\d{9,12}", "", cleaned)
                 cleaned = re.sub(r"тел\.?:?", "", cleaned, flags=re.IGNORECASE)
@@ -69,10 +67,20 @@ class AquadomParser(BaseInvoiceParser):
                         continue
 
                     # 3. стоп-слова (товары / инструкции)
-                    if any(x in part.lower() for x in [
-                            "керамик", "товар", "провер", "внимание", "шт",
-                            "исполн", "виконавець", "получил", "менеджер"
-                    ]):
+                    if any(
+                        x in part.lower()
+                        for x in [
+                            "керамик",
+                            "товар",
+                            "провер",
+                            "внимание",
+                            "шт",
+                            "исполн",
+                            "виконавець",
+                            "получил",
+                            "менеджер",
+                        ]
+                    ):
                         continue
 
                     # 4. должно быть похоже на имя/фамилию/организацию
@@ -82,9 +90,7 @@ class AquadomParser(BaseInvoiceParser):
                     if len(words) == 0:
                         continue
                     # стоп для организаций/служебных слов
-                    if any(x in part.lower() for x in [
-                        "ооо", "чп", "тов", "склад", "цех"
-                    ]):
+                    if any(x in part.lower() for x in ["ооо", "чп", "тов", "склад", "цех"]):
                         continue
                     # =========================
                     # SCORE SYSTEM (ВАЖНО)
@@ -113,11 +119,9 @@ class AquadomParser(BaseInvoiceParser):
 
         return {
             "buyer_phones": list(set(phones)) if phones else None,
-            "contact_person": normalize_text(contact_person) if contact_person else None
+            "contact_person": normalize_text(contact_person) if contact_person else None,
         }
-            
-            
-            
+
     def detect_context(self, text: str):
         t = text.lower()
 
@@ -131,10 +135,8 @@ class AquadomParser(BaseInvoiceParser):
             return "delivery"
 
         return "unknown"
-        
-            
+
     def extract_header(self, rows, context):
-        import re
 
         supplier_phones = []
         buyer_phones = []
@@ -186,20 +188,16 @@ class AquadomParser(BaseInvoiceParser):
         return {
             "supplier_text": normalize_text(" ".join(supplier_text)) or None,
             "buyer_text": normalize_text(" ".join(buyer_text)) or None,
-
             "supplier_phones": supplier_phones,
             "buyer_phones": buyer_phones,
-
             "supplier_emails": supplier_emails,
             "buyer_emails": buyer_emails,
         }
-        
-        
+
     # =========================
     # META
     # =========================
     def extract_meta(self, rows, context):
-        import re
 
         meta = {
             "raw_title": None,
@@ -344,9 +342,7 @@ class AquadomParser(BaseInvoiceParser):
     def extract_items(self, rows, context):
         engine = TableEngine(rows, context)
         return engine.run().get("items", [])
-        
 
-    
     # =========================
     # TOTALS
     # =========================
@@ -377,11 +373,7 @@ class AquadomParser(BaseInvoiceParser):
     # FOOTER
     # =========================
     def extract_footer(self, rows, context):
-        return [
-            row_text(row)
-            for row in rows
-            if any(x in row_text(row).lower() for x in ["вага", "об", "грив"])
-        ]
+        return [row_text(row) for row in rows if any(x in row_text(row).lower() for x in ["вага", "об", "грив"])]
 
     # =========================
     # WARNINGS
@@ -413,5 +405,3 @@ class AquadomParser(BaseInvoiceParser):
             "executor": " | ".join(executor) or None,
             "receiver": " | ".join(receiver) or None,
         }
-        
-        

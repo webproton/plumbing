@@ -1,4 +1,5 @@
 """Конфигурация gunicorn (значения переопределяются переменными окружения)."""
+
 import multiprocessing
 import os
 

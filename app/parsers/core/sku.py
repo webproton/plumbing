@@ -1,5 +1,6 @@
 # parsers/core/sku.py
 import re
+
 from .text_utils import normalize_text, row_text
 
 
@@ -24,13 +25,10 @@ def normalize_sku(sku):
 SKU_PATTERNS = [
     # 1. № 5141 / №5141 / № ABC-123
     r"№\s*([A-Za-z0-9\-]{2,})",
-
     # 2. арт. 5141 / арт 5141
     r"арт\.?\s*([A-Za-z0-9\-]{2,})",
-
     # 3. sku 5141
     r"sku\.?\s*([A-Za-z0-9\-]{2,})",
-
     # 4. code 5141
     r"code\.?\s*([A-Za-z0-9\-]{2,})",
 ]
@@ -46,7 +44,6 @@ def extract_sku_from_row(row):
     text = row_text(row)
     if not text:
         return None
-
 
     # =========================
     # 1. STRONG PATTERNS (№ / арт / sku)
@@ -72,10 +69,9 @@ def extract_sku_from_row(row):
     if numbers:
         # фильтр: не брать если строка выглядит как цена/сумма
         if not re.search(r"\d+[.,]\d{2}", text):
-        # if not re.search(r"\d+\.\d{2}", text):  # 1.269 / 253.80
-            
-            return normalize_sku(numbers[0])
+            # if not re.search(r"\d+\.\d{2}", text):  # 1.269 / 253.80
 
+            return normalize_sku(numbers[0])
 
     # =========================
     # 4. SPLIT ROW FALLBACK (SAFE VERSION)
@@ -93,4 +89,3 @@ def extract_sku_from_row(row):
                 return normalize_sku(b)
 
     return None
-

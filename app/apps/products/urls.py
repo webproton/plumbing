@@ -1,6 +1,7 @@
-from django.urls import path, include
+from django.urls import include, path
 from rest_framework.routers import DefaultRouter
-from app.apps.products.views import ProductListView, CategoryList, NewProducts,  WishlistViewSet
+
+from app.apps.products.views import CategoryList, NewProducts, ProductListView, WishlistViewSet
 
 app_name = "products"
 
@@ -12,10 +13,9 @@ router.register(r"category", CategoryList, basename="category")
 
 router.register(r"new_products", NewProducts, basename="new-products")
 
-router.register(r'wishlist', WishlistViewSet, basename='wishlist')
+router.register(r"wishlist", WishlistViewSet, basename="wishlist")
 
 
 urlpatterns = [
-    
-     path("", include(router.urls)),
+    path("", include(router.urls)),
 ]

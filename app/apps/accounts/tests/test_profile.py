@@ -1,10 +1,12 @@
 import pytest
 from django.urls import reverse
 from rest_framework.test import APIClient
+
+from app.apps.accounts.models import Profile, User
 from app.apps.accounts.tests.factories import UserFactory
-from app.apps.accounts.models import User, Profile
 
 pytestmark = pytest.mark.django_db
+
 
 def test_profile_retrieve():
     user = UserFactory(password="Qwerty123!")
@@ -15,6 +17,7 @@ def test_profile_retrieve():
     assert response.status_code == 200
     assert response.data["email"] == user.email
 
+
 def test_profile_update():
     user = UserFactory(password="Qwerty123!")
     client = APIClient()
@@ -24,7 +27,6 @@ def test_profile_update():
     assert response.status_code == 200
     user.refresh_from_db()
     assert user.first_name == "Ivan"
-
 
 
 @pytest.mark.django_db
