@@ -325,11 +325,11 @@ const { wishlist } = this.context;
  
   // Если фотографий нет, используем заглушку
   const defaultPhoto = 'defaultPhotoUrl';
-  const seoTitle = product ? `${product.name} – Купить мебель онлайн в России` : 'Product';
+  const seoTitle = product ? `${product.name} – Купить мебель онлайн в Украине` : 'Product';
 
   const seoDescription = product
     ? `Купить ${product.name} от ${selectedVariant?.brand?.name || 'лучших производителей'}. 
-       Доставка по России. Лучшие цены, скидки и акции на мебель.`
+       Доставка по Украине. Лучшие цены, скидки и акции на мебель.`
     : 'Product description';
   const seoImage = selectedVariant?.photo || product?.photos[0]?.photo || 'https://example.com/default-product.jpg';
 
