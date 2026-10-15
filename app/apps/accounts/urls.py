@@ -6,8 +6,6 @@ from dj_rest_auth.registration.views import VerifyEmailView
 from app.apps.accounts.views import CustomRegisterView, CustomLoginView
 
 
-# app_name = "apps.accounts"
-
 app_name = "dj-rest-auth"
 
 urlpatterns = [

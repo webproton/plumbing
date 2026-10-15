@@ -1,7 +1,5 @@
 from dj_rest_auth.registration.serializers import RegisterSerializer
 from dj_rest_auth.serializers import LoginSerializer, UserDetailsSerializer
-# from captcha.fields import ReCaptchaField
-# from captcha.widgets import ReCaptchaV2Checkbox
 from app.apps.accounts.models import Profile
 from django.contrib.auth import get_user_model
 from rest_framework import serializers
@@ -10,7 +8,6 @@ User = get_user_model()
 
 import logging
 logger = logging.getLogger(__name__)
-
 
 
 # pylint: disable=W0223
@@ -38,7 +35,6 @@ ALLOWED_DOMAINS = [
     "t-online.de",         # Германия
 
 
-
 ]
 
 FORBIDDEN_USERNAMES = ["admin", "root", "superuser"]
@@ -52,22 +48,8 @@ class CustomRegisterSerializer(RegisterSerializer):
         super().__init__(*args, **kwargs)
         
     email = serializers.EmailField(required=True)
-    # username = serializers.CharField(required=True)
     password1 = serializers.CharField(write_only=True)
-    #captcha = serializers.CharField(write_only=True)  # сюда придет token с фронта
 
-    # def validate_captcha(self, value):
-    # На фронте: вставляешь виджет reCAPTCHA и отправляешь токен в поле captcha.
-    #     import requests
-    #     secret = settings.RECAPTCHA_PRIVATE_KEY
-    #     resp = requests.post(
-    #         "https://www.google.com/recaptcha/api/siteverify",
-    #         data={"secret": secret, "response": value}
-    #     )
-    #     result = resp.json()
-    #     if not result.get("success"):
-    #         raise serializers.ValidationError("Captcha не пройдена")
-    #     return value
 
     def save(self, request):
 

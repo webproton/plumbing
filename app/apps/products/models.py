@@ -11,7 +11,6 @@ import random
 import string
 import uuid
 from io import BytesIO
-# import barcode
 from barcode import get_barcode_class
 from barcode.writer import ImageWriter
 import qrcode
@@ -30,7 +29,7 @@ class Pattern(models.Model):
 
     def __str__(self):
         return self.name
-    
+
 class Mechanism(models.Model):
     name = models.CharField(max_length=255, verbose_name="Механизм раскладки")
     def __str__(self):
@@ -82,7 +81,7 @@ class MattressHardness(models.Model):
 
     def __str__(self):
         return self.name
-    
+
 class AngleVariant(models.Model):
     name = models.CharField(max_length=255, unique=True, verbose_name="Вариант угла")
 
@@ -95,7 +94,7 @@ class FurnitureSetItem(models.Model):
 
     def __str__(self):
         return self.name
-    
+
 class ExtraOrthopedicFilling(models.Model):
     name = models.CharField(max_length=255, unique=True, verbose_name="Название наполнителя")
 
@@ -108,7 +107,6 @@ class InteriorStyle(models.Model):
     def __str__(self):
         return self.name
 
-# Create your models here.
 class Category(TimeStampedModel):
     """категорії продукта """
 
@@ -145,15 +143,6 @@ class Category(TimeStampedModel):
         buffer.seek(0)
         filename = f"{self.slug}_{self.barcode}.png"
         self.barcode_image.save(filename, File(buffer), save=False)
-        # if self.photo:
-        #     img = Image.open(self.photo.path)
-        #     new_size = (355, 187)
-        #     img.thumbnail(new_size)
-        #     new_img = Image.new("RGB", new_size, (255, 255, 255))
-        #     paste_position = ((new_size[0] - img.width) // 2,
-        #                     (new_size[1] - img.height) // 2)
-        #     new_img.paste(img, paste_position)
-        #     new_img.save(self.photo.path)
 
 
     def __str__(self):
@@ -188,7 +177,6 @@ class TypeOfProduct(models.Model):
     TYPEPRODUCT = Choices("kranu", "smesitelya", "tryba",)
     name = models.CharField(max_length=255, choices=TYPEPRODUCT, verbose_name="product type", blank=True, null=True)
     custom_type_product = models.CharField(max_length=255, verbose_name="custom product type", blank=True, null=True)
-    # product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='type_of_product',blank=True,null=True)
 
     def __str__(self):
         return self.name
@@ -196,11 +184,9 @@ class TypeOfProduct(models.Model):
 
 class Manufacturer(models.Model):
     "Виробник"
-    # name = models.CharField(max_length=255,blank=True,null=True)
     brand_name = models.ForeignKey(Brand, blank=True, null=True, related_name='brand',
                                    on_delete=models.CASCADE, verbose_name='Brand title')
     country = models.CharField(max_length=255, blank=True, null=True)
-    # products = models.ManyToManyField(Product, related_name='manufacturers',blank=True,null=True)
 
     def __str__(self):
         return self.country
@@ -239,19 +225,12 @@ class ColorProduct(models.Model):
         return str(self.name)
 
 
-
-
 class Product(TimeStampedModel):
     """products
         базова модель продукту 
         в цілому все влаштовує )  """
-        
-#     seller = models.ForeignKey(
-#     Seller,
-#     on_delete=models.CASCADE,
-#     related_name="products", blank=True, null=True
-# )
-    seller = models.ForeignKey(Seller, on_delete=models.CASCADE, related_name='products', blank=True, null=True)  # ← обязательно!
+
+    seller = models.ForeignKey(Seller, on_delete=models.CASCADE, related_name='products', blank=True, null=True)
     name = models.CharField(max_length=255, verbose_name="product name", blank=True, null=True)
     category = models.ForeignKey(Category, on_delete=models.CASCADE, related_name='products',
                                  verbose_name="category", blank=True, null=True)
@@ -266,7 +245,6 @@ class Product(TimeStampedModel):
         return self.name
 
 
-
     def save(self, *args, **kwargs):
         if not self.slug and self.name:
             # Транслитерируем кириллицу в латиницу
@@ -279,21 +257,20 @@ class Product(TimeStampedModel):
                 counter += 1
             self.slug = slug
         super().save(*args, **kwargs)
-# products/models.py → в ProductVariant
 class ProductVariant(TimeStampedModel):
     """
     Вариант продукта.
     У одного продукта может быть несколько вариантов (цвет, размер, материал, комплектация).
     Используется для отображения разных конфигураций товара в магазине.
     """
-    
+
     
     CURRENCY_CHOICES = [
         ('UAH', 'Гривна ₴'),
         ('USD', 'Доллар $'),
         ('EUR', 'Евро €'),
     ]
-    
+
     # Валюта, в которой ведется закупка этого товара
     purchase_currency = models.CharField(
         max_length=3, 
@@ -303,18 +280,18 @@ class ProductVariant(TimeStampedModel):
         blank=True,
         null=True
     )
-    
+
     
     slug = models.SlugField(max_length=255,blank=True,null=True)
     code = models.CharField(max_length=50, verbose_name="Код товара", unique=True, blank=True, null=True)
-    
+
     
     barcode = models.CharField(max_length=50, unique=True, blank=True, null=True, verbose_name="Штрихкод (EAN13 / SKU)")
     # Кэш остатков. Источник истины — журнал warehouse.StockMovement.
     # Меняются только через app.apps.warehouse.stock (queryset.update, без save()).
     stock = models.DecimalField(max_digits=12, decimal_places=3, default=0, verbose_name="Физический остаток")
     reserved = models.DecimalField(max_digits=12, decimal_places=3, default=0, verbose_name="Зарезервировано")
-    
+
     
     barcode_image = models.ImageField(upload_to="products/barcodes/", blank=True, null=True)
     barcode_type = models.CharField(
@@ -493,7 +470,6 @@ class ProductVariant(TimeStampedModel):
     )
 
 
-
     # 🔹 Новые поля
     # Жесткость матраса
     mattress_hardnesses = models.ManyToManyField(
@@ -530,12 +506,6 @@ class ProductVariant(TimeStampedModel):
     # Серия
     series = models.CharField(max_length=255, blank=True, null=True, verbose_name="Серия")
 
-    # Состояние
-    # condition = models.CharField(
-    #     max_length=255, blank=True, null=True,
-    #     choices=[('new', 'Новый'), ('used', 'Б/У'), ('sale', 'Распродажа')],
-    #     verbose_name="Состояние"
-    # )
 
     # Срок изготовления
     production_time_days = models.DecimalField(
@@ -717,9 +687,6 @@ class ProductVariant(TimeStampedModel):
     is_color_customizable = models.BooleanField(default=False, verbose_name="Цвет по заказу")
 
 
-    
-
-
     # 💲 Цена и наличие
     price = models.DecimalField(
         verbose_name="Цена продажи", max_digits=20, decimal_places=4,
@@ -727,10 +694,9 @@ class ProductVariant(TimeStampedModel):
     )
     discount = models.PositiveIntegerField(default=0, verbose_name="Скидка %")
     original_price = models.DecimalField(max_digits=20, decimal_places=4, blank=True, null=True, verbose_name="Оригинальная цена(Старая цена (маркетинг)")
-    
-    # Новое поле:
+
     cost_price = models.DecimalField(max_digits=10, decimal_places=4, blank=True, null=True, verbose_name="Себестоимость (закупка)")
-    
+
     available = models.BooleanField(
         verbose_name="В наличии", default=True, blank=True, null=True
     )
@@ -738,7 +704,6 @@ class ProductVariant(TimeStampedModel):
     class Meta:
         unique_together = ('product', 'slug')
 
-   
 
     def save(self, *args, **kwargs):
         # Генерация slug
@@ -775,25 +740,18 @@ class ProductVariant(TimeStampedModel):
             self.price = Decimal(str(self.price)).quantize(Decimal("1.00"), rounding=ROUND_HALF_UP)
         if self.original_price is not None:
             self.original_price = Decimal(str(self.original_price)).quantize(Decimal("1.00"), rounding=ROUND_HALF_UP)
-            
+
             
         if self.cost_price is not None:
             # Себестоимость храним с точностью накладной (4 знака), а не округляем до копеек.
             self.cost_price = Decimal(str(self.cost_price)).quantize(Decimal("0.0001"), rounding=ROUND_HALF_UP)
 
         super().save(*args, **kwargs)
-    
-    # def generate_unique_code(self):
-    #     prefix = "PRD"  # можно любой префикс
-    #     while True:
-    #         random_part = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
-    #         code = f"{prefix}-{self.product.id}-{random_part}"
-    #         if not ProductVariant.objects.filter(code=code).exists():
-    #             return code
+
             
-          
+
     
-    
+
     @property
     def available_stock(self):
         """Доступно к продаже = физический остаток − резерв."""
@@ -808,14 +766,12 @@ class ProductVariant(TimeStampedModel):
         )
 
         return f"{prefix}{product_part}{random_part}"
-        
-    def generate_code(self):
-        return f"P{uuid.uuid4().hex[:8].upper()}"
+
 
 
     def generate_barcode(self):
         return f"2{uuid.uuid4().int % 10**12:012d}"
-    
+
     
     def generate_barcode_image(self):
         """
@@ -833,7 +789,7 @@ class ProductVariant(TimeStampedModel):
             img = qr.make_image(fill_color="black", back_color="white")
             img.save(buffer, format="PNG")
         else:
-            
+
             bc_class = get_barcode_class(self.barcode_type)
             # Для EAN13 нужно убрать любые буквы и взять 12 цифр
             code_value = self.barcode
@@ -841,36 +797,27 @@ class ProductVariant(TimeStampedModel):
                 code_value = ''.join(filter(str.isdigit, self.barcode))[:12]
             bc = bc_class(code_value, writer=ImageWriter())
             bc.write(buffer)
+
             
+
             
-            
-            
-            
-            # bc_class = barcode.get_barcode_class(self.barcode_type)
-            # bc = bc_class(self.barcode, writer=ImageWriter())
-            # bc.write(buffer)
+
 
         buffer.seek(0)
         filename = f"{self.slug}_{self.barcode}.png"
         self.barcode_image.save(filename, File(buffer), save=False)
-            
+
     def __str__(self):
         return f"{self.product.name} - Variant"
 
-    
-class Wishlist(TimeStampedModel):
-    # Залогиненный пользователь → user записывается.
 
-    # Анонимный пользователь → session_key сохраняется.
+class Wishlist(TimeStampedModel):
+    """Избранное авторизованного пользователя (у гостя — localStorage на фронте)."""
     user = models.ForeignKey(
         User, on_delete=models.CASCADE,
         null=True, blank=True,
         verbose_name="User"
     )
-    # session_key = models.CharField(
-    #     max_length=40, null=True, blank=True,
-    #     verbose_name="Session Key"
-    # )
     product_variant = models.ForeignKey(ProductVariant, on_delete=models.CASCADE, verbose_name="ProductVariant")
     added_at = models.DateTimeField(auto_now_add=True, verbose_name="Time Added")
 
@@ -879,9 +826,9 @@ class Wishlist(TimeStampedModel):
 
     def __str__(self):
         return f"{self.user } — {self.product_variant}"
+
     
-    
-    
+
 class ProductPhoto(models.Model):
     """Product Photos
      стандартизація фото по певному формату і розміру"""
@@ -891,21 +838,5 @@ class ProductPhoto(models.Model):
 
     photo = models.ImageField(upload_to='products_new/', verbose_name="photo")
 
-    def save(self, *args, **kwargs):
-        super().save(*args, **kwargs)
-
-        # if self.photo:
-        #     img = Image.open(self.photo.path)
-
-        #     # Resize the image to 100x100 pixels
-        #     new_size = (355, 187)
-        #     img.thumbnail(new_size)
-        #     new_img = Image.new("RGB", new_size, (255, 255, 255))
-        #     paste_position = (
-        #         (new_size[0] - img.width) // 2,
-        #         (new_size[1] - img.height) // 2
-        #     )
-        #     new_img.paste(img, paste_position)
-        #     new_img.save(self.photo.path)
     def __str__(self):
         return f"Photo for {self.product.name}"    

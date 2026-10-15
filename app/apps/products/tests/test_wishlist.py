@@ -34,7 +34,7 @@ def test_wishlist_create_authenticated(api_client, user, variant):
 
 def test_wishlist_create_anonymous(api_client, variant):
     response = api_client.post("/api/wishlist/", {"product_variant_id": variant.id})
-    assert response.status_code == 403
+    assert response.status_code == 401
 
 def test_wishlist_create_variant_not_exist(api_client, user):
     api_client.force_authenticate(user=user)

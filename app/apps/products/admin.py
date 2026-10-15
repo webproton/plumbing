@@ -9,12 +9,10 @@ from django.utils.html import format_html
 import logging
 
 from django import forms
-# Register your models here.
 from .models import *
 from .actions import apply_discount_to_variants
 
 logger = logging.getLogger(__name__)
-
 
 
 def generate_banners(modeladmin, request, queryset):
@@ -56,7 +54,6 @@ class ProductAdmin(admin.ModelAdmin):
     actions = [generate_banners]
 
     
-    # form = ProductAdminForm
         
 
 class ProductVariantAdmin(admin.ModelAdmin):
@@ -126,15 +123,6 @@ class ProductVariantAdmin(admin.ModelAdmin):
             return JsonResponse({"error": str(e)}, status=400)
 
 
-
-
-
-
-
-
-
-
-
 class WishlistAdmin(admin.ModelAdmin):
         list_display = ['user','id','product_variant']
 
@@ -171,7 +159,6 @@ class ProductPhotoAdmin(admin.ModelAdmin):
     photo_preview.short_description = "Превью"
 
 
-
 admin.site.register(Product,ProductAdmin)
 admin.site.register(ProductThread,ProductThreadAdmin)
 admin.site.register(MaterialProduct,MaterialProductAdmin)
@@ -185,6 +172,5 @@ admin.site.register(TypeOfProduct)
 admin.site.register(ColorProduct)
 admin.site.register(ProductVariant, ProductVariantAdmin)
 admin.site.register(Wishlist, WishlistAdmin)
-
 
 

@@ -1,3 +1,4 @@
+from django.db.models import Q
 from django_filters import rest_framework as filters
 from .models import (Product, Brand,TypeOfProduct, Category,MaterialProduct,Ball,Mechanism, MattressBase, UpholsteryMaterial, Armrest, Filling,
     Form, BedType, Pattern, BodyMaterial, IncludedItem)
@@ -33,11 +34,6 @@ class ProductFilters(filters.FilterSet):
         label='Ball valve'
     )
 
-    # type_of_product = filters.ChoiceFilter(choices=TypeOfProduct.TYPEPRODUCT, 
-    #                                     #    field_name='variants__type_of_product__name',
-    #                                         field_name="variants__type_of_product__id",  # или variants__type_of_product__slug
-    #                                          lookup_expr='exact',
-    #                                         )
     
 
     type_of_product = filters.ModelChoiceFilter(
@@ -76,7 +72,6 @@ class ProductFilters(filters.FilterSet):
     # ⚙️ Характеристики
 
 
-
     mechanism = filters.ModelMultipleChoiceFilter(
         queryset=Mechanism.objects.all(),
         field_name="variants__mechanism__id",
@@ -85,57 +80,54 @@ class ProductFilters(filters.FilterSet):
 
     upholstery_materials = filters.ModelMultipleChoiceFilter(
         queryset=UpholsteryMaterial.objects.all(),
-        # field_name="variants__upholstery_materials"
-        field_name="variants__upholstery_materials__id",  # 🔄 уточнил поле
+        field_name="variants__upholstery_materials__id",
         to_field_name="id"
     )
     mattress_base = filters.ModelChoiceFilter(queryset=MattressBase.objects.all(),
-                                            #    field_name="variants__mattress_base"
-                                                field_name="variants__mattress_base__id",  # 🔄 уточнил
+                                                field_name="variants__mattress_base__id",
                                                 to_field_name="id"
                                                )
     storage_niche = filters.BooleanFilter(field_name="variants__storage_niche")
 
     
     armrests = filters.ModelChoiceFilter(queryset=Armrest.objects.all(), 
-                                        # field_name="variants__armrests",
-                                        field_name="variants__armrests__id",  # 🔄 уточнил
+                                        field_name="variants__armrests__id",
                                         to_field_name="id"
                                         
                                         )
     filling = filters.ModelChoiceFilter(
         queryset=Filling.objects.all(),
-        field_name="variants__filling__id",  # 🔄 уточнил
+        field_name="variants__filling__id",
         to_field_name="id"
     )
 
     bed_type_form = filters.ModelChoiceFilter(
         queryset=Form.objects.all(),
-        field_name="variants__bed_type_form__id",  # 🔄 уточнил
+        field_name="variants__bed_type_form__id",
         to_field_name="id"
     )
 
     bed_type = filters.ModelChoiceFilter(
         queryset=BedType.objects.all(),
-        field_name="variants__bed_type__id",  # 🔄 уточнил
+        field_name="variants__bed_type__id",
         to_field_name="id"
     )
 
     pattern = filters.ModelChoiceFilter(
         queryset=Pattern.objects.all(),
-        field_name="variants__pattern__id",  # 🔄 уточнил
+        field_name="variants__pattern__id",
         to_field_name="id"
     )
 
     body_material = filters.ModelChoiceFilter(
         queryset=BodyMaterial.objects.all(),
-        field_name="variants__body_material__id",  # 🔄 уточнил
+        field_name="variants__body_material__id",
         to_field_name="id"
     )
 
     included_items = filters.ModelMultipleChoiceFilter(
         queryset=IncludedItem.objects.all(),
-        field_name="variants__included_items__id",  # 🔄 уточнил
+        field_name="variants__included_items__id",
         to_field_name="id"
     )
 
@@ -166,6 +158,15 @@ class ProductFilters(filters.FilterSet):
             'search'
         ]
     def search_filter(self, queryset, name, value):
-        return queryset.filter(name__icontains=value)
+        """Поиск по названию товара/варианта, артикулу и штрихкоду."""
+        value = value.strip()
+        if not value:
+            return queryset
+        return queryset.filter(
+            Q(name__icontains=value)
+            | Q(variants__variant_name__icontains=value)
+            | Q(variants__code__iexact=value)
+            | Q(variants__barcode__iexact=value)
+        ).distinct()
 
     

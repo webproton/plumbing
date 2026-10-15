@@ -2,16 +2,14 @@ from rest_framework import serializers
 from .models import (Product, Category, Brand,
                       ProductThread, Thread, Manufacturer,
                         MaterialProduct, ProductPhoto, 
-                        ColorProduct, ProductVariant, Wishlist,
+                        ColorProduct, ProductVariant, Wishlist, Ball,
                         IncludedItem,BodyMaterial,Pattern,
                         BedType,Filling,Armrest,UpholsteryMaterial,
                         Mechanism,MattressBase,ColorOption,TypeOfProduct,Form
                         
                         )
 from django.urls import reverse
-from django.conf import settings
-from rest_framework.exceptions import ValidationError
-from rest_framework.response import Response
+from django.db.models import Min
 
 
 # --- простые сериализаторы для связанных моделей ---
@@ -122,28 +120,15 @@ class ManufacturerSerializer(serializers.ModelSerializer):
 
 
 class CategorySerializer(serializers.ModelSerializer):
-    """category list serializer its links to list products this categories"""
-
-    # products = serializers.SerializerMethodField()
+    """Категория + ссылка на отфильтрованный каталог."""
     product_list = serializers.SerializerMethodField()
 
     class Meta:
         model = Category
-        fields = ["id","slug", "name", "product_list", "photo"]
+        fields = ["id", "slug", "name", "product_list", "photo"]
 
     def get_product_list(self, category):
-        # Generate the URL for the filtered product list for the category
-        # request = self.context.get('request')
-        return reverse('products:product-list') + f'?category={category.id}'
-
-    def get_products(self, category):
-        products = category.products.all()
-        request = self.context.get('request')
-        links = {}
-        for product in products:
-            url = reverse('products:product-list')
-            links[product.name] = request.build_absolute_uri(url)
-        return links
+        return reverse('products:product-list') + f'?category={category.slug}'
 
 
 class MaterialProductSerializer(serializers.ModelSerializer):
@@ -154,11 +139,10 @@ class MaterialProductSerializer(serializers.ModelSerializer):
 
 
 class BallSerializer(serializers.ModelSerializer):
-    """ material of products"""
     ball_material_type = MaterialProductSerializer(read_only=True)
 
     class Meta:
-        model = MaterialProduct
+        model = Ball
         fields = ["id", "ball_material_type"]
 
 
@@ -198,7 +182,9 @@ class ProductVariantSerializer(serializers.ModelSerializer):
     mechanism = MechanismSerializer(read_only=True)
     color_options = ColorOptionSerializer(many=True, read_only=True)
     bed_type_form = FormSerializer(read_only=True)
-    
+    in_stock = serializers.SerializerMethodField(help_text="Есть ли товар в наличии (остаток минус резерв > 0)")
+    available_qty = serializers.DecimalField(source="available_stock", max_digits=12, decimal_places=3, read_only=True)
+
     class Meta:
         model = ProductVariant
         fields = [
@@ -211,11 +197,13 @@ class ProductVariantSerializer(serializers.ModelSerializer):
             "included_items","body_material","pattern","bed_type","filling",
             "seat_depth","armrests","storage_niche","upholstery_materials","mattress_base",
             "mechanism","color_options","features","custom_size_available","bed_length",
-            "bed_width","sleeping_places","dimensions_depth","seat_height","bed_type_form"
+            "bed_width","sleeping_places","dimensions_depth","seat_height","bed_type_form",
+            "in_stock", "available_qty",
+        ]
 
+    def get_in_stock(self, obj):
+        return obj.available_stock > 0
 
-            ]
-        
     def get_photo(self, obj):
         if obj.photo:
             return obj.photo.url
@@ -227,14 +215,10 @@ class ProductVariantSerializer(serializers.ModelSerializer):
         return f"/media/banners/{obj.id}_banner.png"
 
 class ProductDetailSerializer(serializers.ModelSerializer):
-    variants = ProductVariantSerializer(read_only=True, many=True)
+    # только видимые варианты (Prefetch to_attr="visible_variants" во view)
+    variants = ProductVariantSerializer(source="visible_variants", read_only=True, many=True)
     photos = ProductPhotoSerializer(read_only=True, many=True)
-    category = CategorySerializer(read_only=True) 
-
-    # thread_size = ThreadSerializer(read_only=True, many=True)
-    # product_thread = ProductThreadSerializer(read_only=True, many=True)
-
-    
+    category = CategorySerializer(read_only=True)
 
     class Meta:
         model = Product
@@ -245,8 +229,8 @@ class ProductListSerializer(serializers.ModelSerializer):
     """products 
     """
     category = serializers.CharField(source="category.name", read_only=True)
-    category_id = serializers.IntegerField(source="category.id", read_only=True)  # <--- Добавь это!
-    photo = serializers.SerializerMethodField(method_name="get_photo")
+    category_id = serializers.IntegerField(source="category.id", read_only=True)
+    photo = serializers.SerializerMethodField()
     first_variant = serializers.SerializerMethodField()
     price = serializers.SerializerMethodField()
     banner_url = serializers.SerializerMethodField()
@@ -255,39 +239,23 @@ class ProductListSerializer(serializers.ModelSerializer):
         model = Product
         fields = ["id","slug", "name",  "category","category_id", "price", "photo","banner_url", "first_variant",]
 
-    @staticmethod
-    def get_photo(product):
-        return getattr(product.photo, 'url', '')
-    
     def get_banner_url(self, obj):
         return f"/media/banners/{obj.id}_banner.png"
     
     def get_first_variant(self, product):
-        # This assumes `product` already contains prefetched/filtered variants in your view
-        # метод щоб отримати продукти 
-        # отримуємо  продукти  із запиту  і віддаємо з заданними параметрами 
-        filtered_variants = getattr(product, 'filtered_variants', [])
-        
-        if filtered_variants:
-            first_variant = filtered_variants[0]
-        else:
-            first_variant = product.variants.first()
+        variants = getattr(product, "visible_variants", None)
+        if variants is None:
+            variants = list(product.variants.filter(available=True).order_by("id")[:1])
+        return ProductVariantSerializer(variants[0]).data if variants else None
 
-        if first_variant:
-            return ProductVariantSerializer(first_variant).data
-        return None
-        
-    @staticmethod
-    def get_photo(product):
-        if product.photo:
-            return product.photo.url
-        return None
-    
+    def get_photo(self, product):
+        return product.photo.url if product.photo else None
+
     def get_price(self, product):
-        first_variant = product.variants.first()
-        if first_variant:
-            return first_variant.price
-        return None   
+        """Минимальная цена среди видимых вариантов («от …»)."""
+        if hasattr(product, "min_price"):
+            return product.min_price
+        return product.variants.filter(available=True).aggregate(p=Min("price"))["p"]
 
 
 class CategoryDetailSerializer(serializers.ModelSerializer):
@@ -298,61 +266,11 @@ class CategoryDetailSerializer(serializers.ModelSerializer):
         fields = ["list_of_products"]
 
 
-class ProductSetLikesSerializer(serializers.ModelSerializer):
-
-    class Meta:
-        model = Product
-        fields = ["like_user"]
-
 class WishlistSerializer(serializers.ModelSerializer):
-
-    # Для вывода (подробности варианта продукта)
-
     product_variant = ProductVariantSerializer(read_only=True)
-
-    productSlug = serializers.CharField(source="product.slug", read_only=True)
-    variantSlug = serializers.CharField(source="slug", read_only=True)
-    
-    # Для создания — поле для ввода ID варианта
-    product_variant_id = serializers.PrimaryKeyRelatedField(
-        queryset=ProductVariant.objects.all(),
-        write_only=True,
-        source='product_variant'  # Связываем с полем модели
-    )
-
-    # product_variant_slug = serializers.SlugRelatedField(
-    # queryset=ProductVariant.objects.all(),
-    # write_only=True,
-    # slug_field="slug",
-    # source="product_variant"
-    # )
-    
-    product_variant_slug = serializers.SlugRelatedField(
-    queryset=ProductVariant.objects.none(),
-    write_only=True,
-    slug_field="slug",
-    source="product_variant"
-)
+    productSlug = serializers.CharField(source="product_variant.product.slug", read_only=True)
+    variantSlug = serializers.CharField(source="product_variant.slug", read_only=True)
 
     class Meta:
         model = Wishlist
-        fields = ["id", "product_variant", "productSlug", "variantSlug" , "product_variant_id", "product_variant_slug", "added_at"]
-
-
-    def validate_product_variant(self, value):
-
-        user = self.context['request'].user
-        if not user.is_authenticated:
-            raise serializers.ValidationError("Только авторизованные пользователи могут добавлять в избранное.")
-        # Убираем проверку на существование, так как toggle обрабатывается в view
-        return value 
-    
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        product = self.context.get('product')  # передаем через context
-        if product:
-            self.fields['product_variant_slug'].queryset = ProductVariant.objects.filter(product=product)
-
-
-
-
+        fields = ["id", "product_variant", "productSlug", "variantSlug", "added_at"]
