@@ -134,14 +134,14 @@ class Navigation extends Component {
 
                 <div className="info-block" style={{ marginBottom: '10px' }}>
                   <h4>Наш адрес</h4>
-                  <p>г. Омск, ул. Примерная, 10</p>
+                  <p>г. Х, ул. Примерная, 10</p>
                   <p>Пн-Пт: 9:00 - 18:00</p>
                   <p>Сб-Вс: выходной</p>
                 </div>
 
                 <div className="info-block">
                   <h4>Связаться с нами</h4>
-                  <p>+7хххххххххххх</p>
+                  <p>+3хххххххххххх</p>
                   <p>info@example.com</p>
                 </div>
               </div>

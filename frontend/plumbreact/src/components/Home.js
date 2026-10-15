@@ -183,13 +183,13 @@ componentWillUnmount() {
     <div className="icon-text">
       <FaPhone size={16} style={{ marginRight: 6 }} />
       <span style={{ color: "#28a745" }}>
-        {this.state.siteSettings?.phone || "+7 (999) 999-99-99"}
+        {this.state.siteSettings?.phone || "+38 (050) 999-99-99"}
       </span>
     </div>
     <div className="icon-text">
       <FaEnvelope size={16} style={{ marginRight: 6 }} />
       <span style={{ color: "#28a745" }}>
-        {this.state.siteSettings?.email || "luxora@mail.ru"}
+        {this.state.siteSettings?.email || "luxora@mail.com"}
       </span>
     </div>
   </div>
