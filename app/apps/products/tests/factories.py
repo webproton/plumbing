@@ -1,15 +1,17 @@
 # apps/products/tests/factories.py
 import factory
 from factory.django import DjangoModelFactory
+
 from app.apps.products.models import (
-    ProductVariant,
-    Product,
-    Category,
-    Brand,
-    MaterialProduct,
     Ball,
+    Brand,
+    Category,
     ColorProduct,
+    MaterialProduct,
+    Product,
+    ProductVariant,
 )
+
 
 class CategoryFactory(DjangoModelFactory):
     class Meta:
@@ -17,6 +19,7 @@ class CategoryFactory(DjangoModelFactory):
 
     name = factory.Sequence(lambda n: f"Category {n}")
     description = "Test category description"
+
 
 class ProductFactory(DjangoModelFactory):
     class Meta:
@@ -26,11 +29,13 @@ class ProductFactory(DjangoModelFactory):
     category = factory.SubFactory(CategoryFactory)
     description = "Test product description"
 
+
 class BrandFactory(DjangoModelFactory):
     class Meta:
         model = Brand
 
     name = factory.Sequence(lambda n: f"Brand {n}")
+
 
 class MaterialProductFactory(DjangoModelFactory):
     class Meta:
@@ -38,17 +43,20 @@ class MaterialProductFactory(DjangoModelFactory):
 
     name = factory.Sequence(lambda n: f"Material {n}")
 
+
 class BallFactory(DjangoModelFactory):
     class Meta:
         model = Ball
 
     ball_material_type = factory.SubFactory(MaterialProductFactory)
 
+
 class ColorProductFactory(DjangoModelFactory):
     class Meta:
         model = ColorProduct
 
     name = factory.Sequence(lambda n: f"Color {n}")
+
 
 class ProductVariantFactory(DjangoModelFactory):
     class Meta:

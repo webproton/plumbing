@@ -1,13 +1,14 @@
 # parsers/core/helpers.py
 import re
-from .text_utils import row_text, normalize_text
 
+from .text_utils import normalize_text, row_text
 
-#not using
+# not using
 
 # =========================
 # BLOCK HELPERS
 # =========================
+
 
 def extract_block(rows, start_labels, stop_labels=None, max_rows=5):
     """
@@ -22,18 +23,16 @@ def extract_block(rows, start_labels, stop_labels=None, max_rows=5):
     result = []
     started = False
 
-    for i, row in enumerate(rows):
-
+    for _i, row in enumerate(rows):
         text = row_text(row)
         text_l = text.lower()
 
-        if not started and any(l in text_l for l in start_labels):
+        if not started and any(label in text_l for label in start_labels):
             started = True
             continue
 
         if started:
-
-            if stop_labels and any(l in text_l for l in stop_labels):
+            if stop_labels and any(label in text_l for label in stop_labels):
                 break
 
             result.append(text)
@@ -42,7 +41,6 @@ def extract_block(rows, start_labels, stop_labels=None, max_rows=5):
                 break
 
     return normalize_text(" ".join(result)) if result else None
-
 
 
 def extract_after_label(row, labels):
@@ -64,7 +62,6 @@ def extract_after_label(row, labels):
     return normalize_text(", ".join(result)) if result else None
 
 
-
 def clean_entity(text: str):
     if not text:
         return None
@@ -72,11 +69,7 @@ def clean_entity(text: str):
     t = text.strip()
 
     # мусорные строки
-    if re.search(
-        r"(тел\.?|уважаемые|клиенты|р\/рах|адреса)",
-        t,
-        re.I
-    ):
+    if re.search(r"(тел\.?|уважаемые|клиенты|р\/рах|адреса)", t, re.I):
         return None
 
     # слишком короткое / длинное

@@ -32,8 +32,9 @@ def callback_request(request):
         f"Telegram: {e(data.get('telegram'))}"
     )
     if not telegram.send_message(chat_id, text):
-        return Response({"detail": "Не удалось отправить заявку, попробуйте позже"},
-                        status=status.HTTP_503_SERVICE_UNAVAILABLE)
+        return Response(
+            {"detail": "Не удалось отправить заявку, попробуйте позже"}, status=status.HTTP_503_SERVICE_UNAVAILABLE
+        )
     return Response({"status": "ok"}, status=status.HTTP_201_CREATED)
 
 

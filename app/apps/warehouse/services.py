@@ -14,6 +14,7 @@
    Подтверждённые сопоставления запоминаются (VariantMatchMemory) — следующая накладная того же
    поставщика сопоставится автоматически.
 """
+
 import hashlib
 import logging
 from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
@@ -23,14 +24,17 @@ from django.db.models import Q
 from django.utils import timezone
 from rapidfuzz import fuzz, process
 
-from parsers.core.loader import load_rows
-from parsers.registry import parse as run_invoice_parser
-
 from app.apps.products.models import Product, ProductVariant
 from app.apps.warehouse import stock
 from app.apps.warehouse.models import (
-    InventoryDocument, ProductBarcode, Supplier, VariantMatchMemory, Warehouse,
+    InventoryDocument,
+    ProductBarcode,
+    Supplier,
+    VariantMatchMemory,
+    Warehouse,
 )
+from parsers.core.loader import load_rows
+from parsers.registry import parse as run_invoice_parser
 
 logger = logging.getLogger(__name__)
 
@@ -59,6 +63,7 @@ def file_sha256(django_file) -> str:
 # ---------------------------------------------------------------------------
 # Сопоставление строки с вариантом
 # ---------------------------------------------------------------------------
+
 
 def _norm(value) -> str:
     return " ".join(str(value or "").split()).lower()
@@ -127,9 +132,14 @@ def _build_line(position, item, matcher):
         "barcode": item.get("barcode") or "",
         "unit": item.get("unit") or "",
         "currency": item.get("currency") or "UAH",
-        "qty": None, "price": None,
-        "status": INVALID, "variant_id": None, "method": None, "confidence": 0.0,
-        "candidates": [], "error": None,
+        "qty": None,
+        "price": None,
+        "status": INVALID,
+        "variant_id": None,
+        "method": None,
+        "confidence": 0.0,
+        "candidates": [],
+        "error": None,
     }
     qty = _decimal(item.get("qty"), "0.001")
     price = _decimal(item.get("price") or 0, "0.0001")
@@ -152,6 +162,7 @@ def _build_line(position, item, matcher):
 # Шаг 1. Разбор
 # ---------------------------------------------------------------------------
 
+
 @transaction.atomic
 def parse_document(document: InventoryDocument) -> dict:
     document = InventoryDocument.objects.select_for_update().get(pk=document.pk)
@@ -169,8 +180,9 @@ def parse_document(document: InventoryDocument) -> dict:
 
     matcher = VariantMatcher(supplier=document.supplier)
     parsed["lines"] = [_build_line(i, item, matcher) for i, item in enumerate(parsed.get("items", []), start=1)]
-    parsed["summary"] = {s: sum(1 for ln in parsed["lines"] if ln["status"] == s)
-                         for s in (MATCHED, NEEDS_REVIEW, NEW, INVALID)}
+    parsed["summary"] = {
+        s: sum(1 for ln in parsed["lines"] if ln["status"] == s) for s in (MATCHED, NEEDS_REVIEW, NEW, INVALID)
+    }
     document.extracted_data = parsed
     document.save(update_fields=["extracted_data", "document_number", "supplier"])
     return parsed
@@ -179,6 +191,7 @@ def parse_document(document: InventoryDocument) -> dict:
 # ---------------------------------------------------------------------------
 # Шаг 2. Проверка оператором
 # ---------------------------------------------------------------------------
+
 
 @transaction.atomic
 def set_line_variant(document: InventoryDocument, position: int, variant_id=None, create_new=False) -> dict:
@@ -198,8 +211,9 @@ def set_line_variant(document: InventoryDocument, position: int, variant_id=None
         if not ProductVariant.objects.filter(pk=variant_id).exists():
             raise stock.StockError(f"Вариант {variant_id} не найден")
         line.update(status=MATCHED, variant_id=int(variant_id), method="manual", confidence=1.0)
-    document.extracted_data["summary"] = {s: sum(1 for ln in lines if ln["status"] == s)
-                                          for s in (MATCHED, NEEDS_REVIEW, NEW, INVALID)}
+    document.extracted_data["summary"] = {
+        s: sum(1 for ln in lines if ln["status"] == s) for s in (MATCHED, NEEDS_REVIEW, NEW, INVALID)
+    }
     document.save(update_fields=["extracted_data"])
     return line
 
@@ -208,13 +222,17 @@ def set_line_variant(document: InventoryDocument, position: int, variant_id=None
 # Шаг 3. Проведение
 # ---------------------------------------------------------------------------
 
+
 def _create_hidden_variant(document, line):
     product = Product.objects.create(name=line["name"], seller=document.seller)
     price = Decimal(line["price"])
     # код/штрихкод уникальны: если такой уже занят — сгенерируется свой
     code = line["sku"] if line["sku"] and not ProductVariant.objects.filter(code__iexact=line["sku"]).exists() else None
-    barcode = line["barcode"] if line["barcode"] and not ProductVariant.objects.filter(
-        barcode=line["barcode"]).exists() else None
+    barcode = (
+        line["barcode"]
+        if line["barcode"] and not ProductVariant.objects.filter(barcode=line["barcode"]).exists()
+        else None
+    )
     return ProductVariant.objects.create(
         product=product,
         variant_name=line["name"],
@@ -230,7 +248,9 @@ def _learn(supplier, line, variant_id):
     if not line["name"]:
         return
     memory = VariantMatchMemory.objects.filter(
-        supplier=supplier, raw_code__iexact=line["sku"], raw_name__iexact=line["name"],
+        supplier=supplier,
+        raw_code__iexact=line["sku"],
+        raw_name__iexact=line["name"],
     ).first()
     if memory:
         memory.variant_id = variant_id
@@ -238,13 +258,21 @@ def _learn(supplier, line, variant_id):
         memory.save(update_fields=["variant", "hit_count", "last_used"])
     else:
         VariantMatchMemory.objects.create(
-            supplier=supplier, raw_code=line["sku"], raw_name=line["name"], variant_id=variant_id,
+            supplier=supplier,
+            raw_code=line["sku"],
+            raw_name=line["name"],
+            variant_id=variant_id,
         )
 
 
 @transaction.atomic
-def process_inventory_document(document: InventoryDocument, warehouse: Warehouse, created_by,
-                               accept_suggestions=False, allow_duplicate_number=False) -> dict:
+def process_inventory_document(
+    document: InventoryDocument,
+    warehouse: Warehouse,
+    created_by,
+    accept_suggestions=False,
+    allow_duplicate_number=False,
+) -> dict:
     """Проводит документ. Возвращает отчёт {"received": n, "created": n, "skipped": [...]}."""
     document = InventoryDocument.objects.select_for_update().get(pk=document.pk)
     if document.processed:
@@ -261,14 +289,21 @@ def process_inventory_document(document: InventoryDocument, warehouse: Warehouse
     review = [ln["position"] for ln in lines if ln["status"] == NEEDS_REVIEW]
     if review and not accept_suggestions:
         raise ReviewRequiredError(
-            f"Нужно проверить сопоставление строк: {', '.join(map(str, review))}", positions=review,
+            f"Нужно проверить сопоставление строк: {', '.join(map(str, review))}",
+            positions=review,
         )
 
     if document.document_number and not allow_duplicate_number:
-        dup = InventoryDocument.objects.filter(
-            seller_id=document.seller_id, supplier_id=document.supplier_id,
-            document_number=document.document_number, processed=True,
-        ).exclude(pk=document.pk).first()
+        dup = (
+            InventoryDocument.objects.filter(
+                seller_id=document.seller_id,
+                supplier_id=document.supplier_id,
+                document_number=document.document_number,
+                processed=True,
+            )
+            .exclude(pk=document.pk)
+            .first()
+        )
         if dup:
             raise DuplicateDocumentError(
                 f"Накладная №{document.document_number} этого поставщика уже проведена (документ #{dup.pk})",
@@ -299,7 +334,9 @@ def process_inventory_document(document: InventoryDocument, warehouse: Warehouse
         _learn(document.supplier, line, variant.pk)
 
         stock.receive(
-            variant, warehouse, line["qty"],
+            variant,
+            warehouse,
+            line["qty"],
             user=created_by,
             supplier=document.supplier,
             inventory_document=document,
@@ -325,8 +362,10 @@ def suggest_variants(query, limit=10):
         return ProductVariant.objects.none()
     return (
         ProductVariant.objects.filter(
-            Q(variant_name__icontains=query) | Q(product__name__icontains=query)
-            | Q(code__iexact=query) | Q(barcode__iexact=query)
+            Q(variant_name__icontains=query)
+            | Q(product__name__icontains=query)
+            | Q(code__iexact=query)
+            | Q(barcode__iexact=query)
         )
         .select_related("product")
         .order_by("variant_name")[:limit]

@@ -11,25 +11,36 @@ from . import services
 from .models import Cart, CartItems, Order, OrderItem
 from .validators import validate_person_name, validate_phone_number
 
-
 # ---------------------------------------------------------------------------
 # Корзина
 # ---------------------------------------------------------------------------
 
+
 class CartItemSerializer(serializers.ModelSerializer):
     quantity = serializers.IntegerField(min_value=1, max_value=999)
-    product_name = serializers.CharField(source='product.name', read_only=True)
+    product_name = serializers.CharField(source="product.name", read_only=True)
     variant = serializers.PrimaryKeyRelatedField(queryset=ProductVariant.objects.all(), allow_null=True, required=False)
     # price и variant_price — цена выбранного варианта (раньше price ошибочно брался у первого варианта товара)
     price = serializers.SerializerMethodField()
-    variant_price = serializers.DecimalField(source='variant.price', max_digits=12, decimal_places=2,
-                                             read_only=True, default=None)
+    variant_price = serializers.DecimalField(
+        source="variant.price", max_digits=12, decimal_places=2, read_only=True, default=None
+    )
     available = serializers.SerializerMethodField(help_text="Доступно к заказу (остаток минус резерв)")
     photo = serializers.SerializerMethodField()
 
     class Meta:
         model = CartItems
-        fields = ('id', 'variant', 'price', 'product', 'product_name', 'photo', 'quantity', 'variant_price', 'available')
+        fields = (
+            "id",
+            "variant",
+            "price",
+            "product",
+            "product_name",
+            "photo",
+            "quantity",
+            "variant_price",
+            "available",
+        )
 
     def get_price(self, item):
         return item.variant.price if item.variant else None
@@ -97,6 +108,7 @@ class CartCreateSerializer(CartBaseSerializer):
     Семантика «заменить»: в корзине остаются ровно переданные позиции с переданными количествами
     (раньше количества прибавлялись к существующим и росли при каждой синхронизации).
     """
+
     cart_items = CartItemSerializer(many=True)
 
     class Meta(CartBaseSerializer.Meta):
@@ -139,6 +151,7 @@ class CartItemUpdateSerializer(CartItemSerializer):
 
 class CartDetailSerializer(CartBaseSerializer):
     """PUT/PATCH /cart/{id}/ — установить количества позиций (0 — удалить позицию)."""
+
     cart_items = CartItemUpdateSerializer(many=True)
 
     class Meta(CartBaseSerializer.Meta):
@@ -149,8 +162,14 @@ class CartDetailSerializer(CartBaseSerializer):
         existing = list(instance.cart_items.all())
         for item in validated_data.get("cart_items", []):
             variant = item.get("variant")
-            ci = next((c for c in existing if c.product_id == item["product"].pk
-                       and (variant is None or c.variant_id == variant.pk)), None)
+            ci = next(
+                (
+                    c
+                    for c in existing
+                    if c.product_id == item["product"].pk and (variant is None or c.variant_id == variant.pk)
+                ),
+                None,
+            )
             if ci is None:
                 continue
             if item["quantity"] == 0:
@@ -164,6 +183,7 @@ class CartDetailSerializer(CartBaseSerializer):
 # ---------------------------------------------------------------------------
 # Заказы
 # ---------------------------------------------------------------------------
+
 
 class OrderItemSerializer(serializers.ModelSerializer):
     product_id = serializers.IntegerField(read_only=True)
@@ -191,16 +211,27 @@ class OrderListSerializer(serializers.ModelSerializer):
     number_products = serializers.SerializerMethodField()
     list_of_product_images = serializers.SerializerMethodField()
     can_be_canceled = serializers.SerializerMethodField()
-    status_order_display = serializers.CharField(source='get_status_order_display', read_only=True)
-    payment_status_display = serializers.CharField(source='get_payment_status_display', read_only=True)
-    payment_type_display = serializers.CharField(source='get_payment_type_display', read_only=True)
+    status_order_display = serializers.CharField(source="get_status_order_display", read_only=True)
+    payment_status_display = serializers.CharField(source="get_payment_status_display", read_only=True)
+    payment_type_display = serializers.CharField(source="get_payment_type_display", read_only=True)
 
     class Meta:
         model = Order
         fields = (
-            'id', 'list_of_product_images', 'customer_name', 'customer_id', 'email', 'creation_date',
-            'total_price', 'number_products', 'status_order', 'payment_status', 'can_be_canceled',
-            'payment_status_display', 'status_order_display', 'payment_type_display',
+            "id",
+            "list_of_product_images",
+            "customer_name",
+            "customer_id",
+            "email",
+            "creation_date",
+            "total_price",
+            "number_products",
+            "status_order",
+            "payment_status",
+            "can_be_canceled",
+            "payment_status_display",
+            "status_order_display",
+            "payment_type_display",
         )
 
     def get_number_products(self, obj):
@@ -209,14 +240,15 @@ class OrderListSerializer(serializers.ModelSerializer):
     def get_list_of_product_images(self, obj):
         result = []
         for item in list(obj.items.all())[:5]:
-            photo = OrderItemSerializer().get_photo(item) or '/placeholder.jpg'
-            result.append({'photo': photo, 'product_id': item.product_id, 'variant_id': item.variant_id})
+            photo = OrderItemSerializer().get_photo(item) or "/placeholder.jpg"
+            result.append({"photo": photo, "product_id": item.product_id, "variant_id": item.variant_id})
         return result
 
     def get_can_be_canceled(self, obj):
-        request = self.context.get('request')
+        request = self.context.get("request")
         return bool(
-            request and obj.customer_id == request.user.pk
+            request
+            and obj.customer_id == request.user.pk
             and obj.payment_status == Order.PAYMENT_STATUS.waiting_for_payment
             and obj.status_order == Order.STATUS.in_processing
         )
@@ -225,15 +257,28 @@ class OrderListSerializer(serializers.ModelSerializer):
 class OrderDetailSerializer(serializers.ModelSerializer):
     number_order = serializers.CharField(source="id", read_only=True)
     list_of_products = OrderItemSerializer(source="items", many=True, read_only=True)
-    payment_type_display = serializers.CharField(source='get_payment_type_display', read_only=True)
-    status_order_display = serializers.CharField(source='get_status_order_display', read_only=True)
+    payment_type_display = serializers.CharField(source="get_payment_type_display", read_only=True)
+    status_order_display = serializers.CharField(source="get_status_order_display", read_only=True)
 
     class Meta:
         model = Order
         fields = [
-            "customer_name", "customer", "address", "total_price", "status_order", "status_order_display",
-            "payment_status", "creation_date", "city", "department_number", "comment", "payment_type",
-            "number_order", "list_of_products", "email", "payment_type_display",
+            "customer_name",
+            "customer",
+            "address",
+            "total_price",
+            "status_order",
+            "status_order_display",
+            "payment_status",
+            "creation_date",
+            "city",
+            "department_number",
+            "comment",
+            "payment_type",
+            "number_order",
+            "list_of_products",
+            "email",
+            "payment_type_display",
         ]
 
 
@@ -242,18 +287,31 @@ class OrderCreateSerializer(serializers.ModelSerializer):
     Оформление заказа по cart_uuid. Корзина выбирается только по UUID
     (поле `cart` с числовым id удалено — по нему можно было оформить чужую корзину).
     """
+
     cart_uuid = serializers.UUIDField(write_only=True)
     customer_name = serializers.CharField(required=False, allow_blank=True)
     telegram = serializers.CharField(required=False, allow_blank=True, write_only=True)
     whatsapp = serializers.CharField(required=False, allow_blank=True, write_only=True)
-    payment_type = serializers.ChoiceField(choices=Order.PAYMENT_CHOICES, default='full')
+    payment_type = serializers.ChoiceField(choices=Order.PAYMENT_CHOICES, default="full")
     items = OrderItemSerializer(many=True, read_only=True)
 
     class Meta:
         model = Order
         fields = [
-            "id", "cart_uuid", "customer_name", "telegram", "whatsapp", "address", "phone_number", "email",
-            "city", "department_number", "comment", "payment_type", "total_price", "items",
+            "id",
+            "cart_uuid",
+            "customer_name",
+            "telegram",
+            "whatsapp",
+            "address",
+            "phone_number",
+            "email",
+            "city",
+            "department_number",
+            "comment",
+            "payment_type",
+            "total_price",
+            "items",
         ]
         read_only_fields = ["id", "total_price", "items"]
 
@@ -278,7 +336,7 @@ class OrderCreateSerializer(serializers.ModelSerializer):
         return validate_phone_number(value)
 
     def validate_comment(self, value):
-        if value and re.search(r'https?://', value):
+        if value and re.search(r"https?://", value):
             raise serializers.ValidationError("В комментарии не допускаются ссылки.")
         return value
 

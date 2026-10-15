@@ -43,6 +43,7 @@ def stocked(wh):
 
 # --- права --------------------------------------------------------------
 
+
 @pytest.mark.parametrize("url_name", ["warehouse:scanner_find", "warehouse:scanner_create"])
 def test_scanner_requires_auth(url_name):
     resp = APIClient().post(reverse(url_name), {"query": "x"}, format="json")
@@ -72,6 +73,7 @@ def test_seller_sees_only_own_movements(client, stocked):
 
 # --- журнал неизменяем --------------------------------------------------
 
+
 def test_journal_cannot_be_edited_or_deleted(client, stocked):
     mv = StockMovement.objects.get(variant=stocked)
     url = reverse("warehouse:stock-movements-detail", args=[mv.pk])
@@ -82,11 +84,13 @@ def test_journal_cannot_be_edited_or_deleted(client, stocked):
 
 def test_manual_write_off_and_insufficient(client, wh, stocked):
     url = reverse("warehouse:stock-movements-list")
-    ok = client.post(url, {"variant": stocked.pk, "warehouse": wh.pk, "movement_type": "out", "quantity": "2.5"},
-                     format="json")
+    ok = client.post(
+        url, {"variant": stocked.pk, "warehouse": wh.pk, "movement_type": "out", "quantity": "2.5"}, format="json"
+    )
     assert ok.status_code == 201, ok.json()
-    bad = client.post(url, {"variant": stocked.pk, "warehouse": wh.pk, "movement_type": "out", "quantity": 100},
-                      format="json")
+    bad = client.post(
+        url, {"variant": stocked.pk, "warehouse": wh.pk, "movement_type": "out", "quantity": 100}, format="json"
+    )
     assert bad.status_code == 400
     assert bad.json()["code"] == "insufficient_stock"
     assert ProductVariant.objects.get(pk=stocked.pk).stock == Decimal("7.5")
@@ -94,32 +98,41 @@ def test_manual_write_off_and_insufficient(client, wh, stocked):
 
 # --- чужие склады -------------------------------------------------------
 
+
 def test_transfer_to_foreign_warehouse_forbidden(client, wh, stocked):
     foreign = WarehouseFactory()
-    resp = client.post(reverse("warehouse:stock-movements-transfer"),
-                       {"variant": stocked.pk, "from_warehouse": wh.pk, "to_warehouse": foreign.pk, "quantity": 1},
-                       format="json")
+    resp = client.post(
+        reverse("warehouse:stock-movements-transfer"),
+        {"variant": stocked.pk, "from_warehouse": wh.pk, "to_warehouse": foreign.pk, "quantity": 1},
+        format="json",
+    )
     assert resp.status_code == 403
     assert stock.get_balance(stocked, wh) == 10
 
 
 def test_transfer_fractional(client, seller, wh, stocked):
     other = WarehouseFactory(seller=seller)
-    resp = client.post(reverse("warehouse:stock-movements-transfer"),
-                       {"variant": stocked.pk, "from_warehouse": wh.pk, "to_warehouse": other.pk, "quantity": "2.75"},
-                       format="json")
+    resp = client.post(
+        reverse("warehouse:stock-movements-transfer"),
+        {"variant": stocked.pk, "from_warehouse": wh.pk, "to_warehouse": other.pk, "quantity": "2.75"},
+        format="json",
+    )
     assert resp.status_code == 200
     assert stock.get_balance(stocked, other) == Decimal("2.75")
 
 
 def test_inventory_endpoint(client, wh, stocked):
-    resp = client.post(reverse("warehouse:stock-movements-inventory"),
-                       {"variant": stocked.pk, "warehouse": wh.pk, "quantity": 8}, format="json")
+    resp = client.post(
+        reverse("warehouse:stock-movements-inventory"),
+        {"variant": stocked.pk, "warehouse": wh.pk, "quantity": 8},
+        format="json",
+    )
     assert resp.status_code == 200 and resp.json()["changed"] is True
     assert ProductVariant.objects.get(pk=stocked.pk).stock == 8
 
 
 # --- сканер -------------------------------------------------------------
+
 
 def test_scanner_find(client, wh, stocked):
     resp = client.post(reverse("warehouse:scanner_find"), {"query": "sku-1"}, format="json")
@@ -131,13 +144,24 @@ def test_scanner_find(client, wh, stocked):
 
 def test_scanner_create_and_receive(client, wh):
     doc = InventoryDocument.objects.create(
-        seller=wh.seller, document_type="incoming", supplier=SupplierFactory(),
+        seller=wh.seller,
+        document_type="incoming",
+        supplier=SupplierFactory(),
         file=SimpleUploadedFile("a.xlsx", b"x"),
     )
-    resp = client.post(reverse("warehouse:scanner_create"), {
-        "barcode": "999000111", "name": "Сифон", "price": "250", "cost_price": "120.5",
-        "document": doc.pk, "warehouse": wh.pk, "quantity": 3,
-    }, format="json")
+    resp = client.post(
+        reverse("warehouse:scanner_create"),
+        {
+            "barcode": "999000111",
+            "name": "Сифон",
+            "price": "250",
+            "cost_price": "120.5",
+            "document": doc.pk,
+            "warehouse": wh.pk,
+            "quantity": 3,
+        },
+        format="json",
+    )
     assert resp.status_code == 201, resp.json()
     variant = ProductVariant.objects.get(barcode="999000111")
     assert variant.available is False
@@ -149,11 +173,14 @@ def test_scanner_create_and_receive(client, wh):
 
 # --- проведение накладной ----------------------------------------------
 
+
 def _invoice_file(rows=None, name="invoice.xlsx"):
     wb = Workbook()
     ws = wb.active
     for row in rows or [
-        ["Видаткова накладна № 77 від 01.10.2026"], ["Постачальник: ТОВ Тест"], [],
+        ["Видаткова накладна № 77 від 01.10.2026"],
+        ["Постачальник: ТОВ Тест"],
+        [],
         ["№", "Артикул", "Товар", "Кількість", "Од.", "Ціна", "Сума"],
         [1, "ABC-1", "Змішувач для кухні", 2, "шт", "1 500,50", "3 001,00"],
         [2, "PPR-20", "Труба PPR 20мм", 0.5, "м", 45.2, 22.6],
@@ -172,8 +199,11 @@ def _upload(client, **extra):
 
 
 def test_upload_rejects_bad_extension(client):
-    resp = client.post(reverse("warehouse:inventorydocument-list"),
-                       {"document_type": "incoming", "file": SimpleUploadedFile("x.exe", b"MZ")}, format="multipart")
+    resp = client.post(
+        reverse("warehouse:inventorydocument-list"),
+        {"document_type": "incoming", "file": SimpleUploadedFile("x.exe", b"MZ")},
+        format="multipart",
+    )
     assert resp.status_code == 400
 
 
@@ -221,9 +251,11 @@ def test_fuzzy_match_requires_review(client, wh):
         ["№", "Артикул", "Товар", "Кількість", "Ціна", "Сума"],
         [1, "", "Змішувач для кухні Grohe Eurosmart хром", 1, 100, 100],
     ]
-    up = client.post(reverse("warehouse:inventorydocument-list"),
-                     {"document_type": "incoming", "supplier": SupplierFactory().pk, "file": _invoice_file(rows)},
-                     format="multipart").json()
+    up = client.post(
+        reverse("warehouse:inventorydocument-list"),
+        {"document_type": "incoming", "supplier": SupplierFactory().pk, "file": _invoice_file(rows)},
+        format="multipart",
+    ).json()
     line = up["extracted_data"]["lines"][0]
     assert line["status"] == "needs_review" and line["variant_id"] == existing.pk
 
@@ -231,8 +263,9 @@ def test_fuzzy_match_requires_review(client, wh):
     blocked = client.post(process_url, {}, format="json")
     assert blocked.status_code == 400 and blocked.json()["code"] == "review_required"
 
-    confirm = client.post(reverse("warehouse:inventorydocument-set-line", args=[up["id"], 1]),
-                          {"variant": existing.pk}, format="json")
+    confirm = client.post(
+        reverse("warehouse:inventorydocument-set-line", args=[up["id"], 1]), {"variant": existing.pk}, format="json"
+    )
     assert confirm.status_code == 200 and confirm.json()["status"] == "matched"
     assert client.post(process_url, {}, format="json").status_code == 200
     assert ProductVariant.objects.get(pk=existing.pk).stock == 1
@@ -242,11 +275,16 @@ def test_duplicate_document_number_blocked(client, wh):
     supplier = SupplierFactory()
     first = _upload(client, supplier=supplier.pk).json()["id"]
     client.post(reverse("warehouse:inventorydocument-process", args=[first]), {}, format="json")
-    rows = [["Видаткова накладна № 77"], ["№", "Артикул", "Товар", "Кількість", "Ціна", "Сума"],
-            [1, "X-1", "Кран кульовий", 3, 10, 30]]
-    second = client.post(reverse("warehouse:inventorydocument-list"),
-                         {"document_type": "incoming", "supplier": supplier.pk, "file": _invoice_file(rows, "b.xlsx")},
-                         format="multipart").json()["id"]
+    rows = [
+        ["Видаткова накладна № 77"],
+        ["№", "Артикул", "Товар", "Кількість", "Ціна", "Сума"],
+        [1, "X-1", "Кран кульовий", 3, 10, 30],
+    ]
+    second = client.post(
+        reverse("warehouse:inventorydocument-list"),
+        {"document_type": "incoming", "supplier": supplier.pk, "file": _invoice_file(rows, "b.xlsx")},
+        format="multipart",
+    ).json()["id"]
     resp = client.post(reverse("warehouse:inventorydocument-process", args=[second]), {}, format="json")
     assert resp.status_code == 400 and resp.json()["code"] == "duplicate_document"
 
@@ -254,6 +292,7 @@ def test_duplicate_document_number_blocked(client, wh):
 def test_invoice_file_is_private(client):
     doc = InventoryDocument.objects.get(pk=_upload(client).json()["id"])
     from django.conf import settings
+
     assert str(settings.PRIVATE_MEDIA_ROOT) in doc.file.path
     resp = client.get(reverse("warehouse:inventorydocument-file", args=[doc.pk]))
     assert resp.status_code == 200

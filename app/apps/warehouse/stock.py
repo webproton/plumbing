@@ -14,11 +14,12 @@
 - reserved  — зарезервировано под незавершённые заказы;
 - available = stock − reserved — доступно к продаже.
 """
+
 import logging
-from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
+from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 
 from django.db import transaction
-from django.db.models import F, Sum, Q
+from django.db.models import F, Q, Sum
 
 from app.apps.products.models import ProductVariant
 from app.apps.warehouse.models import StockBalance, StockMovement, Warehouse
@@ -59,6 +60,7 @@ def to_quantity(value) -> Decimal:
 # Блокировки
 # ---------------------------------------------------------------------------
 
+
 def _lock_variant(variant) -> ProductVariant:
     variant_id = variant.pk if isinstance(variant, ProductVariant) else variant
     return ProductVariant.objects.select_for_update().only("id", "stock", "reserved").get(pk=variant_id)
@@ -95,9 +97,11 @@ def _create_movement(*, variant_id, warehouse, movement_type, quantity, user=Non
 # Приход
 # ---------------------------------------------------------------------------
 
+
 @transaction.atomic
-def receive(variant, warehouse: Warehouse, quantity, *, user=None,
-            movement_type=StockMovement.IN, **fields) -> StockMovement:
+def receive(
+    variant, warehouse: Warehouse, quantity, *, user=None, movement_type=StockMovement.IN, **fields
+) -> StockMovement:
     """Поступление на склад: приход от поставщика (in) или возврат от клиента (return_in)."""
     if movement_type not in (StockMovement.IN, StockMovement.RETURN_IN):
         raise StockError(f"receive() не поддерживает тип {movement_type}")
@@ -109,8 +113,12 @@ def receive(variant, warehouse: Warehouse, quantity, *, user=None,
     balance = _lock_balance(locked.pk, warehouse.pk)
 
     movement = _create_movement(
-        variant_id=locked.pk, warehouse=warehouse, movement_type=movement_type,
-        quantity=qty, user=user, **fields,
+        variant_id=locked.pk,
+        warehouse=warehouse,
+        movement_type=movement_type,
+        quantity=qty,
+        user=user,
+        **fields,
     )
     StockBalance.objects.filter(pk=balance.pk).update(quantity=F("quantity") + qty)
     _change_cache(locked.pk, stock_delta=qty)
@@ -121,25 +129,43 @@ def receive(variant, warehouse: Warehouse, quantity, *, user=None,
 # Расход
 # ---------------------------------------------------------------------------
 
-def _write_off_locked(locked: ProductVariant, warehouse: Warehouse, qty: Decimal, *,
-                      movement_type, user=None, consume_reserved=ZERO, **fields) -> StockMovement:
+
+def _write_off_locked(
+    locked: ProductVariant,
+    warehouse: Warehouse,
+    qty: Decimal,
+    *,
+    movement_type,
+    user=None,
+    consume_reserved=ZERO,
+    **fields,
+) -> StockMovement:
     balance = _lock_balance(locked.pk, warehouse.pk)
     if balance.quantity < qty:
         raise InsufficientStockError(
             f"На складе «{warehouse.name}» недостаточно товара: доступно {balance.quantity}, требуется {qty}",
-            variant_id=locked.pk, warehouse_id=warehouse.pk, available=balance.quantity, requested=qty,
+            variant_id=locked.pk,
+            warehouse_id=warehouse.pk,
+            available=balance.quantity,
+            requested=qty,
         )
     # Свободный (не зарезервированный) остаток не может уйти в минус из-за ручного расхода.
     free_after = (locked.stock - qty) - (locked.reserved - consume_reserved)
     if free_after < ZERO:
         raise InsufficientStockError(
             f"Товар зарезервирован под заказы: свободно {locked.stock - locked.reserved}, требуется {qty}",
-            variant_id=locked.pk, available=locked.stock - locked.reserved, requested=qty,
+            variant_id=locked.pk,
+            available=locked.stock - locked.reserved,
+            requested=qty,
         )
 
     movement = _create_movement(
-        variant_id=locked.pk, warehouse=warehouse, movement_type=movement_type,
-        quantity=qty, user=user, **fields,
+        variant_id=locked.pk,
+        warehouse=warehouse,
+        movement_type=movement_type,
+        quantity=qty,
+        user=user,
+        **fields,
     )
     StockBalance.objects.filter(pk=balance.pk).update(quantity=F("quantity") - qty)
     _change_cache(locked.pk, stock_delta=-qty, reserved_delta=-consume_reserved)
@@ -149,8 +175,9 @@ def _write_off_locked(locked: ProductVariant, warehouse: Warehouse, qty: Decimal
 
 
 @transaction.atomic
-def write_off(variant, warehouse: Warehouse, quantity, *, user=None,
-              movement_type=StockMovement.OUT, **fields) -> StockMovement:
+def write_off(
+    variant, warehouse: Warehouse, quantity, *, user=None, movement_type=StockMovement.OUT, **fields
+) -> StockMovement:
     """Ручной расход (продажа вне сайта, списание брака) или возврат поставщику."""
     if movement_type not in (StockMovement.OUT, StockMovement.RETURN_OUT):
         raise StockError(f"write_off() не поддерживает тип {movement_type}")
@@ -162,13 +189,21 @@ def write_off(variant, warehouse: Warehouse, quantity, *, user=None,
 
 
 def return_to_supplier(variant, warehouse, supplier, quantity, user=None, comment="Возврат поставщику"):
-    return write_off(variant, warehouse, quantity, user=user, movement_type=StockMovement.RETURN_OUT,
-                     supplier=supplier, comment=comment)
+    return write_off(
+        variant,
+        warehouse,
+        quantity,
+        user=user,
+        movement_type=StockMovement.RETURN_OUT,
+        supplier=supplier,
+        comment=comment,
+    )
 
 
 # ---------------------------------------------------------------------------
 # Перемещение и инвентаризация
 # ---------------------------------------------------------------------------
+
 
 @transaction.atomic
 def transfer(variant, from_warehouse: Warehouse, to_warehouse: Warehouse, quantity, *, user=None):
@@ -185,18 +220,31 @@ def transfer(variant, from_warehouse: Warehouse, to_warehouse: Warehouse, quanti
     if source.quantity < qty:
         raise InsufficientStockError(
             f"На складе «{from_warehouse.name}» недостаточно товара: доступно {source.quantity}, требуется {qty}",
-            variant_id=locked.pk, warehouse_id=from_warehouse.pk, available=source.quantity, requested=qty,
+            variant_id=locked.pk,
+            warehouse_id=from_warehouse.pk,
+            available=source.quantity,
+            requested=qty,
         )
 
     out_mv = _create_movement(
-        variant_id=locked.pk, warehouse=from_warehouse, movement_type=StockMovement.TRANSFER_OUT,
-        quantity=qty, user=user, comment=f"Перемещение → {to_warehouse.name}",
+        variant_id=locked.pk,
+        warehouse=from_warehouse,
+        movement_type=StockMovement.TRANSFER_OUT,
+        quantity=qty,
+        user=user,
+        comment=f"Перемещение → {to_warehouse.name}",
     )
     in_mv = _create_movement(
-        variant_id=locked.pk, warehouse=to_warehouse, movement_type=StockMovement.TRANSFER_IN,
-        quantity=qty, user=user, comment=f"Перемещение ← {from_warehouse.name}",
+        variant_id=locked.pk,
+        warehouse=to_warehouse,
+        movement_type=StockMovement.TRANSFER_IN,
+        quantity=qty,
+        user=user,
+        comment=f"Перемещение ← {from_warehouse.name}",
     )
-    StockBalance.objects.filter(variant_id=locked.pk, warehouse_id=from_warehouse.pk).update(quantity=F("quantity") - qty)
+    StockBalance.objects.filter(variant_id=locked.pk, warehouse_id=from_warehouse.pk).update(
+        quantity=F("quantity") - qty
+    )
     StockBalance.objects.filter(variant_id=locked.pk, warehouse_id=to_warehouse.pk).update(quantity=F("quantity") + qty)
     return out_mv, in_mv
 
@@ -223,20 +271,29 @@ def adjust(variant, warehouse: Warehouse, real_quantity, *, user=None, comment="
 
     movement_type = StockMovement.ADJUSTMENT if diff > ZERO else StockMovement.ADJUSTMENT_OUT
     movement = _create_movement(
-        variant_id=locked.pk, warehouse=warehouse, movement_type=movement_type, quantity=abs(diff),
-        user=user, comment=comment or f"Инвентаризация: было {balance.quantity}, стало {real}",
+        variant_id=locked.pk,
+        warehouse=warehouse,
+        movement_type=movement_type,
+        quantity=abs(diff),
+        user=user,
+        comment=comment or f"Инвентаризация: было {balance.quantity}, стало {real}",
     )
     StockBalance.objects.filter(pk=balance.pk).update(quantity=real)
     _change_cache(locked.pk, stock_delta=diff)
     if locked.stock + diff < locked.reserved:
-        logger.warning("Инвентаризация: остаток варианта %s (%s) меньше резерва (%s)",
-                       locked.pk, locked.stock + diff, locked.reserved)
+        logger.warning(
+            "Инвентаризация: остаток варианта %s (%s) меньше резерва (%s)",
+            locked.pk,
+            locked.stock + diff,
+            locked.reserved,
+        )
     return movement
 
 
 # ---------------------------------------------------------------------------
 # Резервы под заказы
 # ---------------------------------------------------------------------------
+
 
 def _sorted_lines(lines):
     """lines: iterable[(variant_or_id, qty)] → [(variant_id, Decimal)] по возрастанию id, дубли суммируются."""
@@ -259,7 +316,9 @@ def reserve(lines):
         if available < qty:
             raise InsufficientStockError(
                 f"Недостаточно товара (id {variant_id}): доступно {max(available, ZERO)}, требуется {qty}",
-                variant_id=variant_id, available=max(available, ZERO), requested=qty,
+                variant_id=variant_id,
+                available=max(available, ZERO),
+                requested=qty,
             )
         _change_cache(variant_id, reserved_delta=qty)
 
@@ -271,8 +330,9 @@ def release(lines):
         locked = _lock_variant(variant_id)
         release_qty = min(qty, locked.reserved)
         if release_qty != qty:
-            logger.warning("Снятие резерва варианта %s: резерв %s меньше снимаемого %s",
-                           variant_id, locked.reserved, qty)
+            logger.warning(
+                "Снятие резерва варианта %s: резерв %s меньше снимаемого %s", variant_id, locked.reserved, qty
+            )
         if release_qty > ZERO:
             _change_cache(variant_id, reserved_delta=-release_qty)
 
@@ -302,16 +362,26 @@ def write_off_reserved(lines, *, user=None, comment="", from_reserve=True, **fie
                 break
             take = min(bal.quantity, remaining)
             take_reserved = min(take, consume)
-            movements.append(_write_off_locked(
-                locked, bal.warehouse, take, movement_type=StockMovement.OUT, user=user,
-                consume_reserved=take_reserved, comment=comment, **fields,
-            ))
+            movements.append(
+                _write_off_locked(
+                    locked,
+                    bal.warehouse,
+                    take,
+                    movement_type=StockMovement.OUT,
+                    user=user,
+                    consume_reserved=take_reserved,
+                    comment=comment,
+                    **fields,
+                )
+            )
             consume -= take_reserved
             remaining -= take
         if remaining > ZERO:
             raise InsufficientStockError(
                 f"Недостаточно товара на складах для списания (id {variant_id}): не хватает {remaining}",
-                variant_id=variant_id, requested=qty, missing=remaining,
+                variant_id=variant_id,
+                requested=qty,
+                missing=remaining,
             )
     return movements
 
@@ -319,6 +389,7 @@ def write_off_reserved(lines, *, user=None, comment="", from_reserve=True, **fie
 # ---------------------------------------------------------------------------
 # Чтение и пересчёт
 # ---------------------------------------------------------------------------
+
 
 def get_balance(variant, warehouse=None) -> Decimal:
     qs = StockBalance.objects.filter(variant=variant)

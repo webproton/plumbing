@@ -6,6 +6,7 @@
     отмена                → released     (stock.release)
     доставлен / завершён  → written_off  (stock.write_off_reserved: физическое списание со склада)
 """
+
 import logging
 from decimal import Decimal
 
@@ -106,7 +107,9 @@ def change_status(order: Order, new_status: str, *, user=None) -> Order:
             raise ValidationError({"status_order": "Заказ был отменён — резерв снят"})
         if order.stock_state in (Order.STOCK_STATE.reserved, Order.STOCK_STATE.none):
             stock.write_off_reserved(
-                _stock_lines(order), user=user, comment=f"Заказ #{order.pk}",
+                _stock_lines(order),
+                user=user,
+                comment=f"Заказ #{order.pk}",
                 from_reserve=order.stock_state == Order.STOCK_STATE.reserved,
             )
             order.stock_state = Order.STOCK_STATE.written_off

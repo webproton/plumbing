@@ -1,6 +1,7 @@
 # app/apps/warehouse/inventory/barcode_scanner.py
 """Поиск товара по штрихкоду/артикулу и приёмка сканером в рамках накладной."""
-from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
+
+from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 
 from django.core.exceptions import ObjectDoesNotExist
 from django.db.models import Q
@@ -58,7 +59,9 @@ def scan_barcode(document, barcode, warehouse, user):
             pass
 
     stock.receive(
-        variant, warehouse, 1,
+        variant,
+        warehouse,
+        1,
         user=user,
         supplier=document.supplier,
         inventory_document=document,

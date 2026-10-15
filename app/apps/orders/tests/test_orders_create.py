@@ -2,30 +2,36 @@ import pytest
 from django.urls import reverse
 from rest_framework.test import APIClient
 
-from app.apps.orders.models import Order
-from app.apps.products.tests.factories import ProductFactory, ProductVariantFactory
-from app.apps.orders.tests.factories import CartFactory, CartItemsFactory, ProductFactory, OrderFactory
 from app.apps.accounts.tests.factories import UserFactory
+from app.apps.orders.models import Order
+from app.apps.orders.tests.factories import CartFactory, CartItemsFactory, OrderFactory
+from app.apps.products.tests.factories import ProductFactory, ProductVariantFactory
+
 
 @pytest.fixture
 def api_client():
     return APIClient()
 
+
 @pytest.fixture
 def user():
     return UserFactory()
+
 
 @pytest.fixture
 def product():
     return ProductFactory()
 
+
 @pytest.fixture
 def product_variant(product):
     return ProductVariantFactory(product=product)
 
+
 @pytest.fixture
 def another_user():
     return UserFactory()
+
 
 @pytest.mark.django_db
 def test_create_order_authenticated(api_client, user):
@@ -182,7 +188,7 @@ def test_create_order_fails_if_customer_name_invalid(api_client, user):
     response = api_client.post(url, payload, format="json")
 
     assert response.status_code == 400
-    assert "Имя может содержать только буквы" in str(response.json()['customer_name'])
+    assert "Имя может содержать только буквы" in str(response.json()["customer_name"])
 
 
 @pytest.mark.django_db
@@ -208,7 +214,6 @@ def test_create_order_fails_if_comment_contains_link(api_client, user):
 
     assert response.status_code == 400
     assert "В комментарии не допускаются ссылки" in str(response.json())
-
 
 
 @pytest.mark.django_db

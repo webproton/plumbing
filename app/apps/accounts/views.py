@@ -1,16 +1,18 @@
-
-from dj_rest_auth.registration.views import SocialLoginView, RegisterView, LoginView
+from dj_rest_auth.registration.views import LoginView, RegisterView
 from rest_framework import generics, permissions
-from .serializers import UserSerializer, CustomRegisterSerializer, CustomLoginSerializer
+
+from .serializers import CustomLoginSerializer, CustomRegisterSerializer, UserSerializer
 
 
 class CustomRegisterView(RegisterView):
     permission_classes = [permissions.AllowAny]
     serializer_class = CustomRegisterSerializer
-    
+
+
 class CustomLoginView(LoginView):
     permission_classes = [permissions.AllowAny]
     serializer_class = CustomLoginSerializer
+
 
 class ProfileView(generics.RetrieveUpdateAPIView):
     serializer_class = UserSerializer

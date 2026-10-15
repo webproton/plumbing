@@ -1,10 +1,15 @@
-import factory
-from factory.django import DjangoModelFactory
-from django.utils import timezone
 import uuid
-from app.apps.orders.models import Cart, CartItems, Order
+
+import factory
+from django.utils import timezone
+from factory.django import DjangoModelFactory
+
 from app.apps.accounts.tests.factories import UserFactory  # предполагаем, что есть фабрика пользователя
-from app.apps.products.tests.factories import ProductVariantFactory, ProductFactory  # предполагаем, что есть фабрика пользователя
+from app.apps.orders.models import Cart, CartItems, Order
+from app.apps.products.tests.factories import (  # предполагаем, что есть фабрика пользователя
+    ProductFactory,
+    ProductVariantFactory,
+)
 
 
 class CartFactory(DjangoModelFactory):
@@ -13,6 +18,7 @@ class CartFactory(DjangoModelFactory):
 
     customer = factory.SubFactory(UserFactory)
     created_at = factory.LazyFunction(timezone.now)
+
 
 def stock_up(variant, quantity=100):
     """Положить товар на склад (через складской сервис, как в реальной жизни)."""
@@ -40,6 +46,7 @@ class CartItemsFactory(DjangoModelFactory):
         if create and obj.variant_id and extracted != 0:
             stock_up(obj.variant, extracted or 100)
 
+
 class OrderFactory(DjangoModelFactory):
     class Meta:
         model = Order
@@ -50,12 +57,12 @@ class OrderFactory(DjangoModelFactory):
     total_price = 0
     status_order = Order.STATUS.in_processing
     payment_status = Order.PAYMENT_STATUS.waiting_for_payment
-    address = factory.Faker('address')
+    address = factory.Faker("address")
     phone_number = factory.Faker("bothify", text="###########")  # до 11 цифр
-    customer_name = factory.Faker('name')
-    email = factory.Faker('email')
+    customer_name = factory.Faker("name")
+    email = factory.Faker("email")
     intent_id = factory.LazyFunction(lambda: str(uuid.uuid4()))
     department_number = "1"
-    city = factory.Faker('state')  # ✅ добавлено новое поле
-    telegram = factory.Faker('user_name')
-    whatsapp = factory.Faker('phone_number')
+    city = factory.Faker("state")  # ✅ добавлено новое поле
+    telegram = factory.Faker("user_name")
+    whatsapp = factory.Faker("phone_number")

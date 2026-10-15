@@ -1,4 +1,5 @@
 """Гонки: одновременные резервы/списания не должны приводить к оверселлу."""
+
 import threading
 from decimal import Decimal
 

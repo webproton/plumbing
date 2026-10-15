@@ -41,7 +41,7 @@ class ParseContext:
     supplier_code: str = "default"
     document_type: str | None = None
     language: str | None = None
-    
+
     currency: str | None = None
 
     # =========================
@@ -50,11 +50,10 @@ class ParseContext:
     header_index: int | None = None
 
     column_map: dict[str, int] = field(default_factory=dict)
-    
-    
+
     table_started: bool = False
     table_ended: bool = False
-    
+
     # =========================
     # PARSING FLAGS
     # =========================

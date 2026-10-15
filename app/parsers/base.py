@@ -1,13 +1,11 @@
 # parsers/base.py
 from abc import ABC, abstractmethod
-from typing import Dict, Any, List
+from typing import Any
 
 from parsers.context import ParseContext
-
 from parsers.core.numbers import extract_numbers
 from parsers.core.sku import extract_sku_from_row
 from parsers.core.text_utils import row_text
-
 from parsers.utils import normalize_output
 
 
@@ -30,13 +28,13 @@ class BaseInvoiceParser(ABC):
     # =========================
     def parse(
         self,
-        rows: List[tuple],
+        rows: list[tuple],
         context: ParseContext,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
 
         meta = self.extract_meta(rows, context)
         meta = self.enrich_meta(rows, meta, context)
-        
+
         items = self.extract_items(rows, context)
         for item in items:
             # некоторые парсеры кладут штрихкод под другим ключом; очистку делает normalizer
@@ -47,14 +45,9 @@ class BaseInvoiceParser(ABC):
             "supplier": self.supplier_code,
             "meta": meta,
             "items": items,
-
-
             "totals": self.extract_totals(rows, context),
-
             "footer": self.extract_footer(rows, context),
-
             "warnings": self.extract_warnings(rows, context),
-
             "signatures": self.extract_signatures(rows, context),
         }
 
@@ -68,9 +61,9 @@ class BaseInvoiceParser(ABC):
     def enrich_meta(
         self,
         rows,
-        data: Dict[str, Any],
+        data: dict[str, Any],
         context: ParseContext,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         post-processing layer
 
@@ -90,7 +83,7 @@ class BaseInvoiceParser(ABC):
         self,
         rows,
         context: ParseContext,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Извлечение meta/header информации
         """
@@ -101,7 +94,7 @@ class BaseInvoiceParser(ABC):
         self,
         rows,
         context: ParseContext,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Извлечение товарных позиций
         """
@@ -112,7 +105,7 @@ class BaseInvoiceParser(ABC):
         self,
         rows,
         context: ParseContext,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Разделение:
         - supplier
@@ -137,7 +130,7 @@ class BaseInvoiceParser(ABC):
         self,
         rows,
         context: ParseContext,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
 
         return {
             "buyer_phones": [],
@@ -152,7 +145,7 @@ class BaseInvoiceParser(ABC):
         self,
         rows,
         context: ParseContext,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
 
         return {
             "total": None,
@@ -166,7 +159,7 @@ class BaseInvoiceParser(ABC):
         self,
         rows,
         context: ParseContext,
-    ) -> List[str]:
+    ) -> list[str]:
 
         return []
 
@@ -174,7 +167,7 @@ class BaseInvoiceParser(ABC):
         self,
         rows,
         context: ParseContext,
-    ) -> List[str]:
+    ) -> list[str]:
 
         return []
 
@@ -182,7 +175,7 @@ class BaseInvoiceParser(ABC):
         self,
         rows,
         context: ParseContext,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
 
         return {
             "executor": None,
@@ -218,7 +211,7 @@ class BaseInvoiceParser(ABC):
         self,
         rows,
         context: ParseContext,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Налоги / НДС
         """
@@ -229,7 +222,7 @@ class BaseInvoiceParser(ABC):
         self,
         rows,
         context: ParseContext,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Логистика / доставка
         """
@@ -258,7 +251,6 @@ class BaseInvoiceParser(ABC):
         started = False
 
         for row in rows:
-
             text = row_text(row)
             lower = text.lower()
 
@@ -266,12 +258,14 @@ class BaseInvoiceParser(ABC):
             # TABLE START
             # =========================
             if not started:
-
-                if any(k in lower for k in [
-                    "товар",
-                    "наименование",
-                    "назва",
-                ]):
+                if any(
+                    k in lower
+                    for k in [
+                        "товар",
+                        "наименование",
+                        "назва",
+                    ]
+                ):
                     started = True
 
                 continue
@@ -279,11 +273,14 @@ class BaseInvoiceParser(ABC):
             # =========================
             # TABLE END
             # =========================
-            if any(k in lower for k in [
-                "итого",
-                "разом",
-                "всього",
-            ]):
+            if any(
+                k in lower
+                for k in [
+                    "итого",
+                    "разом",
+                    "всього",
+                ]
+            ):
                 break
 
             nums = extract_numbers(row)
@@ -303,7 +300,6 @@ class BaseInvoiceParser(ABC):
 
             # fallback SKU
             if not sku:
-
                 m = re.search(
                     r"№\s*([A-Za-z0-9\-]{2,})",
                     text,
@@ -326,20 +322,16 @@ class BaseInvoiceParser(ABC):
             name = re.sub(r"^\d+\s*", "", name)
             name = re.sub(r"\s+", " ", name).strip()
 
-            items.append({
-                "position": position,
-
-                "sku": sku or "",
-
-                "name": name,
-
-                "qty": None,
-
-                "unit": None,
-
-                "price": price,
-
-                "total": total,
-            })
+            items.append(
+                {
+                    "position": position,
+                    "sku": sku or "",
+                    "name": name,
+                    "qty": None,
+                    "unit": None,
+                    "price": price,
+                    "total": total,
+                }
+            )
 
         return items

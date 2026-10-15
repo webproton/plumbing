@@ -3,6 +3,7 @@
     python -m parsers.run путь/к/накладной.xlsx
 Печатает распознанный JSON.
 """
+
 import json
 import sys
 

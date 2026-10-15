@@ -1,15 +1,11 @@
-from django import forms
-from django.shortcuts import render, redirect
 import logging
-from django.contrib import admin
-
+from decimal import Decimal
 
 from django import forms
-from .models import *
+from django.contrib import admin
+from django.shortcuts import redirect, render
 
 logger = logging.getLogger(__name__)
-
-from .models import *
 
 
 class DiscountForm(forms.Form):
@@ -18,21 +14,21 @@ class DiscountForm(forms.Form):
     def clean(self):
         cleaned_data = super().clean()
         logger.debug(f"Form cleaned_data: {cleaned_data}")
-        discount = cleaned_data.get('discount')
+        discount = cleaned_data.get("discount")
         if discount is not None and (discount < 0 or discount > 100):
             raise forms.ValidationError("Скидка должна быть от 0 до 100%.")
         return cleaned_data
+
 
 def apply_discount_to_variants(modeladmin, request, queryset):
     logger.debug("Action apply_discount_to_variants triggered")
     logger.debug(f"Selected variants: {[variant.pk for variant in queryset]}")
 
-
-    if request.method  == "POST":
+    if request.method == "POST":
         logger.debug(f"POST request received: {request.POST}")
         form = DiscountForm(request.POST)
         if form.is_valid():
-            discount_value = form.cleaned_data['discount']
+            discount_value = form.cleaned_data["discount"]
             logger.debug(f"Applying discount: {discount_value}%")
             count = 0
             for variant in queryset:
@@ -47,7 +43,7 @@ def apply_discount_to_variants(modeladmin, request, queryset):
 
                     variant.discount = discount_value
                     variant.original_price = original_price
-                    variant.price = original_price * (Decimal('1') - Decimal(discount_value) / Decimal('100'))
+                    variant.price = original_price * (Decimal("1") - Decimal(discount_value) / Decimal("100"))
                 else:
                     variant.discount = 0
                     variant.price = current_original if current_original is not None else current_price
@@ -64,9 +60,12 @@ def apply_discount_to_variants(modeladmin, request, queryset):
         form = DiscountForm()
         logger.debug("Rendering form")
 
-    return render(request, "admin/apply_discount.html", {
-        'form': form,
-        'products': queryset,
-
-        "action_checkbox_name": admin.helpers.ACTION_CHECKBOX_NAME,  # ✅ правильное имя чекбоксов
-    })
+    return render(
+        request,
+        "admin/apply_discount.html",
+        {
+            "form": form,
+            "products": queryset,
+            "action_checkbox_name": admin.helpers.ACTION_CHECKBOX_NAME,  # ✅ правильное имя чекбоксов
+        },
+    )

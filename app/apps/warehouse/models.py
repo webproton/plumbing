@@ -1,10 +1,10 @@
 # app/apps/warehouse/models.py
 from django.db import models
-from app.apps.sellers.models import Seller
-from app.apps.products.models import ProductVariant
-from django.utils.translation import gettext_lazy as _
 from django.db.models import Q
+from django.utils.translation import gettext_lazy as _
 
+from app.apps.products.models import ProductVariant
+from app.apps.sellers.models import Seller
 from app.core.storage import private_storage
 
 
@@ -19,9 +19,13 @@ class CurrencyRate(models.Model):
 
 class Supplier(models.Model):
     """Поставщики товаров"""
+
     name = models.CharField(max_length=255, verbose_name="Название поставщика")
     code = models.SlugField(
-        max_length=50, blank=True, default="", db_index=True,
+        max_length=50,
+        blank=True,
+        default="",
+        db_index=True,
         help_text="Код парсера (aquadom, presto, santan…) — для автоопределения поставщика по накладной",
     )
     contact_person = models.CharField(max_length=150, blank=True)
@@ -34,7 +38,7 @@ class Supplier(models.Model):
     class Meta:
         verbose_name = _("Поставщик")
         verbose_name_plural = _("Поставщики")
-        ordering = ['name']
+        ordering = ["name"]
 
     def __str__(self):
         return self.name
@@ -42,7 +46,8 @@ class Supplier(models.Model):
 
 class Warehouse(models.Model):
     """Склады"""
-    seller = models.ForeignKey(Seller, on_delete=models.PROTECT, related_name='warehouses')
+
+    seller = models.ForeignKey(Seller, on_delete=models.PROTECT, related_name="warehouses")
     name = models.CharField(max_length=100, verbose_name="Название склада")
     address = models.CharField(max_length=255, blank=True)
     is_default = models.BooleanField(default=False)
@@ -51,8 +56,8 @@ class Warehouse(models.Model):
     class Meta:
         verbose_name = _("Склад")
         verbose_name_plural = _("Склады")
-        unique_together = ('seller', 'name')
-        ordering = ['name']
+        unique_together = ("seller", "name")
+        ordering = ["name"]
 
     def __str__(self):
         return f"{self.name} ({self.seller.shop_name})"
@@ -64,6 +69,7 @@ class StockMovement(models.Model):
     Записи не редактируются и не удаляются: ошибки исправляются встречным движением.
     Создавать движения нужно только через app.apps.warehouse.stock (он же обновляет кэши остатков).
     """
+
     IN = "in"
     OUT = "out"
     RETURN_IN = "return_in"
@@ -87,23 +93,18 @@ class StockMovement(models.Model):
     OUTGOING_TYPES = (OUT, RETURN_OUT, ADJUSTMENT_OUT, TRANSFER_OUT)
 
     inventory_document = models.ForeignKey(
-        'InventoryDocument',
+        "InventoryDocument",
         on_delete=models.PROTECT,
         null=True,
         blank=True,
         verbose_name=_("Связанный документ"),
-        related_name="stock_movements"
+        related_name="stock_movements",
     )
 
-    exchange_rate = models.DecimalField(
-        max_digits=10,
-        decimal_places=4,
-        default=1,
-        verbose_name="Курс валюты к UAH"
-    )
+    exchange_rate = models.DecimalField(max_digits=10, decimal_places=4, default=1, verbose_name="Курс валюты к UAH")
 
     variant = models.ForeignKey(
-        ProductVariant, on_delete=models.PROTECT, related_name='movements', verbose_name=_("Вариант товара")
+        ProductVariant, on_delete=models.PROTECT, related_name="movements", verbose_name=_("Вариант товара")
     )
     seller = models.ForeignKey(Seller, on_delete=models.PROTECT, verbose_name=_("Продавец"))
     warehouse = models.ForeignKey(Warehouse, on_delete=models.PROTECT, verbose_name=_("Склад"))
@@ -113,15 +114,17 @@ class StockMovement(models.Model):
         max_digits=12, decimal_places=4, null=True, blank=True, verbose_name=_("Цена за единицу")
     )
     document_number = models.CharField(max_length=50, blank=True, null=True, verbose_name="Номер накладной")
-    supplier = models.ForeignKey(Supplier, on_delete=models.SET_NULL, null=True, blank=True, verbose_name=_("Поставщик"))
+    supplier = models.ForeignKey(
+        Supplier, on_delete=models.SET_NULL, null=True, blank=True, verbose_name=_("Поставщик")
+    )
     comment = models.TextField(blank=True, verbose_name=_("Комментарий"))
     created_at = models.DateTimeField(auto_now_add=True, verbose_name=_("Дата создания"))
-    created_by = models.ForeignKey('accounts.User', on_delete=models.SET_NULL, null=True, blank=True)
+    created_by = models.ForeignKey("accounts.User", on_delete=models.SET_NULL, null=True, blank=True)
 
     class Meta:
         verbose_name = _("Движение по складу")
         verbose_name_plural = _("Движения по складу")
-        ordering = ['-created_at']
+        ordering = ["-created_at"]
         indexes = [
             models.Index(fields=["variant", "warehouse", "movement_type"], name="stockmove_var_wh_type_idx"),
             models.Index(fields=["-created_at"], name="stockmove_created_idx"),
@@ -144,6 +147,7 @@ class StockBalance(models.Model):
     Строка блокируется select_for_update при каждой складской операции —
     это и защищает от гонок при одновременных списаниях.
     """
+
     variant = models.ForeignKey(ProductVariant, on_delete=models.PROTECT, related_name="balances")
     warehouse = models.ForeignKey(Warehouse, on_delete=models.PROTECT, related_name="balances")
     quantity = models.DecimalField(max_digits=12, decimal_places=3, default=0)
@@ -162,20 +166,26 @@ class StockBalance(models.Model):
 
 class InventoryDocument(models.Model):
     """Фото/файл накладной + OCR"""
+
     DOCUMENT_TYPE = [
-        ('incoming', 'Приходная накладная'),
-        ('outgoing', 'Расходная накладная'),
-        ('return', 'Возврат'),
-        ('other', 'Другое'),
+        ("incoming", "Приходная накладная"),
+        ("outgoing", "Расходная накладная"),
+        ("return", "Возврат"),
+        ("other", "Другое"),
     ]
 
     document_number = models.CharField(max_length=100, blank=True, null=True)
     supplier = models.ForeignKey(Supplier, on_delete=models.SET_NULL, null=True, blank=True)
     seller = models.ForeignKey(Seller, on_delete=models.PROTECT, verbose_name=_("Продавец"))
     document_type = models.CharField(max_length=20, choices=DOCUMENT_TYPE, verbose_name=_("Тип документа"))
-    file = models.FileField(upload_to='invoices/%Y/%m/%d/', storage=private_storage, verbose_name="Файл накладной")
-    file_hash = models.CharField(max_length=64, blank=True, default="", db_index=True,
-                                 verbose_name="SHA-256 файла (защита от повторной загрузки)")
+    file = models.FileField(upload_to="invoices/%Y/%m/%d/", storage=private_storage, verbose_name="Файл накладной")
+    file_hash = models.CharField(
+        max_length=64,
+        blank=True,
+        default="",
+        db_index=True,
+        verbose_name="SHA-256 файла (защита от повторной загрузки)",
+    )
     uploaded_at = models.DateTimeField(auto_now_add=True, verbose_name=_("Загружено"))
     extracted_data = models.JSONField(blank=True, null=True, verbose_name="Распознанные данные и строки приёмки")
     processed = models.BooleanField(default=False, verbose_name="Проведён")
@@ -184,10 +194,12 @@ class InventoryDocument(models.Model):
     class Meta:
         verbose_name = _("Накладная / документ")
         verbose_name_plural = _("Накладные / документы")
-        ordering = ['-uploaded_at']
+        ordering = ["-uploaded_at"]
         constraints = [
             models.UniqueConstraint(
-                fields=["seller", "file_hash"], condition=~Q(file_hash=""), name="invdoc_seller_filehash_uniq",
+                fields=["seller", "file_hash"],
+                condition=~Q(file_hash=""),
+                name="invdoc_seller_filehash_uniq",
             ),
         ]
 
@@ -197,11 +209,9 @@ class InventoryDocument(models.Model):
 
 class ProductBarcode(models.Model):
     """Дополнительные штрихкоды вариантов (для сканера)"""
+
     variant = models.ForeignKey(
-        ProductVariant,
-        on_delete=models.CASCADE,
-        related_name="barcodes",
-        verbose_name="Вариант штрихкода"
+        ProductVariant, on_delete=models.CASCADE, related_name="barcodes", verbose_name="Вариант штрихкода"
     )
     # 🔥 ИСПРАВЛЕНО: добавлен db_index=True для мгновенного поиска сканером
     code = models.CharField(max_length=128, unique=True, db_index=True, verbose_name="QR/Штрих")
@@ -212,6 +222,7 @@ class ProductBarcode(models.Model):
 
 class VariantMatchMemory(models.Model):
     """Обучение системы сопоставления номенклатуры поставщиков с базой"""
+
     supplier = models.ForeignKey("warehouse.Supplier", on_delete=models.CASCADE, null=True, blank=True)
     # 🔥 ИСПРАВЛЕНО: Добавлены db_index для ускорения работы ИИ/OCR сопоставления
     raw_code = models.CharField(max_length=255, blank=True, null=True, db_index=True)

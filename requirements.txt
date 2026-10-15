@@ -39,7 +39,3 @@ numpy>=1.26
 python-calamine>=0.2
 rapidfuzz>=3.6
 defusedxml>=0.7
-
-# --- telemetry (app отключён, но код импортирует) ---
-geoip2>=4.8
-device-detector>=5.0.1

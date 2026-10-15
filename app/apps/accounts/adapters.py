@@ -1,14 +1,15 @@
 # accounts/adapters.py
 from allauth.account.adapter import DefaultAccountAdapter
-from django.core.mail import send_mail
 from django.conf import settings
+from django.core.mail import send_mail
+
 
 class CustomAccountAdapter(DefaultAccountAdapter):
     def get_email_confirmation_url(self, request, emailconfirmation):
         # Формируем ссылку на фронтенд для подтверждения
         base_url = getattr(settings, "FRONTEND_URL", "http://localhost:3000")
         return f"{base_url}/confirm-email/{emailconfirmation.key}/"
-    
+
     def send_confirmation_mail(self, request, emailconfirmation, signup):
         activate_url = f"{settings.FRONTEND_URL}/confirm-email/{emailconfirmation.key}/"
         subject = "Подтверждение регистрации"

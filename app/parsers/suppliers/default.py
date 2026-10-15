@@ -1,34 +1,27 @@
 # parsers/suppliers/default.py
 
 
+import re
+
+from parsers.core.date_utils import extract_date
 from parsers.core.numbers import extract_numbers
 from parsers.core.table_engine import TableEngine
 from parsers.core.text_utils import normalize_text, row_text
-from parsers.core.date_utils import extract_date
-import re
 
 from ..base import BaseInvoiceParser
 
 
 class DefaultParser(BaseInvoiceParser):
     supplier_code = "default"
-    
-
 
     def detect_context(self, text: str) -> str:
         t = text.lower()
 
-        supplier_keys = [
-            "виконавець", "поставщик", "фоп", "продавец", "постачальник"
-        ]
+        supplier_keys = ["виконавець", "поставщик", "фоп", "продавец", "постачальник"]
 
-        buyer_keys = [
-            "отримувач", "покупатель", "клиент", "замовник", "клієнт", "получатель"
-        ]
+        buyer_keys = ["отримувач", "покупатель", "клиент", "замовник", "клієнт", "получатель"]
 
-        delivery_keys = [
-            "адреса доставки", "адрес доставки", "доставка"
-        ]
+        delivery_keys = ["адреса доставки", "адрес доставки", "доставка"]
 
         def match(keys):
             return any(k in t for k in keys)
@@ -44,7 +37,6 @@ class DefaultParser(BaseInvoiceParser):
 
         return "unknown"
 
-
     def extract_header(self, rows, context):
 
         supplier_phones = set()
@@ -57,8 +49,7 @@ class DefaultParser(BaseInvoiceParser):
         buyer_text = []
         delivery_lines = []
 
-        for i, row in enumerate(rows[:25]):
-
+        for _i, row in enumerate(rows[:25]):
             text = row_text(row)
             if not text:
                 continue
@@ -101,16 +92,12 @@ class DefaultParser(BaseInvoiceParser):
         return {
             "supplier_text": normalize_text(" ".join(supplier_text)) or None,
             "buyer_text": normalize_text(" ".join(buyer_text)) or None,
-
             "supplier_phones": list(supplier_phones) or None,
             "buyer_phones": list(buyer_phones) or None,
-
             "supplier_emails": list(supplier_emails) or None,
             "buyer_emails": list(buyer_emails) or None,
-
             "delivery_address": normalize_text(" ".join(delivery_lines)) or None,
         }
-
 
     def extract_meta(self, rows, context):
 
@@ -167,7 +154,6 @@ class DefaultParser(BaseInvoiceParser):
 
         return meta
 
-
     def extract_items(self, rows, context):
 
         context.column_map = self.find_column_map(rows) or {}
@@ -179,7 +165,6 @@ class DefaultParser(BaseInvoiceParser):
 
         return items
 
-    
     def extract_totals(self, rows, context):
         totals = {}
 
@@ -213,7 +198,7 @@ class DefaultParser(BaseInvoiceParser):
                 totals["summary"] = normalize_text(text)
 
         return totals
-    
+
     def extract_footer(self, rows, context):
         footer = []
 
@@ -227,7 +212,7 @@ class DefaultParser(BaseInvoiceParser):
                     footer.append(cleaned)
 
         return footer if footer else None
-        
+
     def extract_warnings(self, rows, context):
         warnings = []
 
@@ -241,7 +226,7 @@ class DefaultParser(BaseInvoiceParser):
                     warnings.append(cleaned)
 
         return warnings if warnings else None
-        
+
     def extract_signatures(self, rows, context):
         executor = None
         receiver = None
@@ -256,12 +241,8 @@ class DefaultParser(BaseInvoiceParser):
             if receiver is None and any(k in lower for k in ["прийняв", "получил"]):
                 receiver = text.strip()
 
-        return {
-            "executor": executor,
-            "receiver": receiver
-        }
-        
-        
+        return {"executor": executor, "receiver": receiver}
+
     def find_column_map(self, rows):
         for row in rows:
             normalized = [normalize_text(str(v).strip().lower()) for v in row]
@@ -269,16 +250,15 @@ class DefaultParser(BaseInvoiceParser):
 
             # stricter header detection
             if not (
-                any(k in joined for k in ["кількість", "количество"]) and
-                any(k in joined for k in ["ціна", "цена"]) and
-                any(k in joined for k in ["сума", "сумма"])
+                any(k in joined for k in ["кількість", "количество"])
+                and any(k in joined for k in ["ціна", "цена"])
+                and any(k in joined for k in ["сума", "сумма"])
             ):
                 continue
 
             col_map = {}
 
             for i, v in enumerate(normalized):
-
                 if "кількість" in v or "количество" in v:
                     col_map["qty"] = i
 

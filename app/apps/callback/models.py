@@ -1,5 +1,6 @@
 from django.db import models
 
+
 # Create your models here.
 class SiteSettings(models.Model):
     """_summary_
@@ -10,6 +11,7 @@ class SiteSettings(models.Model):
     Returns:
         _type_: _description_
     """
+
     phone = models.CharField(max_length=50, verbose_name="Телефон")
     email = models.EmailField(verbose_name="Email", blank=True, null=True)
     telegram = models.URLField(verbose_name="Telegram", blank=True, null=True)

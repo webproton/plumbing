@@ -1,16 +1,29 @@
 # parsers/core/table_engine.py
 import logging
 import re
-from parsers.core.text_utils import normalize_text, row_text
+
 from parsers.core.numbers import extract_numbers, safe_float
 from parsers.core.sku import extract_sku_from_row
+from parsers.core.text_utils import normalize_text, row_text
 
 logger = logging.getLogger(__name__)
 
 HEADER_KEYWORDS = {
     "qty": [
-        "кількість", "количество", "qty", "к-сть", "кільк", "кол-во", 
-        "кол", "кіл",  "шт","шт.", "к-во", "колич", "quantity","кiлькiсть"
+        "кількість",
+        "количество",
+        "qty",
+        "к-сть",
+        "кільк",
+        "кол-во",
+        "кол",
+        "кіл",
+        "шт",
+        "шт.",
+        "к-во",
+        "колич",
+        "quantity",
+        "кiлькiсть",
     ],
     "price": ["ціна", "цена", "price", "ціни", "ед.цена", "цена ед"],
     "total": ["сума", "сумма", "total", "всього", "итого", "сум"],
@@ -25,14 +38,10 @@ HEADER_KEYWORDS = {
 # Приоритет колонок (очень важно!)
 COLUMN_PRIORITY = ["qty", "price", "total", "unit", "sku", "name"]
 
-STOP_WORDS = [
-    "разом", "итого", "всього", "підсумок",
-    "грн", "ндс", "пдв"
-]
+STOP_WORDS = ["разом", "итого", "всього", "підсумок", "грн", "ндс", "пдв"]
 
 
 class TableEngine:
-
     def __init__(self, rows, context):
         self.rows = rows
         self.context = context
@@ -61,21 +70,13 @@ class TableEngine:
             return False
 
         # 3. мусорные строки
-        if any(x in text for x in [
-            "сума прописом",
-            "директор",
-            "бухгалтер",
-            "увага",
-            "рахунок дійсний",
-            "працюєм без пдв"
-        ]):
+        if any(
+            x in text for x in ["сума прописом", "директор", "бухгалтер", "увага", "рахунок дійсний", "працюєм без пдв"]
+        ):
             return False
-        
+
         # должен быть текст товара
-        text_parts = [
-            x for x in re.split(r"\s+", text)
-            if not re.fullmatch(r"[\d.,/]+", x)
-        ]
+        text_parts = [x for x in re.split(r"\s+", text) if not re.fullmatch(r"[\d.,/]+", x)]
 
         if len(text_parts) < 2:
             return False
@@ -85,7 +86,6 @@ class TableEngine:
             return False
 
         price, total = self._smart_extract_price_total(row)
-        
 
         if price is None or total is None:
             return False
@@ -107,11 +107,7 @@ class TableEngine:
     # =========================
     def find_header(self):
         for i, row in enumerate(self.rows):
-            normalized = [
-                normalize_text(str(v).strip().lower())
-                if v is not None else ""
-                for v in row
-            ]
+            normalized = [normalize_text(str(v).strip().lower()) if v is not None else "" for v in row]
             if len(normalized) < 3:
                 continue
 
@@ -126,7 +122,7 @@ class TableEngine:
 
                     if any(v == t for v in variants for t in tokens):
                         # Дополнительная проверка — не путаем "кол" из "колір" и т.д.
-                        if key == "qty" and re.search(r'колір|колон|колонк', cell_str):
+                        if key == "qty" and re.search(r"колір|колон|колонк", cell_str):
                             continue
                         found[key] = col_idx
                         break
@@ -138,8 +134,7 @@ class TableEngine:
                 else:
                     for k, v in found.items():
                         self.context.column_map.setdefault(k, v)
-                
-                
+
                 self.state = "ITEMS"
                 logger.debug("Заголовок таблицы: строка %s, колонки %s", i, found)
                 return True
@@ -150,16 +145,14 @@ class TableEngine:
     # STEP 2: READ ROWS
     # =========================
     def extract_rows(self):
-        
-        
+
         if self.context.header_index is None:
             return []
 
         items = []
         self.position = 0
 
-        for row in self.rows[self.context.header_index + 1:]:
-
+        for row in self.rows[self.context.header_index + 1 :]:
             text = row_text(row).lower()
             nums = extract_numbers(row)
 
@@ -173,7 +166,6 @@ class TableEngine:
             # FOOTER DETECTION
             # =========================
             if any(k in text for k in ["итого", "разом", "всього"]):
-
                 # footer почти всегда содержит суммы
                 if len(nums) >= 1:
                     self.state = "FOOTER"
@@ -182,7 +174,7 @@ class TableEngine:
             # =========================
             # SKIP INVALID ROW
             # =========================
-            
+
             if not self.is_valid_item_row(row, nums):
                 continue
 
@@ -192,7 +184,6 @@ class TableEngine:
 
             if item:
                 items.append(item)
-                
 
         return items
 
@@ -222,11 +213,9 @@ class TableEngine:
         # =========================
         # QTY (STRICT COLUMN FIRST)
         # =========================
-      
-        
+
         qty = self.extract_qty(row, raw_text, nums, position)
 
-    
         # =========================
         # UNIT
         # =========================
@@ -251,7 +240,7 @@ class TableEngine:
             "price": price,
             "total": total,
         }
-        
+
     # =========================
     # TOTALS EXTRACTION
     # =========================
@@ -265,14 +254,13 @@ class TableEngine:
         }
 
         for row in self.rows:
-
             text = row_text(row).lower()
 
             # =========================
             # STRICT REGEX FIRST
             # =========================
             m = re.search(
-                r'(усього|всього|итого|total)\s*[:\-]?\s*(\d+[.,]\d{2})',
+                r"(усього|всього|итого|total)\s*[:\-]?\s*(\d+[.,]\d{2})",
                 text,
                 re.I,
             )
@@ -285,11 +273,7 @@ class TableEngine:
             # FALLBACK
             # =========================
             if any(k in text for k in ["усього", "всього", "итого", "total"]):
-
-                numbers = [
-                    n for n in extract_numbers(row)
-                    if n > 0
-                ]
+                numbers = [n for n in extract_numbers(row) if n > 0]
 
                 if numbers:
                     # invoice total обычно последнее число
@@ -297,7 +281,6 @@ class TableEngine:
                     break
 
         return totals
-
 
     # =========================
     # HELPERS
@@ -312,24 +295,15 @@ class TableEngine:
         # HEADER MAPPING
         # =========================
         if "price" in self.context.column_map:
-            price = safe_float(
-                safe_get(self.context.column_map["price"])
-            )
+            price = safe_float(safe_get(self.context.column_map["price"]))
 
         if "total" in self.context.column_map:
-            total = safe_float(
-                safe_get(self.context.column_map["total"])
-            )
+            total = safe_float(safe_get(self.context.column_map["total"]))
 
         # =========================
         # FALLBACK
         # =========================
-        if (
-            price is None
-            or total is None
-            or price <= 0
-            or total <= 0
-        ):
+        if price is None or total is None or price <= 0 or total <= 0:
             price, total = self._smart_extract_price_total(row)
 
         # =========================
@@ -347,10 +321,7 @@ class TableEngine:
         # =========================
         # ALL POSITIVE NUMBERS
         # =========================
-        nums = [
-            n for n in extract_numbers(row)
-            if n > 0
-        ]
+        nums = [n for n in extract_numbers(row) if n > 0]
 
         if len(nums) < 2:
             return None, None
@@ -359,24 +330,19 @@ class TableEngine:
         # MONEY VALUES PRIORITY
         # =========================
         decimal = re.findall(
-            r'\d+[.,]\d{1,2}',
+            r"\d+[.,]\d{1,2}",
             raw_text,
         )
 
         decimal_nums = []
 
         for x in decimal:
-
             val = safe_float(x)
 
             if val is not None and val > 0:
                 decimal_nums.append(val)
 
-        candidates = (
-            decimal_nums
-            if len(decimal_nums) >= 2
-            else nums
-        )
+        candidates = decimal_nums if len(decimal_nums) >= 2 else nums
 
         if len(candidates) < 2:
             return None, None
@@ -404,11 +370,9 @@ class TableEngine:
 
         return price, total
 
-
     def detect_unit(self, row):
 
         for v in row:
-
             v = str(v).lower().strip(".,() ")
 
             if v in ["шт", "кг", "л", "м", "уп", "ящ"]:
@@ -416,19 +380,14 @@ class TableEngine:
 
         return None
 
-
     def extract_unit(self, row, safe_get):
 
-        unit_raw = safe_get(
-            self.context.column_map.get("unit")
-        )
+        unit_raw = safe_get(self.context.column_map.get("unit"))
 
         if unit_raw:
             return str(unit_raw).lower().strip(".,() ")
 
         return self.detect_unit(row)
-
-
 
     def extract_qty(self, row, raw_text, nums, position):
 
@@ -436,11 +395,9 @@ class TableEngine:
         # 1. COLUMN
         # =========================
         if "qty" in self.context.column_map:
-
             col_idx = self.context.column_map["qty"]
 
             if col_idx < len(row):
-
                 qty = safe_float(row[col_idx])
 
                 if qty and 0 < qty <= 10000:
@@ -450,7 +407,7 @@ class TableEngine:
         # 2. NUMBER + UNIT
         # =========================
         matches = re.findall(
-            r'(\d{1,6})\s*(шт|уп|бухта|ящ|м|кг|л)',
+            r"(\d{1,6})\s*(шт|уп|бухта|ящ|м|кг|л)",
             raw_text,
             re.IGNORECASE,
         )
@@ -466,19 +423,15 @@ class TableEngine:
 
         price = nums[-2]
         total = nums[-1]
-        
-        
+
         if price <= 0 or total <= 0:
             return None
 
-
         candidates = [
-            n for n in nums
-            if n > 0
-            and n not in (price, total)
-            and abs(n - position) > 0  # защита от позиции
+            n
+            for n in nums
+            if n > 0 and n not in (price, total) and abs(n - position) > 0  # защита от позиции
         ]
-
 
         if not candidates:
             return None
@@ -486,13 +439,11 @@ class TableEngine:
         # qty usually first numeric before money
         return float(candidates[0])
 
-
     def extract_sku(self, row, raw_text):
 
         sku_engine = extract_sku_from_row(row)
 
         if not sku_engine:
-
             m = re.search(
                 r"№\s*([^\s,;]+)",
                 raw_text,
@@ -501,9 +452,9 @@ class TableEngine:
             sku_engine = m.group(1) if m else None
 
         return sku_engine or ""
-    
+
     def extract_name(self, row, raw_text, sku, nums, price, total, qty):
-        
+
         # исходный текст строки
         name = raw_text.strip()
 
@@ -511,28 +462,15 @@ class TableEngine:
         # REMOVE POSITION NUMBER
         # "1 Кабель..." -> "Кабель..."
         # =========================
-        name = re.sub(
-            r'^\s*\d+\.?\s+',
-            '',
-            name
-        )
+        name = re.sub(r"^\s*\d+\.?\s+", "", name)
 
         # =========================
         # NORMALIZE SKU
         # "5116" -> "№ 5116"
         # =========================
         if sku:
-            if not re.search(
-                rf'№\s*{re.escape(sku)}',
-                name,
-                re.I
-            ):
-                name = re.sub(
-                    rf'\b{re.escape(sku)}\b',
-                    f'№ {sku}',
-                    name,
-                    flags=re.I
-                )
+            if not re.search(rf"№\s*{re.escape(sku)}", name, re.I):
+                name = re.sub(rf"\b{re.escape(sku)}\b", f"№ {sku}", name, flags=re.I)
 
         # =========================
         # REMOVE NUMERIC VALUES
@@ -549,16 +487,11 @@ class TableEngine:
             ]
 
             for v in variants:
-
                 # защита SKU
                 if protect_sku and v == str(protect_sku):
                     continue
 
-                text = re.sub(
-                    rf'\b{re.escape(v)}\b',
-                    '',
-                    text
-                )
+                text = re.sub(rf"\b{re.escape(v)}\b", "", text)
 
             return text
 
@@ -583,23 +516,17 @@ class TableEngine:
             ]
 
             for q in qty_patterns:
-                name = re.sub(
-                    rf'\b{re.escape(q)}\s*(шт|уп|бухта|ящ|м|кг|л)\b',
-                    '',
-                    name,
-                    flags=re.I
-                )
+                name = re.sub(rf"\b{re.escape(q)}\s*(шт|уп|бухта|ящ|м|кг|л)\b", "", name, flags=re.I)
 
         # =========================
         # CLEAN EXTRA SPACES
         # =========================
-        name = re.sub(r'\s+', ' ', name).strip()
+        name = re.sub(r"\s+", " ", name).strip()
 
         # remove trailing punctuation
-        name = re.sub(r'[,.;]\s*$', '', name)
+        name = re.sub(r"[,.;]\s*$", "", name)
 
         return name
-
 
     def extract_buyer(self):
         """Улучшенный парсинг Платника / Покупателя"""
@@ -607,18 +534,27 @@ class TableEngine:
         capture = False
 
         buyer_start_keywords = [
-                                "платник",
-                                "замовник",
-                                "покупець",
-                                "покупатель",
-                                "отримувач",
-                                "получатель",
-                                "клієнт",
-                                "клиент",
-                                "контрагент",
-                            ]
-        stop_keywords = ["виконавець", "поставщик", "разом", "всього", 
-                        "сума", "итого", "товари", "найменування", "адреса доставки"]
+            "платник",
+            "замовник",
+            "покупець",
+            "покупатель",
+            "отримувач",
+            "получатель",
+            "клієнт",
+            "клиент",
+            "контрагент",
+        ]
+        stop_keywords = [
+            "виконавець",
+            "поставщик",
+            "разом",
+            "всього",
+            "сума",
+            "итого",
+            "товари",
+            "найменування",
+            "адреса доставки",
+        ]
 
         for row in self.rows:
             text = row_text(row).strip()
@@ -629,7 +565,7 @@ class TableEngine:
             # === СТАРТ ЗАХВАТА ===
             if not capture and any(kw in lower for kw in buyer_start_keywords):
                 capture = True
-                
+
                 # Если в этой же строке есть ":" — берём текст после него
                 if ":" in text:
                     after = text.split(":", 1)[1].strip()
@@ -637,8 +573,12 @@ class TableEngine:
                         buyer_info.append(after)
                 else:
                     # Если ":" нет — добавляем саму строку без слова "Платник"
-                    cleaned = re.sub(r'(платник|замовник|покупець|покупатель|отримувач|получатель|клієнт|клиент|контрагент)\s*[:\-]?',
-                                     '', text, flags=re.I).strip()
+                    cleaned = re.sub(
+                        r"(платник|замовник|покупець|покупатель|отримувач|получатель|клієнт|клиент|контрагент)\s*[:\-]?",
+                        "",
+                        text,
+                        flags=re.I,
+                    ).strip()
                     if cleaned:
                         buyer_info.append(cleaned)
                 continue
@@ -661,19 +601,13 @@ class TableEngine:
         buyer_raw = " ".join(buyer_info).strip()
 
         # Извлекаем ЕДРПОУ
-        edrpou_match = re.search(r'(?:єдрпоу|едрпоу|код\s+по\s+єдрпоу|код)\s*[:\-]?\s*(\d{8,10})', 
-                                 buyer_raw, re.I)
+        edrpou_match = re.search(r"(?:єдрпоу|едрпоу|код\s+по\s+єдрпоу|код)\s*[:\-]?\s*(\d{8,10})", buyer_raw, re.I)
         edrpou = edrpou_match.group(1) if edrpou_match else None
 
         # Финальная очистка
         buyer_clean = normalize_text(buyer_raw)
 
-        return {
-            "buyer": buyer_clean or None,
-            "buyer_edrpou": edrpou,
-            "buyer_raw": buyer_raw or None
-        }
-
+        return {"buyer": buyer_clean or None, "buyer_edrpou": edrpou, "buyer_raw": buyer_raw or None}
 
     # =========================
     # MAIN
@@ -686,7 +620,7 @@ class TableEngine:
 
         # reset context
         self.context.header_index = None
-        
+
         # НЕ ЗАТИРАТЬ supplier column_map
         if not self.context.column_map:
             self.context.column_map = {}

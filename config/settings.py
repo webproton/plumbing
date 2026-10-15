@@ -112,9 +112,7 @@ DATABASES = {
 }
 
 REDIS_URL = env("REDIS_URL", default="redis://localhost:6379/1")
-CACHES = {
-    "default": env.cache_url("CACHE_URL", default=REDIS_URL.replace("redis://", "rediscache://", 1))
-}
+CACHES = {"default": env.cache_url("CACHE_URL", default=REDIS_URL.replace("redis://", "rediscache://", 1))}
 
 
 # ==============================
@@ -253,15 +251,14 @@ MEDIA_ROOT = BASE_DIR / "media"
 # Файлы накладных и сгенерированные PDF — вне публичного MEDIA_ROOT, отдаются только через API.
 PRIVATE_MEDIA_ROOT = Path(env("PRIVATE_MEDIA_ROOT", default=str(BASE_DIR / "private_media")))
 
-GEOIP_PATH = BASE_DIR / "app" / "geoip"
-
 
 # ==============================
 # Email
 # ==============================
 EMAIL_BACKEND = env(
     "EMAIL_BACKEND",
-    default="django.core.mail.backends.console.EmailBackend" if DEBUG
+    default="django.core.mail.backends.console.EmailBackend"
+    if DEBUG
     else "django.core.mail.backends.smtp.EmailBackend",
 )
 EMAIL_USE_TLS = env.bool("EMAIL_USE_TLS", default=True)

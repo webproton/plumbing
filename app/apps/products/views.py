@@ -16,9 +16,23 @@ from .serializers import (
 
 # Связанные объекты варианта, которые отдаёт ProductVariantSerializer (без них — десятки запросов на карточку)
 VARIANT_FK = (
-    "product", "brand", "ball", "material", "manufacturer", "thread_size", "type_of_product",
-    "product_thread", "color", "body_material", "pattern", "bed_type", "filling", "armrests",
-    "mattress_base", "mechanism", "bed_type_form",
+    "product",
+    "brand",
+    "ball",
+    "material",
+    "manufacturer",
+    "thread_size",
+    "type_of_product",
+    "product_thread",
+    "color",
+    "body_material",
+    "pattern",
+    "bed_type",
+    "filling",
+    "armrests",
+    "mattress_base",
+    "mechanism",
+    "bed_type_form",
 )
 VARIANT_M2M = ("included_items", "upholstery_materials", "color_options")
 
@@ -41,8 +55,7 @@ def catalog_queryset():
         Product.objects.filter(variants__available=True)
         .annotate(min_price=Min("variants__price"))
         .select_related("category")
-        .prefetch_related(Prefetch("variants", queryset=visible_variants().order_by("id"),
-                                   to_attr="visible_variants"))
+        .prefetch_related(Prefetch("variants", queryset=visible_variants().order_by("id"), to_attr="visible_variants"))
     )
 
 
@@ -72,6 +85,7 @@ class ProductListView(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.Ret
     Каталог. Параметры: фильтры ProductFilters (category, search, min_price, …),
     ordering = price | -price | name | -name | new, page, page_size.
     """
+
     filterset_class = ProductFilters
     lookup_field = "slug"
     permission_classes = [permissions.AllowAny]
@@ -88,9 +102,11 @@ class ProductListView(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.Ret
         return ProductDetailSerializer if self.action == "retrieve" else ProductListSerializer
 
 
-class WishlistViewSet(mixins.CreateModelMixin, mixins.ListModelMixin, mixins.DestroyModelMixin,
-                      viewsets.GenericViewSet):
+class WishlistViewSet(
+    mixins.CreateModelMixin, mixins.ListModelMixin, mixins.DestroyModelMixin, viewsets.GenericViewSet
+):
     """Избранное авторизованного пользователя (у гостя оно хранится в localStorage)."""
+
     serializer_class = WishlistSerializer
 
     def get_permissions(self):
@@ -118,8 +134,9 @@ class WishlistViewSet(mixins.CreateModelMixin, mixins.ListModelMixin, mixins.Des
         if variant is None:
             return Response({"detail": "Product variant not found"}, status=status.HTTP_404_NOT_FOUND)
         item, created = Wishlist.objects.get_or_create(user=request.user, product_variant=variant)
-        return Response(self.get_serializer(item).data,
-                        status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
+        return Response(
+            self.get_serializer(item).data, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK
+        )
 
     def _variant_ids(self, raw):
         ids = []

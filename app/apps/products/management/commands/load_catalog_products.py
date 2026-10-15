@@ -9,17 +9,39 @@ from django.db import transaction
 
 # Импорт моделей — если у тебя модели в другом модуле, поправь путь
 from app.apps.products.models import (
-    Product, ProductVariant, TypeOfProduct,
-    Mechanism, MattressBase, UpholsteryMaterial,
-    Pattern, BodyMaterial, Filling, Form,
-    BedType, Armrest, IncludedItem, ColorOption, ColorProduct,Category
+    Armrest,
+    BedType,
+    BodyMaterial,
+    Category,
+    ColorOption,
+    ColorProduct,
+    Filling,
+    Form,
+    IncludedItem,
+    MattressBase,
+    Mechanism,
+    Pattern,
+    Product,
+    ProductVariant,
+    TypeOfProduct,
+    UpholsteryMaterial,
 )
 
-
 RUS_WORD_NUMBERS = {
-    "нуль": 0, "ноль": 0, "один": 1, "одна": 1, "два": 2, "две": 2,
-    "три": 3, "четыре": 4, "пять": 5, "шесть": 6, "семь": 7, "восемь": 8,
-    "девять": 9, "десять": 10
+    "нуль": 0,
+    "ноль": 0,
+    "один": 1,
+    "одна": 1,
+    "два": 2,
+    "две": 2,
+    "три": 3,
+    "четыре": 4,
+    "пять": 5,
+    "шесть": 6,
+    "семь": 7,
+    "восемь": 8,
+    "девять": 9,
+    "десять": 10,
 }
 
 
@@ -29,10 +51,10 @@ def parse_mm(value):
         return None
     v = str(value)
     # поиск числа с возможной дробной частью
-    m = re.search(r'(\d+(?:[\.,]\d+)?)', v)
+    m = re.search(r"(\d+(?:[\.,]\d+)?)", v)
     if not m:
         return None
-    num = m.group(1).replace(',', '.')
+    num = m.group(1).replace(",", ".")
     try:
         return Decimal(num)
     except Exception:
@@ -43,11 +65,11 @@ def parse_int_or_word(value):
     if not value:
         return None
     v = str(value).strip()
-    m = re.search(r'(\d+)', v)
+    m = re.search(r"(\d+)", v)
     if m:
         try:
             return int(m.group(1))
-        except:
+        except (ValueError, TypeError):
             pass
     low = v.lower()
     for k, n in RUS_WORD_NUMBERS.items():
@@ -70,7 +92,7 @@ def split_items(value):
     """Разбить строку типа 'Ткань, Микрофибра, Рогожка' -> list[str]"""
     if not value:
         return []
-    parts = re.split(r',|;|/|\band\b| и |,|\\n', value)
+    parts = re.split(r",|;|/|\band\b| и |,|\\n", value)
     return [p.strip() for p in parts if p and p.strip()]
 
 
@@ -88,7 +110,6 @@ class Command(BaseCommand):
             "divany": "Диваны",
             "krovat": "Кровать",
         }
-
 
         category_map = {
             "divany": "Диваны",
@@ -118,7 +139,6 @@ class Command(BaseCommand):
                         variant_name = folder.name.replace("_", " ").strip()
 
                         # читаем description.txt (чувствителен к кодировке)
-                        description_file = None
                         # сначала пробуем точное имя
                         candidate = folder / "description.txt"
                         if not candidate.exists():
@@ -171,10 +191,7 @@ class Command(BaseCommand):
 
                         # Создаём/получаем Product
                         product, _ = Product.objects.get_or_create(
-                            name=product_name,
-                            defaults={"description": raw_text,
-                                        "category": category_obj
-                                      }
+                            name=product_name, defaults={"description": raw_text, "category": category_obj}
                         )
 
                         # Создаём вариант (сохраняем минимально, потом апдейтим)
@@ -196,13 +213,17 @@ class Command(BaseCommand):
                         if "Ширина" in characteristics:
                             variant.dimensions_width = parse_mm(characteristics.get("Ширина"))
                         if "Width" in characteristics:
-                            variant.dimensions_width = variant.dimensions_width or parse_mm(characteristics.get("Width"))
+                            variant.dimensions_width = variant.dimensions_width or parse_mm(
+                                characteristics.get("Width")
+                            )
                         if "Высота" in characteristics:
                             variant.dimensions_height = parse_mm(characteristics.get("Высота"))
                         if "Глубина длинна" in characteristics:
                             variant.dimensions_depth = parse_mm(characteristics.get("Глубина длинна"))
                         if "Глубина" in characteristics:
-                            variant.dimensions_depth = variant.dimensions_depth or parse_mm(characteristics.get("Глубина"))
+                            variant.dimensions_depth = variant.dimensions_depth or parse_mm(
+                                characteristics.get("Глубина")
+                            )
                         if "Ширина спального места" in characteristics:
                             variant.bed_width = parse_mm(characteristics.get("Ширина спального места"))
                         if "Длина спального места" in characteristics:

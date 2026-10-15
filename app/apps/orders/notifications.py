@@ -3,6 +3,7 @@
 Вызываются после коммита транзакции; ошибки доставки логируются и не влияют на заказ.
 TODO(шаг 5): перенести в Celery-задачи с retry.
 """
+
 import logging
 
 from django.conf import settings

@@ -2,33 +2,36 @@ import pytest
 from django.urls import reverse
 from rest_framework.test import APIClient
 
-from app.apps.orders.models import Order, Cart
+from app.apps.accounts.tests.factories import UserFactory
+from app.apps.orders.models import Order
 from app.apps.orders.tests.factories import CartFactory, CartItemsFactory, OrderFactory
 from app.apps.products.tests.factories import ProductFactory, ProductVariantFactory
-from app.apps.accounts.tests.factories import UserFactory
-
-
 
 
 @pytest.fixture
 def api_client():
     return APIClient()
 
+
 @pytest.fixture
 def user():
     return UserFactory()
+
 
 @pytest.fixture
 def product():
     return ProductFactory()
 
+
 @pytest.fixture
 def product_variant(product):
     return ProductVariantFactory(product=product)
 
+
 @pytest.fixture
 def another_user():
     return UserFactory()
+
 
 @pytest.mark.django_db
 def test_user_cannot_use_another_users_cart(api_client, user, django_user_model):
@@ -97,7 +100,7 @@ def test_order_list_returns_only_user_orders(api_client, user):
     other_user = UserFactory()
     # Создаем заказы для разных пользователей
     my_order = OrderFactory(customer=user)
-    other_order = OrderFactory(customer=other_user)
+    OrderFactory(customer=other_user)
 
     api_client.force_authenticate(user=user)
     url = reverse("orders:user-orders-list")  # URL для list action
@@ -107,11 +110,10 @@ def test_order_list_returns_only_user_orders(api_client, user):
 
     data = response.json()
     assert len(data) == 1
-    assert data[0]['id'] == my_order.id
-
+    assert data[0]["id"] == my_order.id
 
     order_data = data[0]
-    assert 'list_of_product_images' in order_data
-    assert 'number_products' in order_data
-    assert 'status_order_display' in order_data
-    assert 'payment_status_display' in order_data
+    assert "list_of_product_images" in order_data
+    assert "number_products" in order_data
+    assert "status_order_display" in order_data
+    assert "payment_status_display" in order_data
