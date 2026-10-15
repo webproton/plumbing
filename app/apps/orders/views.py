@@ -42,6 +42,28 @@ class CartViewSet(viewsets.GenericViewSet, mixins.CreateModelMixin, mixins.Retri
             CartDetailSerializer(cart, context=self.get_serializer_context()).data, status=status.HTTP_201_CREATED
         )
 
+    @action(detail=False, methods=["get"])
+    def current(self, request):
+        """
+        Текущая корзина: у пользователя — последняя открытая (гостевая корзина по cart_uuid
+        переходит к нему после входа), у гостя — по cart_uuid. 204, если корзины нет.
+        """
+        cart_uuid = request.query_params.get("cart_uuid")
+        open_carts = Cart.objects.filter(orders=None)
+        cart = None
+        if request.user.is_authenticated:
+            cart = open_carts.filter(customer=request.user).order_by("-created_at").first()
+            if cart is None and cart_uuid:
+                cart = open_carts.filter(customer=None, cart_uuid=cart_uuid).first()
+                if cart:
+                    cart.customer = request.user
+                    cart.save(update_fields=["customer"])
+        elif cart_uuid:
+            cart = open_carts.filter(customer=None, cart_uuid=cart_uuid).first()
+        if cart is None:
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        return Response(CartDetailSerializer(cart, context=self.get_serializer_context()).data)
+
     @action(detail=False, methods=["get"], url_path="by-uuid")
     def get_by_uuid(self, request):
         cart_uuid = request.query_params.get("cart_uuid")
