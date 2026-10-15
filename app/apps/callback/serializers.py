@@ -1,6 +1,5 @@
 from rest_framework import serializers
 from .models import SiteSettings
-import re
 
 class SiteSettingsSerializer(serializers.ModelSerializer):
     class Meta:
@@ -8,11 +7,6 @@ class SiteSettingsSerializer(serializers.ModelSerializer):
         fields = ("phone", "email", "telegram", "whatsapp")
         read_only_fields = fields
 
-
-# class CallbackSerializer(serializers.Serializer):
-#     phone = serializers.CharField(max_length=20)
-#     email = serializers.EmailField(required=False, allow_blank=True)
-#     telegram = serializers.CharField(required=False, allow_blank=True, max_length=50)
 
 class CallbackSerializer(serializers.Serializer):
     phone = serializers.RegexField(

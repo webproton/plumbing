@@ -136,11 +136,8 @@ class Order(models.Model):
     comment = models.TextField(blank=True, null=True, verbose_name="User comment" , max_length=500)
     # Атрибуты доставки, если выбрана "Новая Почта"
     city = models.CharField(max_length=100, blank=True, null=True, verbose_name="Город")
-    # country = models.CharField(max_length=100, blank=True, null=True, verbose_name="Страна")
 
-    # region = models.CharField(max_length=100, blank=True, null=True, verbose_name="Регион")  # ✅ новое поле
     department_number = models.CharField(max_length=20, blank=True, null=True, verbose_name="Номер отделения")
-    # zip_code = models.PositiveIntegerField(blank=True,null=True, verbose_name="zip code")
     # Атрибуты для самовывоза
     telegram = models.CharField(max_length=80, blank=True, null=True, verbose_name="Telegram")
     whatsapp = models.CharField(max_length=80, blank=True, null=True, verbose_name="WhatsApp")

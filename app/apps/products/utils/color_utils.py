@@ -16,7 +16,6 @@ try:
 except Exception:
     HAS_NUMPY = False
 
-# from webcolors import rgb_to_name, hex_to_rgb, CSS3_NAMES_TO_HEX
 from webcolors import rgb_to_name, hex_to_rgb
 from colorthief import ColorThief
 
@@ -32,7 +31,6 @@ from app.apps.products.models import (
     BedType, Armrest, IncludedItem, ColorOption, ColorProduct,Brand,Manufacturer, MaterialProduct,TypeOfProduct,
     InteriorStyle,MattressHardness,FurnitureSetItem,AngleVariant,ExtraOrthopedicFilling
 )
-
 
 
 boolean_keys = {
@@ -759,7 +757,6 @@ def is_valid_color(rgb_tuple, dark_thresh=40, light_thresh=230):
         return False
 
     return True
-
 
 
 def normalize_to_basic_color(color_name: str) -> str:

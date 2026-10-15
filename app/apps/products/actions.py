@@ -5,13 +5,11 @@ from django.contrib import admin
 
 
 from django import forms
-# Register your models here.
 from .models import *
 
 logger = logging.getLogger(__name__)
 
 from .models import *
-
 
 
 class DiscountForm(forms.Form):
@@ -33,7 +31,6 @@ def apply_discount_to_variants(modeladmin, request, queryset):
     if request.method  == "POST":
         logger.debug(f"POST request received: {request.POST}")
         form = DiscountForm(request.POST)
-        # print(form,'<<<<<<<<<<,form')
         if form.is_valid():
             discount_value = form.cleaned_data['discount']
             logger.debug(f"Applying discount: {discount_value}%")
