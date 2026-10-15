@@ -69,8 +69,15 @@ class SellerCreateUpdateSerializer(serializers.ModelSerializer):
             "shop_name",
             "edrpou",
             "bank_account",
-            "commission_percent",  # можно разрешить менять только админу
+            "commission_percent",
         ]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        request = self.context.get("request")
+        # комиссию площадки устанавливает только администратор
+        if not (request and request.user.is_superuser):
+            self.fields["commission_percent"].read_only = True
 
     def validate_shop_name(self, value):
         if (
