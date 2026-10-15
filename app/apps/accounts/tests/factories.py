@@ -24,4 +24,3 @@ class ProfileFactory(factory.django.DjangoModelFactory):
 
     user = factory.SubFactory(UserFactory)
     email = factory.LazyAttribute(lambda o: o.user.email)
-    password = "Qwerty123!"

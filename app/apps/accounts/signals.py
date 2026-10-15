@@ -11,7 +11,7 @@ from .models import Profile
 @receiver(post_save, sender=settings.AUTH_USER_MODEL)
 def create_user_profile(sender, instance, created, **kwargs):
     if created:
-        Profile.objects.create(user=instance, email=instance.email, password="")
+        Profile.objects.create(user=instance, email=instance.email)
 
 
 # автоматически сохраняем профиль при сохранении пользователя

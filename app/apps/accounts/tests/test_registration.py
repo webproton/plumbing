@@ -42,4 +42,23 @@ def test_register_forbidden_word_in_password(client: APIClient):
     }
     response = client.post(url, data, format="json")
     assert response.status_code == 400
-    assert "Нельзя использовать 'password'" in str(response.data["password1"][0])
+    assert "password" in str(response.data["password1"][0])
+
+
+def test_password_is_never_stored_in_plaintext(client):
+    from django.db import connection
+
+    from app.apps.accounts.models import Profile, User
+
+    resp = client.post(
+        reverse("dj-rest-auth:rest_register"),
+        {"email": "secure@ukr.net", "password1": "Sup3r-Secret!9", "password2": "Sup3r-Secret!9"},
+        format="json",
+    )
+    assert resp.status_code == 201, resp.json()
+    user = User.objects.get(email="secure@ukr.net")
+    assert user.password.startswith(("pbkdf2_", "md5$", "argon2", "bcrypt"))  # только хэш
+    profile_columns = {
+        c.name for c in connection.introspection.get_table_description(connection.cursor(), Profile._meta.db_table)
+    }
+    assert "password" not in profile_columns

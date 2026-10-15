@@ -117,7 +117,6 @@ class Profile(models.Model):
     telegram = models.CharField(max_length=80, blank=True, null=True)
     whatsapp = models.CharField(max_length=80, blank=True, null=True)
     phone_number = models.CharField(max_length=15, blank=True, null=True)
-    password = models.CharField(max_length=255)  # позже будешь шифровать
     city = models.CharField(max_length=100, null=True, blank=True)
     region = models.CharField(max_length=100, blank=True, null=True, verbose_name="Область")  # ✅ новое поле
 
