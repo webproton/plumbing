@@ -10,7 +10,7 @@ class UserAdmin(admin.ModelAdmin):
 
 
 class ProfileAdmin(admin.ModelAdmin):
-    list_display = ["id", "user", "email", "password"]
+    list_display = ["id", "user", "email", "phone_number", "city"]
 
 
 admin.site.register(User, UserAdmin)

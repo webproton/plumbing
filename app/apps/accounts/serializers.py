@@ -26,6 +26,14 @@ ALLOWED_DOMAINS = [
     "gmx.com",  # Германия (GMX)
     "zoho.com",  # Zoho Mail (международный бизнес)
     "tutanota.com",  # Германия (защищённая почта)
+    # Украина
+    "ukr.net",
+    "i.ua",
+    "meta.ua",
+    "bigmir.net",
+    "email.ua",
+    "online.ua",
+    "gmail.com.ua",
     # Европейские
     "orange.fr",  # Франция
     "wanadoo.fr",  # Франция
@@ -43,30 +51,17 @@ class CustomRegisterSerializer(RegisterSerializer):
 
     username = None
 
-    def __init__(self, *args, **kwargs):
-        logger.info("✅ CustomRegisterSerializer инициализирован")
-        super().__init__(*args, **kwargs)
-
     email = serializers.EmailField(required=True)
     password1 = serializers.CharField(write_only=True)
 
     def save(self, request):
 
-        user = super().save(request)  # создаём пользователя через базовый сериализатор
-
-        # создаём или обновляем профиль
-        Profile.objects.update_or_create(
-            user=user,
-            defaults={
-                "email": user.email,
-                "password": self.validated_data["password1"],  # хэшируем пароль
-            },
-        )
+        user = super().save(request)  # пароль хранится только в User (хэш); в Profile — никогда
+        Profile.objects.update_or_create(user=user, defaults={"email": user.email})
         logger.info(f"[PROFILE] Профиль создан/обновлён для пользователя {user.email}")
         return user
 
     def validate_email(self, value):
-        logger.debug(f"[EMAIL] Введено: {value}")
         domain = value.split("@")[-1].lower()
         if domain not in ALLOWED_DOMAINS:
             logger.warning(f"[EMAIL] Недопустимый домен: {domain}")
@@ -78,9 +73,8 @@ class CustomRegisterSerializer(RegisterSerializer):
         return value
 
     def validate_password1(self, value):
-        # например, запретить использовать слово "admin"
         if "password" in value:
-            raise serializers.ValidationError("Нельзя использовать 'password' в имени")
+            raise serializers.ValidationError("Пароль не должен содержать слово «password»")
         return value
 
 
