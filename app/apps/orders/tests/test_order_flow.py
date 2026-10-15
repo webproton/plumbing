@@ -234,3 +234,22 @@ def test_double_submit_creates_single_order():
     assert codes.count(201) == 1
     assert Order.objects.filter(cart=cart).count() == 1
     assert ProductVariant.objects.get(pk=variant.pk).reserved == 1
+
+
+@pytest.mark.django_db
+def test_current_cart_for_guest_and_claim_after_login(client):
+    variant = _variant()
+    url = reverse("orders:cart-current")
+    assert client.get(url).status_code == 204
+    created = client.post(
+        reverse("orders:cart-list"),
+        {"cart_items": [{"product": variant.product_id, "variant": variant.pk, "quantity": 2}]},
+        format="json",
+    ).json()
+    guest = client.get(url, {"cart_uuid": created["cart_uuid"]})
+    assert guest.status_code == 200 and guest.json()["cart_items"][0]["quantity"] == 2
+
+    user = UserFactory()
+    client.force_authenticate(user)
+    claimed = client.get(url, {"cart_uuid": created["cart_uuid"]})
+    assert claimed.status_code == 200 and claimed.json()["customer"] == user.pk
