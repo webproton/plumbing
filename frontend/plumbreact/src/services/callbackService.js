@@ -5,7 +5,7 @@ import axiosInstance from "./axiosInstance";
 // Отправка заявки на callback
 export async function sendCallbackRequest({ phone, email, telegram }) {
   try {
-    const response = await axiosInstance.post("/callback/request/", {
+    const response = await axiosInstance.post("/api/callback/request/", {
       phone,
       email,
       telegram,
@@ -20,7 +20,7 @@ export async function sendCallbackRequest({ phone, email, telegram }) {
 
 // export async function sendCallbackRequest({ phone, email, telegram }) {
 //   try {
-//     const response = await fetch("/callback/request/", {
+//     const response = await fetch("/api/callback/request/", {
 //       method: "POST",
 //       headers: {
 //         "Content-Type": "application/json",

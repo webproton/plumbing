@@ -29,7 +29,7 @@ const ProfileService = {
   // Сменить пароль
   changePassword: async (newPassword1, newPassword2) => {
     try {
-      const response = await axiosInstance.post("/dj-rest-auth/password/change/", {
+      const response = await axiosInstance.post("/api/dj-rest-auth/password/change/", {
         new_password1: newPassword1,
         new_password2: newPassword2,
       });

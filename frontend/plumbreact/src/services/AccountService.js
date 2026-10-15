@@ -1,7 +1,7 @@
 // src/services/AccountService.js
 import axiosInstance from "./axiosInstance";
 
-const USER_ENDPOINT = "/dj-rest-auth/user/";
+const USER_ENDPOINT = "/api/dj-rest-auth/user/";
 const USER_ORDERS_ENDPOINT = "/api/orders/history/";
 
 const AccountService = {
@@ -15,6 +15,7 @@ const AccountService = {
       throw error;
     }
   },
+
 
   // Получить историю заказов текущего пользователя
   getUserOrders: async () => {

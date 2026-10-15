@@ -1,29 +1,16 @@
-# Stage 1: Build React
-FROM node:18-bullseye as build
+# syntax=docker/dockerfile:1
+
+# ---------- build ----------
+FROM node:20-bookworm-slim AS build
 WORKDIR /app
-
-# react-snap требует Chromium
-RUN apt-get update && apt-get install -y \
-  chromium \
-  --no-install-recommends && rm -rf /var/lib/apt/lists/*
-
-# puppeteer (react-snap) ищет браузер по этой переменной
-ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
-
-# Перед копированием зависимостей, объявляем аргумент
-ARG REACT_APP_API_URL
-ENV REACT_APP_API_URL=$REACT_APP_API_URL
-
 COPY package.json yarn.lock ./
-
-#<- используем --frozen-lockfile
-RUN yarn install --frozen-lockfile   
+RUN yarn install --frozen-lockfile --network-timeout 600000
 COPY . .
-
+# API на том же домене: запросы идут на /api/... (nginx проксирует в Django)
+ENV REACT_APP_API_URL=""
 RUN yarn build
-# RUN yarn postbuild
 
-# Stage 2: Nginx only for serving build
-FROM nginx:alpine
+# ---------- serve ----------
+FROM nginx:1.27-alpine
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /app/build /usr/share/nginx/html
-COPY ./nginx.conf /etc/nginx/conf.d/default.conf

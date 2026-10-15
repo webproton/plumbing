@@ -8,7 +8,7 @@ const EmailChangeForm = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      await axiosInstance.post("/dj-rest-auth/email/", { email });
+      await axiosInstance.post("/api/dj-rest-auth/email/", { email });
       setMessage("Письмо с подтверждением отправлено");
     } catch (err) {
       setMessage("Ошибка при отправке email");

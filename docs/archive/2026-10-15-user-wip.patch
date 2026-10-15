@@ -1,0 +1,513 @@
+diff --git a/.gitignore b/.gitignore
+index 0608d19..4f7c604 100755
+--- a/.gitignore
++++ b/.gitignore
+@@ -52,3 +52,4 @@ private_media/
+ staticfiles/
+ .DS_Store
+ *.pem
++docs
+\ No newline at end of file
+diff --git a/Dockerfile b/Dockerfile
+index 658bc5c..228bbcb 100755
+--- a/Dockerfile
++++ b/Dockerfile
+@@ -1,29 +1,13 @@
+-# Dockerfile (Django, PostgreSQL 14+, SCRAM)
+-FROM python:3.10-bookworm
+-# FROM python:3.10-slim-bullseye
+-# python:3.10-bookworm
+-# python:3.10-slim-bookworm
+-# python:3.10-slim-bullseye
+-
+-# Создаем рабочую директорию
+-WORKDIR /code
++FROM python:3.10-slim-bookworm
+ 
+-# Устанавливаем Python-зависимости
+-COPY ./requirements.txt .
+-RUN pip install --upgrade pip \
+-    && pip install --no-cache-dir -r requirements.txt \
+-    && pip uninstall -y psycopg2-binary \
+-    && pip install --no-cache-dir psycopg2
+-
+-# Копируем проект
+-COPY . /code
++WORKDIR /code
+ 
+-# Делаем config и manage.py читаемыми для всех
+-# RUN chmod -R a+rX /code/config /code/manage.py
+-RUN chmod -R a+rX /code/config /code/app/manage.py
++ENV PYTHONDONTWRITEBYTECODE=1 \
++    PYTHONUNBUFFERED=1 \
++    PYTHONPATH=/code
+ 
+-# Устанавливаем системные зависимости
+-RUN apt-get update && apt-get install -y \
++# 1. Системные зависимости (включая зависимости для GeoDjango/PostGIS и psycopg2)
++RUN apt-get update && apt-get install -y --no-install-recommends \
+     build-essential \
+     libffi-dev \
+     libjpeg-dev \
+@@ -36,14 +20,18 @@ RUN apt-get update && apt-get install -y \
+     gettext \
+     && rm -rf /var/lib/apt/lists/*
+ 
++# 2. Установка Python-пакетов
++COPY ./requirements.txt .
++RUN pip install --upgrade pip \
++    && pip install --no-cache-dir -r requirements.txt \
++    && pip uninstall -y psycopg2-binary || true \
++    && pip install --no-cache-dir psycopg2
+ 
+-# Экспонируем порт для Gunicorn
+-EXPOSE 8000
++# 3. Копирование исходного кода
++COPY . /code
++
++RUN chmod -R a+rX /code/config /code/app/manage.py
+ 
+-# Настраиваем переменные окружения
+-ENV PYTHONDONTWRITEBYTECODE=1
+-ENV PYTHONUNBUFFERED=1
+-ENV PYTHONPATH=/code
++EXPOSE 8000
+ 
+-# Запускаем Gunicorn
+-CMD ["gunicorn", "config.wsgi:application", "--chdir", "/code", "--bind", "0.0.0.0:8000", "--log-level", "debug"]
++CMD ["gunicorn", "config.wsgi:application", "--chdir", "/code", "--bind", "0.0.0.0:8000", "--log-level", "debug"]
+\ No newline at end of file
+diff --git a/config/settings.py b/config/settings.py
+index fac19f5..0e4398f 100755
+--- a/config/settings.py
++++ b/config/settings.py
+@@ -27,7 +27,7 @@ if env_file.exists():
+ # Core
+ # ==============================
+ SECRET_KEY = env("SECRET_KEY")
+-DEBUG = env.bool("DEBUG", default=False)
++DEBUG = env.bool("DEBUG", default=True)
+ ALLOWED_HOSTS = env.list("DJANGO_ALLOWED_HOSTS", default=["localhost", "127.0.0.1"])
+ 
+ FRONTEND_URL = env("FRONTEND_URL", default="") or "http://localhost:3000"
+@@ -99,21 +99,46 @@ TEMPLATES = [
+ # ==============================
+ # Database / cache
+ # ==============================
++# DATABASES = {
++#     "default": {
++#         "ENGINE": "django.db.backends.postgresql",
++#         "NAME": env("POSTGRES_DB", default="plumbingrestapi"),
++#         "USER": env("POSTGRES_USER", default="postgres"),
++#         "PASSWORD": env("POSTGRES_PASSWORD", default=""),
++#         "HOST": env("POSTGRES_HOST", default="localhost"),
++#         "PORT": env.int("POSTGRES_PORT", default=5432),
++#         "CONN_MAX_AGE": env.int("DB_CONN_MAX_AGE", default=60),
++#     }
++# }
++
+ DATABASES = {
+-    "default": {
+-        "ENGINE": "django.db.backends.postgresql",
+-        "NAME": env("POSTGRES_DB", default="plumbingrestapi"),
+-        "USER": env("POSTGRES_USER", default="postgres"),
+-        "PASSWORD": env("POSTGRES_PASSWORD", default=""),
+-        "HOST": env("POSTGRES_HOST", default="localhost"),
+-        "PORT": env.int("POSTGRES_PORT", default=5432),
+-        "CONN_MAX_AGE": env.int("DB_CONN_MAX_AGE", default=60),
+-    }
++        'default': {
++            # 'ENGINE': 'django.contrib.gis.db.backends.postgis',
++            'ENGINE': 'django.db.backends.postgresql',  # без GIS
++            'NAME': 'plumbingrestapi',
++            'USER': 'postgres',
++            'PASSWORD': 'postgres',
++            'HOST': 'localhost',
++            'PORT': 5432,
++            'CONN_MAX_AGE': 600,
++        }
+ }
+ 
+-REDIS_URL = env("REDIS_URL", default="redis://localhost:6379/1")
++# REDIS_URL = env("REDIS_URL", default="redis://localhost:6379/1")
++# CACHES = {
++#     "default": env.cache_url("CACHE_URL", default=REDIS_URL.replace("redis://", "rediscache://", 1))
++# }
++
++REDIS_URL = env("REDIS_URL", default="redis://redis:6379/1")
+ CACHES = {
+-    "default": env.cache_url("CACHE_URL", default=REDIS_URL.replace("redis://", "rediscache://", 1))
++    "default": {
++        "BACKEND": "django_redis.cache.RedisCache",
++        "LOCATION": "redis://localhost:6379/1",  # или имя контейнера
++        #"LOCATION": "redis://redis:6379/1",  # if docker use this 
++        "OPTIONS": {
++            "CLIENT_CLASS": "django_redis.client.DefaultClient",
++        }
++    }
+ }
+ 
+ 
+diff --git a/config/urls.py b/config/urls.py
+index 1004e94..686da58 100755
+--- a/config/urls.py
++++ b/config/urls.py
+@@ -1,30 +1,71 @@
++from django.contrib import admin
++from django.urls import path, include
+ from django.conf import settings
+ from django.conf.urls.static import static
+-from django.contrib import admin
+-from django.urls import include, path
++from rest_framework.routers import DefaultRouter
+ from dj_rest_auth.registration.views import VerifyEmailView
+ 
+-# Все API-маршруты живут под /api/ (nginx проксирует /api/ на Django без переписывания пути).
+-api_urlpatterns = [
+-    path("", include("app.apps.products.urls", namespace="products")),
+-    path("orders/", include("app.apps.orders.urls", namespace="orders")),
+-    path("callback/", include("app.apps.callback.urls", namespace="callback")),
+-    path("sellers/", include("app.apps.sellers.urls", namespace="sellers")),
+-    path("warehouse/", include("app.apps.warehouse.urls", namespace="warehouse")),
+-    path("dj-rest-auth/", include("app.apps.accounts.urls", namespace="dj-rest-auth")),
+-    path("dj-rest-auth/registration/", include("dj_rest_auth.registration.urls")),
+-    path(
+-        "dj-rest-auth/registration/verify-email/",
+-        VerifyEmailView.as_view(),
+-        name="account_email_verification_sent",
+-    ),
+-]
++# Создаем основной роутер для DRF (если нужен)
++router = DefaultRouter()
+ 
++# ===========================
++# Подключение приложений через namespace/routers
++# ===========================
++
++# Callback
+ urlpatterns = [
+-    path("api/", include(api_urlpatterns)),
++    path("request/", include("app.apps.callback.urls", namespace="app.apps.callback")),
++    path("site-settings/", include("app.apps.callback.urls", namespace="app.apps.callback")),
++]
++
++# Sellers
++urlpatterns += [
++    path("sellers/", include("app.apps.sellers.urls", namespace="app.apps.sellers")),
++]
++
++# Telemetry
++urlpatterns += [
++    path("telemetry/", include("app.apps.telemetry.urls", namespace="app.apps.telemetry")),
++]
++
++# Products
++urlpatterns += [
++    path("products/", include("app.apps.products.urls", namespace="app.apps.products")),
++]
++
++# Orders
++urlpatterns += [
++    path("orders/", include("app.apps.orders.urls", namespace="app.apps.orders")),
++]
++
++# Warehouse (includes suppliers, warehouses, stock-movements, inventory-documents)
++urlpatterns += [
++    path("warehouse/", include("app.apps.warehouse.urls", namespace="app.apps.warehouse")),
++]
++
++# ===========================
++# Admin
++# ===========================
++urlpatterns += [
++    path('admin/login/', admin.site.login, name='admin_login'),
+     path("admin/", admin.site.urls),
++]
++
++# ===========================
++# Auth (allauth / dj-rest-auth)
++# ===========================
++urlpatterns += [
+     path("account/", include("allauth.urls")),
++    path("api/dj-rest-auth/registration/", include("dj_rest_auth.registration.urls")),
++    path(
++        "api/dj-rest-auth/registration/verify-email/",
++        VerifyEmailView.as_view(),
++        name="account_email_verification_sent",
++    ),
+ ]
+ 
++# ===========================
++# Статика и медиа
++# ===========================
+ if settings.DEBUG:
+-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
++    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+\ No newline at end of file
+diff --git a/docker-compose.prod.yml b/docker-compose.prod.yml
+index 13b0ad1..2f5fe89 100644
+--- a/docker-compose.prod.yml
++++ b/docker-compose.prod.yml
+@@ -19,6 +19,10 @@ services:
+       - db
+   redis:
+     image: redis:7
++    container_name: redis
++    restart: always
++    ports:
++      - "6379:6379"
+     # ports:
+     #   - "6379:6379"
+   app:
+@@ -29,6 +33,7 @@ services:
+       - .env
+     depends_on:
+       - db
++      - redis
+     expose:
+       - "8000"
+     # ports:
+@@ -47,16 +52,16 @@ services:
+     depends_on:
+       - app
+     # Порт не нужен, всё через Nginx
+-  prerender:
+-    build:
+-      context: ./prerender
+-      dockerfile: Dockerfile
+-    # platform: linux/amd64
+-    # container_name: prerender
+-    shm_size: 2gb
+-    restart: always
+-    # ports:
+-    #   - "3001:3000"
++  # prerender:
++  #   build:
++  #     context: ./prerender
++  #     dockerfile: Dockerfile
++  #   # platform: linux/amd64
++  #   # container_name: prerender
++  #   shm_size: 2gb
++  #   restart: always
++  #   # ports:
++  #   #   - "3001:3000"
+       
+   nginx:
+     image: nginx:alpine
+@@ -66,7 +71,7 @@ services:
+     depends_on:
+       - frontend
+       - app
+-      - prerender
++      # - prerender
+     volumes:
+       - ./frontend/plumbreact/build:/usr/share/nginx/html:ro
+       - ./staticfiles:/usr/share/nginx/static:ro
+diff --git a/frontend/plumbreact/Dockerfile b/frontend/plumbreact/Dockerfile
+index 31e2ac0..ba00bca 100755
+--- a/frontend/plumbreact/Dockerfile
++++ b/frontend/plumbreact/Dockerfile
+@@ -1,29 +1,25 @@
+ # Stage 1: Build React
+-FROM node:18-bullseye as build
++FROM node:18-bookworm as build
+ WORKDIR /app
+ 
+-# react-snap требует Chromium
+-RUN apt-get update && apt-get install -y \
+-  chromium \
+-  --no-install-recommends && rm -rf /var/lib/apt/lists/*
++# Установка Chromium для react-snap / puppeteer
++RUN apt-get update && apt-get install -y --no-install-recommends \
++    chromium \
++    && rm -rf /var/lib/apt/lists/*
+ 
+-# puppeteer (react-snap) ищет браузер по этой переменной
++# Путь к Chromium для Puppeteer
+ ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
+ 
+-# Перед копированием зависимостей, объявляем аргумент
+ ARG REACT_APP_API_URL
+ ENV REACT_APP_API_URL=$REACT_APP_API_URL
+ 
+ COPY package.json yarn.lock ./
+-
+-#<- используем --frozen-lockfile
+ RUN yarn install --frozen-lockfile   
+-COPY . .
+ 
++COPY . .
+ RUN yarn build
+-# RUN yarn postbuild
+ 
+-# Stage 2: Nginx only for serving build
++# Stage 2: Nginx
+ FROM nginx:alpine
+ COPY --from=build /app/build /usr/share/nginx/html
+ COPY ./nginx.conf /etc/nginx/conf.d/default.conf
+\ No newline at end of file
+diff --git a/frontend/plumbreact/nginx.conf b/frontend/plumbreact/nginx.conf
+index 2b8201b..3d910ee 100644
+--- a/frontend/plumbreact/nginx.conf
++++ b/frontend/plumbreact/nginx.conf
+@@ -1,9 +1,3 @@
+-# --- определяем, кто бот ---
+-map $http_user_agent $is_bot {
+-    default 0;
+-    "~*googlebot|bingbot|yandex|baiduspider|facebookexternalhit|twitterbot" 1;
+-}
+-
+ server {
+     listen 80;
+     server_name localhost;
+@@ -20,31 +14,14 @@ server {
+     proxy_hide_header X-Powered-By;
+     proxy_hide_header Server;
+ 
+-    error_page 418 = @prerender;
+-
+-    # Главная и SPA маршруты
++    # Главная и SPA маршруты (отдаём React всем без пререндера)
+     location / {
+-        # если бот — отправляем на prerender
+-        if ($is_bot) {
+-            return 418;
+-        }
+-
+         try_files $uri /index.html;
+     }
+ 
+-    # Обработка для prerender (SSR для ботов)
+-    location @prerender {
+-        proxy_pass http://prerender:3000;
+-        proxy_set_header Host $host;
+-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+-        proxy_set_header X-Forwarded-Proto $scheme;
+-        proxy_set_header X-Original-Url $scheme://$host$request_uri;
+-        proxy_http_version 1.1;
+-    }
+-
+     # Django API
+     location /api/ {
+-        proxy_pass http://app:8000;
++        proxy_pass http://app:8000/api/;
+         proxy_set_header Host $host;
+         proxy_set_header X-Real-IP $remote_addr;
+         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+@@ -57,6 +34,7 @@ server {
+         proxy_set_header Host $host;
+         proxy_set_header X-Real-IP $remote_addr;
+         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
++        proxy_set_header X-Forwarded-Proto $scheme;
+     }
+ 
+     # Медиа файлы
+@@ -68,6 +46,7 @@ server {
+     # Django static files
+     location /django-static/ {
+         alias /usr/share/nginx/static/;
++        add_header Cache-Control "public, max-age=86400";
+     }
+ 
+     # React static
+@@ -83,8 +62,8 @@ server {
+         proxy_set_header X-Real-IP $remote_addr;
+     }
+ 
+-    # Запрет доступа к .env и скрытым файлам
+-    location ~ /\.env {
++    # Запрет доступа к скрытым файлам (.env, .git и т.д.)
++    location ~ /\. {
+         deny all;
+     }
+-}
++}
+\ No newline at end of file
+diff --git a/frontend/plumbreact/src/components/Checkout.js b/frontend/plumbreact/src/components/Checkout.js
+index 43c9d77..f208895 100755
+--- a/frontend/plumbreact/src/components/Checkout.js
++++ b/frontend/plumbreact/src/components/Checkout.js
+@@ -123,10 +123,10 @@ validateForm = () => {
+       }
+     }
+     if (key === "tel") {
+-      // Пример для РФ: +7 999 999-99-99 или без пробелов
++      // Пример : +38 050 999-99-99 или без пробелов
+    const digits = val.replace(/\D/g, ""); // только цифры
+   if (!/^7\d{10}$/.test(digits)) {
+-    errors[key] = "Введите телефон в формате +7XXXXXXXXXX";
++    errors[key] = "Введите телефон в формате +38XXXXXXXXXX";
+       }
+     }
+  
+diff --git a/frontend/plumbreact/src/components/Home.js b/frontend/plumbreact/src/components/Home.js
+index 4e7107f..a90076f 100755
+--- a/frontend/plumbreact/src/components/Home.js
++++ b/frontend/plumbreact/src/components/Home.js
+@@ -183,13 +183,13 @@ componentWillUnmount() {
+     <div className="icon-text">
+       <FaPhone size={16} style={{ marginRight: 6 }} />
+       <span style={{ color: "#28a745" }}>
+-        {this.state.siteSettings?.phone || "+7 (999) 999-99-99"}
++        {this.state.siteSettings?.phone || "+38 (050) 999-99-99"}
+       </span>
+     </div>
+     <div className="icon-text">
+       <FaEnvelope size={16} style={{ marginRight: 6 }} />
+       <span style={{ color: "#28a745" }}>
+-        {this.state.siteSettings?.email || "luxora@mail.ru"}
++        {this.state.siteSettings?.email || "luxora@mail.com"}
+       </span>
+     </div>
+   </div>
+diff --git a/frontend/plumbreact/src/components/Navigation.js b/frontend/plumbreact/src/components/Navigation.js
+index 85cffa9..2f83c88 100755
+--- a/frontend/plumbreact/src/components/Navigation.js
++++ b/frontend/plumbreact/src/components/Navigation.js
+@@ -134,14 +134,14 @@ class Navigation extends Component {
+ 
+                 <div className="info-block" style={{ marginBottom: '10px' }}>
+                   <h4>Наш адрес</h4>
+-                  <p>г. Омск, ул. Примерная, 10</p>
++                  <p>г. Х, ул. Примерная, 10</p>
+                   <p>Пн-Пт: 9:00 - 18:00</p>
+                   <p>Сб-Вс: выходной</p>
+                 </div>
+ 
+                 <div className="info-block">
+                   <h4>Связаться с нами</h4>
+-                  <p>+7хххххххххххх</p>
++                  <p>+3хххххххххххх</p>
+                   <p>info@example.com</p>
+                 </div>
+               </div>
+diff --git a/frontend/plumbreact/src/components/ProductDetail.js b/frontend/plumbreact/src/components/ProductDetail.js
+index caabbdb..6c62921 100755
+--- a/frontend/plumbreact/src/components/ProductDetail.js
++++ b/frontend/plumbreact/src/components/ProductDetail.js
+@@ -325,11 +325,11 @@ const { wishlist } = this.context;
+  
+   // Если фотографий нет, используем заглушку
+   const defaultPhoto = 'defaultPhotoUrl';
+-  const seoTitle = product ? `${product.name} – Купить мебель онлайн в России` : 'Product';
++  const seoTitle = product ? `${product.name} – Купить мебель онлайн в Украине` : 'Product';
+ 
+   const seoDescription = product
+     ? `Купить ${product.name} от ${selectedVariant?.brand?.name || 'лучших производителей'}. 
+-       Доставка по России. Лучшие цены, скидки и акции на мебель.`
++       Доставка по Украине. Лучшие цены, скидки и акции на мебель.`
+     : 'Product description';
+   const seoImage = selectedVariant?.photo || product?.photos[0]?.photo || 'https://example.com/default-product.jpg';
+ 
+diff --git a/frontend/plumbreact/src/services/AccountService.js b/frontend/plumbreact/src/services/AccountService.js
+index 46a477f..81e75b2 100755
+--- a/frontend/plumbreact/src/services/AccountService.js
++++ b/frontend/plumbreact/src/services/AccountService.js
+@@ -16,6 +16,7 @@ const AccountService = {
+     }
+   },
+ 
++
+   // Получить историю заказов текущего пользователя
+   getUserOrders: async () => {
+     try {

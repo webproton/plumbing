@@ -4,8 +4,11 @@ from django.contrib import admin
 from django.urls import include, path
 from dj_rest_auth.registration.views import VerifyEmailView
 
+from app.core.views import health
+
 # Все API-маршруты живут под /api/ (nginx проксирует /api/ на Django без переписывания пути).
 api_urlpatterns = [
+    path("health/", health, name="health"),
     path("", include("app.apps.products.urls", namespace="products")),
     path("orders/", include("app.apps.orders.urls", namespace="orders")),
     path("callback/", include("app.apps.callback.urls", namespace="callback")),
