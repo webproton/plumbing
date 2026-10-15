@@ -5,6 +5,8 @@ from app.apps.products.models import ProductVariant
 from django.utils.translation import gettext_lazy as _
 from django.db.models import Q
 
+from app.core.storage import private_storage
+
 
 class CurrencyRate(models.Model):
     code = models.CharField(max_length=3, unique=True, help_text="USD, EUR и т.д.")
@@ -18,6 +20,10 @@ class CurrencyRate(models.Model):
 class Supplier(models.Model):
     """Поставщики товаров"""
     name = models.CharField(max_length=255, verbose_name="Название поставщика")
+    code = models.SlugField(
+        max_length=50, blank=True, default="", db_index=True,
+        help_text="Код парсера (aquadom, presto, santan…) — для автоопределения поставщика по накладной",
+    )
     contact_person = models.CharField(max_length=150, blank=True)
     phone = models.CharField(max_length=20, blank=True)
     email = models.EmailField(blank=True)
@@ -167,15 +173,23 @@ class InventoryDocument(models.Model):
     supplier = models.ForeignKey(Supplier, on_delete=models.SET_NULL, null=True, blank=True)
     seller = models.ForeignKey(Seller, on_delete=models.PROTECT, verbose_name=_("Продавец"))
     document_type = models.CharField(max_length=20, choices=DOCUMENT_TYPE, verbose_name=_("Тип документа"))
-    file = models.FileField(upload_to='invoices/%Y/%m/%d/', verbose_name="Фото/скан накладной")
+    file = models.FileField(upload_to='invoices/%Y/%m/%d/', storage=private_storage, verbose_name="Файл накладной")
+    file_hash = models.CharField(max_length=64, blank=True, default="", db_index=True,
+                                 verbose_name="SHA-256 файла (защита от повторной загрузки)")
     uploaded_at = models.DateTimeField(auto_now_add=True, verbose_name=_("Загружено"))
-    extracted_data = models.JSONField(blank=True, null=True, verbose_name="Данные после OCR")
-    processed = models.BooleanField(default=False, verbose_name="Обработано OCR")
+    extracted_data = models.JSONField(blank=True, null=True, verbose_name="Распознанные данные и строки приёмки")
+    processed = models.BooleanField(default=False, verbose_name="Проведён")
+    processed_at = models.DateTimeField(null=True, blank=True, verbose_name="Дата проведения")
 
     class Meta:
         verbose_name = _("Накладная / документ")
         verbose_name_plural = _("Накладные / документы")
         ordering = ['-uploaded_at']
+        constraints = [
+            models.UniqueConstraint(
+                fields=["seller", "file_hash"], condition=~Q(file_hash=""), name="invdoc_seller_filehash_uniq",
+            ),
+        ]
 
     def __str__(self):
         return f"{self.get_document_type_display()} — {self.seller} — {self.uploaded_at.date()}"

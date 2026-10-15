@@ -3,7 +3,6 @@ import re
 from .text_utils import normalize_text, row_text
 
 
-
 # =========================
 # SKU NORMALIZER
 # =========================
@@ -14,7 +13,6 @@ def normalize_sku(sku):
     sku = normalize_text(str(sku)).upper()
 
     # убираем мусорные пробелы
-    # sku = re.sub(r"\s+", "", sku)
     sku = re.sub(r"\s+", " ", sku).strip()
 
     return sku

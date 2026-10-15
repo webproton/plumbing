@@ -1,10 +1,11 @@
 # parsers/core/table_engine.py
+import logging
 import re
 from parsers.core.text_utils import normalize_text, row_text
 from parsers.core.numbers import extract_numbers, safe_float
 from parsers.core.sku import extract_sku_from_row
 
-
+logger = logging.getLogger(__name__)
 
 HEADER_KEYWORDS = {
     "qty": [
@@ -15,8 +16,10 @@ HEADER_KEYWORDS = {
     "total": ["сума", "сумма", "total", "всього", "итого", "сум"],
     "name": ["товар", "наименование", "назва", "опис", "найменування"],
     "unit": ["од", "одиниця", "ед", "unit", "од.вим", "од.изм"],
-    "sku": ["арт", "код", "артикул", "sku", "№", "номер"],
-    "barcode": ["штрих", "barcode", "ean", "штрихкод", "штрих-код", "ean13"]
+    # «№» / «номер» — это номер позиции, а не артикул (иначе позиция 1, 2, 3 попадала в SKU)
+    "sku": ["арт", "код", "артикул", "sku", "article"],
+    "barcode": ["штрих", "barcode", "ean", "штрихкод", "штрих-код", "ean13"],
+    "position": ["№", "n", "#", "п/п", "поз"],
 }
 
 # Приоритет колонок (очень важно!)
@@ -33,15 +36,19 @@ class TableEngine:
     def __init__(self, rows, context):
         self.rows = rows
         self.context = context
-        
-        
-        # STATE MACHINE
         self.state = "SEARCH_HEADER"
         self.position = 0
-    # =========================
-    # FILTER ROWS
-    # =========================
-        
+
+    def _cell(self, row, key):
+        idx = self.context.column_map.get(key)
+        if idx is None or idx < 0 or idx >= len(row):
+            return None
+        value = row[idx]
+        if value is None:
+            return None
+        text = re.sub(r"\s+", " ", str(value)).strip()
+        return text or None
+
     def is_valid_item_row(self, row, nums):
         text = row_text(row).lower()
 
@@ -63,11 +70,6 @@ class TableEngine:
             "працюєм без пдв"
         ]):
             return False
-        
-        # 🔥 должен быть товарный текст
-        # if not re.search(r"(№\s*[a-z0-9\-]+)", text, re.IGNORECASE):
-        #     if len(text.split()) < 4:
-        #         return False
         
         # должен быть текст товара
         text_parts = [
@@ -92,9 +94,11 @@ class TableEngine:
         if price <= 0 or total <= 0:
             return False
 
-        # 6. сумма должна быть больше цены
+        # 6. сумма не меньше цены — кроме дробного количества (0.5 м трубы: сумма < цены)
         if total < price and abs(total - price) > 0.01:
-            return False
+            qty = safe_float(self._cell(row, "qty"))
+            if not (qty and 0 < qty < 1 and abs(qty * price - total) <= max(0.02, total * 0.01)):
+                return False
 
         return True
 
@@ -114,9 +118,10 @@ class TableEngine:
             found = {}
             for key, variants in HEADER_KEYWORDS.items():
                 for col_idx, cell in enumerate(row):
-                    # cell_str = str(cell).strip().lower()
-                    cell_str = normalize_text(str(cell).strip().lower())
-                    
+                    if col_idx in found.values():
+                        continue  # колонка уже распознана под другое поле
+                    cell_str = normalize_text(str(cell).strip().lower()) if cell is not None else ""
+
                     tokens = re.split(r"[\s._\-]+", cell_str)
 
                     if any(v == t for v in variants for t in tokens):
@@ -135,9 +140,8 @@ class TableEngine:
                         self.context.column_map.setdefault(k, v)
                 
                 
-                # переход в state machine
                 self.state = "ITEMS"
-                print(f"Header found at row {i}, columns: {found}")
+                logger.debug("Заголовок таблицы: строка %s, колонки %s", i, found)
                 return True
 
         return False
@@ -232,19 +236,15 @@ class TableEngine:
         # SKU (SINGLE SOURCE OF TRUTH)
         # =========================
 
-        sku = self.extract_sku(row, raw_text)
-        
-        
-        # =========================
-        # NAME (CLEAN + STRUCTURED)
-        # =========================
-        
-        name = self.extract_name(row, raw_text, sku, nums, price, total, qty)
+        # Колонки из заголовка надёжнее эвристик по всей строке
+        sku = self._cell(row, "sku") or self.extract_sku(row, raw_text)
+        barcode = self._cell(row, "barcode")
+        name = self._cell(row, "name") or self.extract_name(row, raw_text, sku, nums, price, total, qty)
 
-   
         return {
             "position": position,
             "sku": sku,
+            "barcode": barcode,
             "name": name,
             "qty": qty,
             "unit": unit or "",

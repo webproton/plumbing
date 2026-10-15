@@ -149,20 +149,26 @@ def test_scanner_create_and_receive(client, wh):
 
 # --- проведение накладной ----------------------------------------------
 
-def _invoice_file():
+def _invoice_file(rows=None, name="invoice.xlsx"):
     wb = Workbook()
     ws = wb.active
-    for row in [
+    for row in rows or [
         ["Видаткова накладна № 77 від 01.10.2026"], ["Постачальник: ТОВ Тест"], [],
         ["№", "Артикул", "Товар", "Кількість", "Од.", "Ціна", "Сума"],
-        [1, "ABC-1", "Змішувач для кухні", 2, "шт", 1500.50, 3001],
-        [2, "ABC-2", "Труба PPR 20мм", 12.5, "м", 45.2, 565],
+        [1, "ABC-1", "Змішувач для кухні", 2, "шт", "1 500,50", "3 001,00"],
+        [2, "PPR-20", "Труба PPR 20мм", 0.5, "м", 45.2, 22.6],
         [3, "ABC-1", "Змішувач для кухні", 1, "шт", 1500.50, 1500.50],
     ]:
         ws.append(row)
     buf = BytesIO()
     wb.save(buf)
-    return SimpleUploadedFile("invoice.xlsx", buf.getvalue())
+    return SimpleUploadedFile(name, buf.getvalue())
+
+
+def _upload(client, **extra):
+    data = {"document_type": "incoming", "file": _invoice_file()}
+    data.update(extra)
+    return client.post(reverse("warehouse:inventorydocument-list"), data, format="multipart")
 
 
 def test_upload_rejects_bad_extension(client):
@@ -171,14 +177,26 @@ def test_upload_rejects_bad_extension(client):
     assert resp.status_code == 400
 
 
-def test_process_invoice_receives_all_rows_once(client, wh, settings, tmp_path):
-    settings.MEDIA_ROOT = tmp_path
-    supplier = SupplierFactory()
-    up = client.post(reverse("warehouse:inventorydocument-list"),
-                     {"document_type": "incoming", "supplier": supplier.pk, "file": _invoice_file()},
-                     format="multipart")
-    assert up.status_code == 201, up.json()
-    doc_id = up.json()["id"]
+def test_upload_parses_lines(client):
+    resp = _upload(client, supplier=SupplierFactory().pk)
+    assert resp.status_code == 201, resp.json()
+    data = resp.json()
+    assert data["summary"] == {"matched": 0, "needs_review": 0, "new": 3, "invalid": 0}
+    lines = data["extracted_data"]["lines"]
+    assert [ln["sku"] for ln in lines] == ["ABC-1", "PPR-20", "ABC-1"]
+    assert lines[1]["qty"] == "0.500"
+
+
+def test_same_file_cannot_be_uploaded_twice(client):
+    content = _invoice_file().read()
+    assert _upload(client, file=SimpleUploadedFile("a.xlsx", content)).status_code == 201
+    second = _upload(client, file=SimpleUploadedFile("копия.xlsx", content))
+    assert second.status_code == 400
+    assert "уже загружен" in str(second.json())
+
+
+def test_process_invoice_receives_all_rows_once(client, wh):
+    doc_id = _upload(client, supplier=SupplierFactory().pk).json()["id"]
     url = reverse("warehouse:inventorydocument-process", args=[doc_id])
 
     first = client.post(url, {}, format="json")
@@ -186,13 +204,56 @@ def test_process_invoice_receives_all_rows_once(client, wh, settings, tmp_path):
     assert first.json()["received"] == 3
 
     total = sum(m.quantity for m in StockMovement.objects.filter(inventory_document_id=doc_id))
-    assert total == Decimal("15.5")  # 2 + 12.5 + 1: повторная строка не потеряна
-    assert stock.get_balance(ProductVariant.objects.filter(movements__inventory_document_id=doc_id).first(), wh) > 0
+    assert total == Decimal("3.5")  # 2 + 0.5 + 1: повторная строка не потеряна, дробное кол-во сохранено
 
-    # повторное проведение запрещено — остаток не удваивается
+    # одинаковые строки (ABC-1 дважды) → один товар: вторая строка сопоставилась через память/артикул
+    assert ProductVariant.objects.filter(movements__inventory_document_id=doc_id).distinct().count() == 2
+
     second = client.post(url, {}, format="json")
     assert second.status_code == 400
     assert StockMovement.objects.filter(inventory_document_id=doc_id).count() == 3
-
-    # новые товары из накладной скрыты из каталога
     assert not ProductVariant.objects.filter(movements__inventory_document_id=doc_id, available=True).exists()
+
+
+def test_fuzzy_match_requires_review(client, wh):
+    existing = ProductVariantFactory(variant_name="Змішувач для кухні Grohe Eurosmart", code="GROHE-1")
+    rows = [
+        ["№", "Артикул", "Товар", "Кількість", "Ціна", "Сума"],
+        [1, "", "Змішувач для кухні Grohe Eurosmart хром", 1, 100, 100],
+    ]
+    up = client.post(reverse("warehouse:inventorydocument-list"),
+                     {"document_type": "incoming", "supplier": SupplierFactory().pk, "file": _invoice_file(rows)},
+                     format="multipart").json()
+    line = up["extracted_data"]["lines"][0]
+    assert line["status"] == "needs_review" and line["variant_id"] == existing.pk
+
+    process_url = reverse("warehouse:inventorydocument-process", args=[up["id"]])
+    blocked = client.post(process_url, {}, format="json")
+    assert blocked.status_code == 400 and blocked.json()["code"] == "review_required"
+
+    confirm = client.post(reverse("warehouse:inventorydocument-set-line", args=[up["id"], 1]),
+                          {"variant": existing.pk}, format="json")
+    assert confirm.status_code == 200 and confirm.json()["status"] == "matched"
+    assert client.post(process_url, {}, format="json").status_code == 200
+    assert ProductVariant.objects.get(pk=existing.pk).stock == 1
+
+
+def test_duplicate_document_number_blocked(client, wh):
+    supplier = SupplierFactory()
+    first = _upload(client, supplier=supplier.pk).json()["id"]
+    client.post(reverse("warehouse:inventorydocument-process", args=[first]), {}, format="json")
+    rows = [["Видаткова накладна № 77"], ["№", "Артикул", "Товар", "Кількість", "Ціна", "Сума"],
+            [1, "X-1", "Кран кульовий", 3, 10, 30]]
+    second = client.post(reverse("warehouse:inventorydocument-list"),
+                         {"document_type": "incoming", "supplier": supplier.pk, "file": _invoice_file(rows, "b.xlsx")},
+                         format="multipart").json()["id"]
+    resp = client.post(reverse("warehouse:inventorydocument-process", args=[second]), {}, format="json")
+    assert resp.status_code == 400 and resp.json()["code"] == "duplicate_document"
+
+
+def test_invoice_file_is_private(client):
+    doc = InventoryDocument.objects.get(pk=_upload(client).json()["id"])
+    from django.conf import settings
+    assert str(settings.PRIVATE_MEDIA_ROOT) in doc.file.path
+    resp = client.get(reverse("warehouse:inventorydocument-file", args=[doc.pk]))
+    assert resp.status_code == 200

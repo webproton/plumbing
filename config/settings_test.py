@@ -8,3 +8,9 @@ PASSWORD_HASHERS = ["django.contrib.auth.hashers.MD5PasswordHasher"]  # уско
 ACCOUNT_EMAIL_VERIFICATION = "mandatory"
 TELEGRAM_BOT_TOKEN = ""
 TELEGRAM_MANAGERS = []
+
+# Загрузки в тестах — во временную папку, а не в реальный MEDIA_ROOT
+import tempfile  # noqa: E402
+
+MEDIA_ROOT = tempfile.mkdtemp(prefix="plumb-test-media-")
+PRIVATE_MEDIA_ROOT = tempfile.mkdtemp(prefix="plumb-test-private-")
