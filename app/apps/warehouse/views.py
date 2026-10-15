@@ -2,12 +2,12 @@ from decimal import Decimal
 
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
-from django.http import HttpResponse
+from django.http import FileResponse, HttpResponse
 from django.shortcuts import get_object_or_404, render
 from django.contrib.admin.views.decorators import staff_member_required
 from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action
-from rest_framework.exceptions import NotFound, PermissionDenied
+from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -31,12 +31,18 @@ from .serializers import (
     TransferSerializer,
     WarehouseSerializer,
 )
-from .services import process_inventory_document
+from .services import (
+    file_sha256, parse_document, process_inventory_document, set_line_variant, suggest_variants,
+)
 
 
 # ---------------------------------------------------------------------------
 # helpers
 # ---------------------------------------------------------------------------
+
+def _flag(value):
+    return str(value).lower() in ("1", "true", "yes", "on")
+
 
 def _seller_warehouses(user):
     if user.is_superuser:
@@ -315,10 +321,21 @@ class InventoryDocumentViewSet(viewsets.ModelViewSet):
         return qs.filter(seller=seller) if seller else qs.none()
 
     def perform_create(self, serializer):
+        """Загрузка файла: защита от повторной загрузки по SHA-256 и сразу разбор строк."""
         seller = get_active_seller(self.request.user)
         if seller is None:
             raise PermissionDenied("Загружать накладные может только одобренный продавец")
-        serializer.save(seller=seller)
+        digest = file_sha256(serializer.validated_data["file"])
+        duplicate = InventoryDocument.objects.filter(seller=seller, file_hash=digest).first()
+        if duplicate:
+            raise ValidationError({"file": f"Этот файл уже загружен (документ #{duplicate.pk})",
+                                   "document_id": duplicate.pk})
+        document = serializer.save(seller=seller, file_hash=digest)
+        try:
+            parse_document(document)
+        except Exception as exc:  # битый/нераспознанный файл: документ остаётся, оператор видит причину
+            InventoryDocument.objects.filter(pk=document.pk).update(extracted_data={"error": str(exc)})
+        serializer.instance.refresh_from_db()
 
     def perform_update(self, serializer):
         if serializer.instance.processed:
@@ -332,9 +349,48 @@ class InventoryDocumentViewSet(viewsets.ModelViewSet):
         response["Content-Disposition"] = f'inline; filename="invoice_{document.pk}.pdf"'
         return response
 
+    @action(detail=True, methods=['get'])
+    def file(self, request, pk=None):
+        """Скачать исходный файл накладной (файлы не лежат в публичном /media/)."""
+        document = self.get_object()
+        return FileResponse(document.file.open("rb"), as_attachment=True,
+                            filename=document.file.name.rsplit("/", 1)[-1])
+
+    @action(detail=True, methods=['post'])
+    def parse(self, request, pk=None):
+        """Разобрать файл заново (например, после указания поставщика)."""
+        document = self.get_object()
+        parse_document(document)
+        document.refresh_from_db()
+        return Response(self.get_serializer(document).data)
+
+    @action(detail=True, methods=['post'], url_path=r'lines/(?P<position>\d+)')
+    def set_line(self, request, pk=None, position=None):
+        """Сопоставить строку: {"variant": id} или {"create_new": true}."""
+        document = self.get_object()
+        line = set_line_variant(
+            document, int(position),
+            variant_id=request.data.get("variant"),
+            create_new=bool(request.data.get("create_new")),
+        )
+        return Response(line)
+
+    @action(detail=False, methods=['get'], url_path='variant-search')
+    def variant_search(self, request):
+        """Подбор товара для ручного сопоставления: ?q=название|артикул|штрихкод"""
+        variants = suggest_variants(request.query_params.get("q"))
+        return Response([
+            {"id": v.pk, "name": v.variant_name or v.product.name, "sku": v.code, "barcode": v.barcode}
+            for v in variants
+        ])
+
     @action(detail=True, methods=['post'])
     def process(self, request, pk=None):
-        """Провести документ: распознать файл и оприходовать строки на склад."""
+        """
+        Провести документ. Параметры: warehouse (по умолчанию — основной склад),
+        accept_suggestions (принять похожие совпадения без проверки),
+        allow_duplicate_number (провести, даже если накладная с таким номером уже проведена).
+        """
         document = self.get_object()
         warehouse_id = request.data.get("warehouse")
         if warehouse_id:
@@ -343,7 +399,11 @@ class InventoryDocumentViewSet(viewsets.ModelViewSet):
             warehouse = _default_warehouse(request.user, seller=document.seller)
         if warehouse is None:
             return Response({"detail": "У продавца нет склада"}, status=status.HTTP_400_BAD_REQUEST)
-        report = process_inventory_document(document=document, warehouse=warehouse, created_by=request.user)
+        report = process_inventory_document(
+            document=document, warehouse=warehouse, created_by=request.user,
+            accept_suggestions=_flag(request.data.get("accept_suggestions")),
+            allow_duplicate_number=_flag(request.data.get("allow_duplicate_number")),
+        )
         return Response({"status": "document processed", **report})
 
     @action(detail=True, methods=['post'])

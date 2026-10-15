@@ -38,23 +38,16 @@ class BaseInvoiceParser(ABC):
         meta = self.enrich_meta(rows, meta, context)
         
         items = self.extract_items(rows, context)
-        import re
         for item in items:
+            # некоторые парсеры кладут штрихкод под другим ключом; очистку делает normalizer
             if isinstance(item, dict) and not item.get("barcode"):
-                # Ищем, может TableEngine нашел колонку, но мы ее не вытащили
-                raw_bc = item.get("штрихкод") or item.get("barcode") or item.get("ean")
-                if raw_bc:
-                    raw_bc = str(raw_bc).strip().split('.')[0] # убираем .0
-                    item["barcode"] = re.sub(r'\D', '', raw_bc)
+                item["barcode"] = item.get("штрихкод") or item.get("ean") or ""
 
         raw_result = {
             "supplier": self.supplier_code,
-
             "meta": meta,
-
-            # "items": self.extract_items(rows, context),
             "items": items,
-            
+
 
             "totals": self.extract_totals(rows, context),
 

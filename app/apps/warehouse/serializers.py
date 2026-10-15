@@ -94,15 +94,20 @@ class InventoryDocumentSerializer(serializers.ModelSerializer):
     seller_name = serializers.CharField(source='seller.shop_name', read_only=True)
     supplier_name = serializers.CharField(source='supplier.name', read_only=True, default=None)
     movements_count = serializers.IntegerField(source='stock_movements.count', read_only=True)
+    summary = serializers.SerializerMethodField(help_text="Количество строк по статусам сопоставления")
 
     class Meta:
         model = InventoryDocument
         fields = [
             'id', 'document_type', 'document_number', 'supplier', 'supplier_name', 'file',
-            'uploaded_at', 'extracted_data', 'processed', 'movements_count', 'seller_name',
+            'uploaded_at', 'extracted_data', 'summary', 'processed', 'processed_at', 'movements_count',
+            'seller_name',
         ]
-        read_only_fields = ['uploaded_at', 'extracted_data', 'processed']
+        read_only_fields = ['uploaded_at', 'extracted_data', 'processed', 'processed_at']
         extra_kwargs = {'file': {'write_only': True}}
+
+    def get_summary(self, obj):
+        return (obj.extracted_data or {}).get("summary")
 
     def validate_file(self, f):
         ext = os.path.splitext(f.name)[1].lower()

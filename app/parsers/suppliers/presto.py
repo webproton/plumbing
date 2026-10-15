@@ -4,7 +4,11 @@ from parsers.core.date_utils import extract_date
 from ..base import BaseInvoiceParser
 from parsers.core.text_utils import row_text, normalize_text
 from parsers.core.table_engine import TableEngine
+import logging
 import re
+
+logger = logging.getLogger(__name__)
+
 
 class PrestoPSParser(BaseInvoiceParser):
     supplier_code = "presto_ps"
@@ -200,7 +204,6 @@ class PrestoPSParser(BaseInvoiceParser):
             else:
                 ctx = current_ctx
 
-            # phones = re.findall(r"\+?\d[\d\s\-\(\)]{8,}", text)
             phones = re.findall(
                 r'(?:\+38)?\s*\(?0\d{2}\)?[\s\-]?\d{3}[\s\-]?\d{2}[\s\-]?\d{2}',
                 text
@@ -290,8 +293,6 @@ class PrestoPSParser(BaseInvoiceParser):
         # =========================
         iban = re.search(r'\bUA\s*\d{2}\s*\d{6}\s*\d{19}\b|\bUA\d{27}\b', full_text, re.I)
         meta["iban"] = iban.group(0).replace(" ", "") if iban else None
-        # iban = re.search(r'UA\d{10,}', full_text, re.I)
-        # meta["iban"] = iban.group(0) if iban else None
 
         # =========================
         # MFO
@@ -331,11 +332,6 @@ class PrestoPSParser(BaseInvoiceParser):
                 bank_candidate = re.split(r'(?i)(від|мфо|курс|код|тел)', bank_candidate)[0]
                 meta["bank_name"] = normalize_text(bank_candidate).strip()
                 
-        # bank = re.search(
-        #     r'(АТ|АБ|ПАТ|КБ)[^\n]{3,120}',
-        #     full_text,
-        #     re.I
-        # )
 
         # meta["bank_name"] = (
         #     normalize_text(bank.group(0))
@@ -509,7 +505,7 @@ class PrestoPSParser(BaseInvoiceParser):
             self.totals_from_engine = {}
             items = self.extract_items_fallback(rows)
 
-        print(f"Extracted {len(items)} items from Presto parser")
+        logger.debug("Presto: извлечено строк %s", len(items))
         return items
 
 

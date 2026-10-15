@@ -7,24 +7,6 @@ from datetime import datetime
 # DATE PATTERNS
 # =========================
 
-# DATE_PATTERNS = [
-#     # 2026-04-22
-#     r"\b\d{4}-\d{2}-\d{2}\b",
-
-#     # 22.04.2026
-#     r"\b\d{1,2}\.\d{1,2}\.\d{4}\b",
-
-#     # 22/04/2026 or 4/22/2026
-#     r"\b\d{1,2}/\d{1,2}/\d{4}\b",
-
-#     # 22 апреля 2026
-#     r"\b\d{1,2}\s+(?:января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря)\s+\d{4}\b",
-
-#     # 22 квітня 2026
-#     r"\b\d{1,2}\s+(?:січня|лютого|березня|квітня|травня|червня|липня|серпня|вересня|жовтня|листопада|грудня)\s+\d{4}\b",
-# ]
-
-
 DATE_PATTERNS = [
     r"\b\d{4}-\d{2}-\d{2}\b",
     r"\b\d{1,2}\.\d{1,2}\.\d{4}\b",
@@ -65,32 +47,6 @@ def extract_date(text: str):
 # =========================
 # NORMALIZE DATE
 # =========================
-
-# def normalize_date(date_str: str):
-#     """
-#     Convert to YYYY-MM-DD
-#     """
-
-#     if not date_str:
-#         return None
-
-#     date_str = date_str.strip()
-
-#     formats = [
-#         "%Y-%m-%d",
-#         "%d.%m.%Y",
-#         "%m/%d/%Y",
-#         "%d/%m/%Y",
-#     ]
-
-#     for fmt in formats:
-#         try:
-#             return datetime.strptime(date_str, fmt).date().isoformat()
-#         except:
-#             pass
-
-#     # fallback
-#     return date_str
 
 def normalize_date(date_str: str):
     if not date_str:

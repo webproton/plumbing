@@ -1,17 +1,13 @@
 # parsers/suppliers/default.py
 
 
-
 from parsers.core.numbers import extract_numbers
 from parsers.core.table_engine import TableEngine
 from parsers.core.text_utils import normalize_text, row_text
 from parsers.core.date_utils import extract_date
 import re
-from datetime import datetime
 
 from ..base import BaseInvoiceParser
-
-
 
 
 class DefaultParser(BaseInvoiceParser):
@@ -49,9 +45,7 @@ class DefaultParser(BaseInvoiceParser):
         return "unknown"
 
 
-
     def extract_header(self, rows, context):
-        import re
 
         supplier_phones = set()
         buyer_phones = set()
@@ -119,7 +113,6 @@ class DefaultParser(BaseInvoiceParser):
 
 
     def extract_meta(self, rows, context):
-        import re
 
         meta = {}
 
@@ -132,20 +125,7 @@ class DefaultParser(BaseInvoiceParser):
         m = re.search(r"№\s*([^\s]+)", full_text)
         meta["number"] = m.group(1) if m else None
 
-        # =========================
-        # DATE (простая универсальная)
-        # =========================
- 
-        print("FULL_TEXT:", full_text[:200])
-
-        # =========================
-        # DATE (UNIVERSAL EXTRACTOR)
-        # =========================
-        date = extract_date(full_text)
-
-        meta["date"] = date
-        
-        print("DATE:", date)
+        meta["date"] = extract_date(full_text)
         # fallback
         if not meta["date"]:
             for row in rows[:15]:
@@ -186,7 +166,6 @@ class DefaultParser(BaseInvoiceParser):
         meta["shipping_terms"] = normalize_text(shipping) if shipping else None
 
         return meta
-
 
 
     def extract_items(self, rows, context):
@@ -283,67 +262,6 @@ class DefaultParser(BaseInvoiceParser):
         }
         
         
-    def find_column_map(self, rows):
-
-        aliases = {
-            "qty": [
-                "кількість",
-                "кiлькiсть",
-                "количество",
-                "qty",
-            ],
-            "price": [
-                "ціна",
-                "цена",
-                "price",
-            ],
-            "total": [
-                "сума",
-                "сумма",
-                "total",
-            ],
-            "name": [
-                "товар",
-                "назва",
-                "наименование",
-            ],
-            "unit": [
-                "од",
-                "од.",
-                "одиниця",
-                "ед",
-            ]
-        }
-
-        for row in rows:
-
-            normalized = [
-                normalize_text(str(v).lower())
-                for v in row if v is not None
-            ]
-
-            joined = " ".join(normalized)
-
-            # таблица без qty почти никогда не валидна
-            if not any(x in joined for x in aliases["qty"]):
-                continue
-
-            col_map = {}
-
-            for i, v in enumerate(normalized):
-
-                for key, values in aliases.items():
-                    if any(alias in v for alias in values):
-                        col_map[key] = i
-
-            # минимально нужные колонки
-            if "name" in col_map and "price" in col_map:
-                return col_map
-
-        return None
-    
-    
-    
     def find_column_map(self, rows):
         for row in rows:
             normalized = [normalize_text(str(v).strip().lower()) for v in row]

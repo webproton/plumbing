@@ -3,7 +3,7 @@ from django.db.models import F, Sum
 
 from . import stock
 from .models import InventoryDocument, StockBalance, StockMovement, Supplier, Warehouse
-from .services import process_inventory_document
+from .services import ReviewRequiredError, process_inventory_document
 
 
 @admin.action(description="Провести на склад (парсинг + сопоставление)")
@@ -20,10 +20,16 @@ def accept_document(modeladmin, request, queryset):
             continue
         try:
             report = process_inventory_document(document=document, warehouse=warehouse, created_by=request.user)
+        except ReviewRequiredError as exc:
+            modeladmin.message_user(
+                request, f"Документ {document.pk}: {exc.message}. Сопоставьте строки через API/кабинет склада.",
+                level=messages.WARNING)
+            continue
         except Exception as exc:  # показываем оператору причину, остальные документы обрабатываем дальше
             modeladmin.message_user(request, f"Документ {document.pk}: ошибка — {exc}", level=messages.ERROR)
             continue
-        msg = f"Документ №{document.document_number or document.pk}: оприходовано строк {report['received']}"
+        msg = (f"Документ №{document.document_number or document.pk}: оприходовано строк {report['received']}, "
+               f"создано новых товаров {report['created']}")
         if report["skipped"]:
             msg += f", пропущено {len(report['skipped'])} (см. extracted_data.processing_report)"
         modeladmin.message_user(request, msg, level=messages.WARNING if report["skipped"] else messages.SUCCESS)
@@ -50,7 +56,7 @@ class ReadOnlyAdminMixin:
 
 @admin.register(Supplier)
 class SupplierAdmin(admin.ModelAdmin):
-    list_display = ('name', 'contact_person', 'phone', 'email', 'is_active', 'created_at')
+    list_display = ('name', 'code', 'contact_person', 'phone', 'email', 'is_active', 'created_at')
     list_filter = ('is_active',)
     search_fields = ('name', 'contact_person', 'email', 'phone')
     ordering = ('name',)
@@ -102,7 +108,8 @@ class InventoryDocumentAdmin(admin.ModelAdmin):
     actions = [accept_document]
 
     def get_readonly_fields(self, request, obj=None):
-        return ('processed', 'extracted_data') + (('file', 'seller', 'supplier') if obj and obj.processed else ())
+        return ('processed', 'processed_at', 'file_hash', 'extracted_data') + (
+            ('file', 'seller', 'supplier') if obj and obj.processed else ())
 
     @admin.display(description="Пропущено строк")
     def skipped_rows(self, obj):
