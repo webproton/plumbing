@@ -1,7 +1,8 @@
 # PlumbingProject — структура и устройство проекта
 
 Живой документ: описывает, **что есть**, **как работает** и **что менялось**.
-Дополняется после каждого шага из [ROADMAP.md](ROADMAP.md).
+Дополняется после каждого шага из [ROADMAP.md](ROADMAP.md). Пофайловая карта, удалённое и архив —
+в [PROJECT_MAP.md](PROJECT_MAP.md).
 
 ---
 
@@ -34,10 +35,8 @@ PlumbingProject/
 │   │   ├── orders/         # Cart, CartItems, Order
 │   │   ├── warehouse/      # склады, поставщики, журнал движений, накладные, сканер
 │   │   ├── sellers/        # продавцы (Seller) и витрины (Shop)
-│   │   ├── callback/       # заявка «перезвоните мне» → Telegram, настройки сайта
-│   │   └── telemetry/      # антифрод/телеметрия — ОТКЛЮЧЕНО (нет в INSTALLED_APPS и urls)
+│   │   └── callback/       # заявка «перезвоните мне» → Telegram, настройки сайта
 │   ├── parsers/            # парсеры накладных поставщиков (см. §5)
-│   ├── geoip/              # базы GeoLite2 (для telemetry)
 │   └── fonts/
 ├── frontend/plumbreact/    # React SPA + nginx.conf для прод-контейнера
 ├── docs/                   # эта документация
@@ -61,8 +60,12 @@ PlumbingProject/
 
 ### products
 - `Category` → `Product` → `ProductVariant` (цена, скидка, штрихкод, код, остаток `stock`/`reserved`,
-  себестоимость `cost_price`, ~20 атрибутов мебели/сантехники).
+  себестоимость `cost_price`, ~20 атрибутов мебели/сантехники). `available=False` — вариант скрыт из каталога.
 - `ProductVariant.save()` генерирует slug, код, штрихкод и картинку штрихкода, пересчитывает скидку.
+- **Каталог показывает только товары, у которых есть видимый вариант**; цена в списке — минимальная среди
+  видимых вариантов («от …»); в карточке — только видимые варианты, у каждого `in_stock` и `available_qty`.
+- Сортировка `?ordering=price|-price|name|-name|new` (другие значения игнорируются), поиск `?search=` — по
+  названию, артикулу и штрихкоду. Число SQL-запросов не зависит от количества товаров на странице.
 - Эндпоинты: `/api/products/`, `/api/category/`, `/api/new_products/`, `/api/wishlist/`.
 
 ### orders
@@ -123,9 +126,19 @@ PlumbingProject/
 Нехватка товара → `InsufficientStockError` → API отвечает `400 {"detail", "code": "insufficient_stock", ...}`
 (обработчик `app/core/exceptions.py`).
 
-**Проведение накладной** (`services.process_inventory_document`): документ блокируется, повторное проведение
-запрещено; каждая строка → `stock.receive`; некорректные строки не валят документ, а попадают в
-`processing_report.skipped`; новые товары создаются скрытыми (`available=False`) с наценкой 40 %.
+**Приёмка накладной** (`services.py`) — три шага:
+1. **Загрузка** (`POST inventory-documents/`): проверка расширения/размера, SHA-256 (тот же файл второй раз не
+   загрузить), файл кладётся в приватное хранилище, сразу выполняется разбор. Каждая строка получает статус:
+   `matched` (память сопоставлений / штрихкод / артикул), `needs_review` (найден только похожий по названию —
+   fuzzy ≥ 80 %), `new` (будет создан скрытый товар), `invalid` (нет названия/количества/цены).
+2. **Проверка**: `POST inventory-documents/{id}/lines/{n}/` с `{"variant": id}` или `{"create_new": true}`;
+   подбор товара — `GET inventory-documents/variant-search/?q=…`.
+3. **Проведение** (`POST …/process/`): запрещено, пока есть `needs_review` (или `accept_suggestions=true`) и если
+   накладная с тем же номером этого поставщика уже проведена (или `allow_duplicate_number=true`). Одинаковые новые
+   позиции в одной накладной создают один товар. Подтверждённые сопоставления запоминаются для поставщика —
+   следующая накладная сопоставится автоматически. Отчёт: `{received, created, skipped}`.
+
+Поставщик определяется по шапке накладной, если у `Supplier.code` указан код парсера (`aquadom`, `presto`, `santan`).
 
 **Эндпоинты** (`/api/warehouse/`, доступ — суперпользователь или одобренный активный продавец, только свои склады):
 
@@ -137,7 +150,11 @@ PlumbingProject/
 | `POST stock-movements/` | ручная операция `in/out/return_in/return_out` |
 | `POST stock-movements/transfer/` · `return_supplier/` · `inventory/` | перемещение, возврат, инвентаризация |
 | `GET/POST inventory-documents/` | накладные (xlsx/xls/xml/yml, ≤10 МБ) |
-| `POST inventory-documents/{id}/process/` | провести накладную → отчёт `{received, skipped}` |
+| `POST inventory-documents/{id}/parse/` | разобрать файл заново (например, после выбора поставщика) |
+| `POST inventory-documents/{id}/lines/{n}/` | сопоставить строку: `{"variant": id}` / `{"create_new": true}` |
+| `GET inventory-documents/variant-search/?q=` | подбор товара для строки |
+| `POST inventory-documents/{id}/process/` | провести накладную → отчёт `{received, created, skipped}` |
+| `GET inventory-documents/{id}/file/` | скачать исходный файл (накладные не раздаются через `/media/`) |
 | `POST inventory-documents/{id}/scan/` | пик сканера = +1 шт. по документу |
 | `GET inventory-documents/{id}/print/` | PDF (генерируется в памяти, не сохраняется в media) |
 | `POST stock-movements/find_by_barcode_or_sku/` | сканер: поиск по штрихкоду/артикулу |
@@ -201,7 +218,8 @@ pip install -r requirements-dev.txt
 # нужна PostgreSQL (ArrayField); параметры — POSTGRES_* в окружении
 pytest
 ```
-`conftest.py` подменяет кэш на locmem и почту на locmem, очищает кэш между тестами.
+Тесты используют `config/settings_test.py` (locmem-кэш и почта, временный MEDIA) и не зависят от `.env`.
+Линтер и форматер: `ruff check app config && ruff format app config` (также в pre-commit).
 
 ---
 
@@ -222,7 +240,32 @@ pytest
 
 ---
 
-## 8. Журнал изменений
+## 8. Запуск
+
+**Production (Docker):**
+```bash
+cp .env.example .env            # заполнить SECRET_KEY, POSTGRES_*, DJANGO_ALLOWED_HOSTS, EMAIL_*, TOKEN_BOT…
+docker compose -f docker-compose.prod.yml up -d --build
+docker compose -f docker-compose.prod.yml exec app python app/manage.py createsuperuser
+```
+Сервисы: `db` (PostgreSQL 14, данные в `./data/db`), `redis`, `migrate` (одноразово: миграции + статика),
+`app` (gunicorn, healthcheck `/api/health/`), `web` (nginx: SPA + прокси `/api`, `/admin`, `/account`;
+порт `HTTP_PORT`, по умолчанию 80). Хосты БД/Redis задаёт compose — в `.env` их менять не нужно.
+TLS: терминировать перед `web` (Cloudflare / certbot / балансировщик), в `.env` — `TRUSTED_PROXY=True`.
+
+**Существующая БД** (`./data/db` с прошлых версий) — перед первым запуском сделать бэкап и пометить миграцию:
+```bash
+docker compose -f docker-compose.prod.yml run --rm migrate python app/manage.py migrate products 0014 --fake
+```
+
+**Локальная разработка:** `docker compose -f docker-compose.dev.yml up -d` (БД и Redis), в `.env`:
+`DEBUG=True`, `POSTGRES_HOST=localhost`, `REDIS_URL=redis://localhost:6379/1`; затем
+`python app/manage.py migrate && python app/manage.py runserver`. Переключать «dev/боевой» правкой кода
+не нужно — всё задаётся переменными окружения.
+
+---
+
+## 9. Журнал изменений
 
 ### 2026-10-08 — Шаг 0: восстановление работоспособности
 **Было:** после коммита `5d0fac2` API висело в корне (`/products/products/…`), а `accounts.urls`
@@ -291,3 +334,29 @@ Callback: общий модуль Telegram, chat_id менеджера боль�
 игнорируется; `list_of_products` в деталях заказа берётся из `OrderItem`; тексты ошибок валидации на русском.
 
 Тесты: 84 (+12 сценариев заказа, включая параллельный двойной сабмит).
+
+### 2026-10-15 — Инфраструктура, каталог, парсеры, чистка
+**Инфраструктура.** Prerender убран (каталога сервиса не было в репозитории, compose падал). Compose переписан:
+healthchecks (у Postgres — по TCP, иначе при первой инициализации «здоров» раньше времени), одноразовый
+`migrate`, nginx-образ со сборкой SPA, `/api/health/`, удалён неиспользуемый pgbouncer с открытым портом.
+Dockerfile — Python 3.12, non-root, gunicorn.conf.py. Стек проверен с нуля: все миграции применяются,
+`/`, `/api/…`, `/admin/`, статика отвечают. Старый SPA: база API — тот же домен (было `/api/api/…`).
+Ручные dev-заглушки в settings (`DEBUG=True` по умолчанию, `localhost`, `postgres:postgres`) не нужны —
+см. §8; сами правки сохранены в `docs/archive/2026-10-15-user-wip.patch`.
+
+**Каталог.** Только видимые товары/варианты, цена «от», наличие, белый список сортировки, поиск по артикулу,
+без кэширования целых queryset в Redis, без N+1.
+
+**Парсеры и приёмка.** Числа (`1 234,50`, NBSP, валюта), колонка «№» больше не артикул, название/артикул/
+штрихкод — из своих колонок, дробные количества (0.5 м) не теряются, регистр названий сохраняется, YML-прайс не
+приходуется, `defusedxml`. Приёмка: разбор → проверка fuzzy-совпадений → проведение; SHA-256 от повторной
+загрузки; защита от повторного номера накладной; файлы накладных — в приватном хранилище (миграция переносит
+существующие). Новый товар, встречающийся в накладной дважды, создаётся один раз.
+
+**Продавцы.** Регистрация продавца работает (ждёт одобрения), комиссию меняет только админ, удаление через
+API запрещено.
+
+**Чистка.** ruff (линт + формат) вместо невалидного flake8; удалены закомментированный код, `print`, `import *`,
+дубли (~550 строк в команде импорта); приложение `telemetry` и GeoIP (78 МБ) — в архиве (тег `archive/telemetry`).
+
+Тесты: 116.
