@@ -16,6 +16,7 @@ from model_utils import Choices
 from model_utils.models import TimeStampedModel
 from transliterate import translit
 
+from app.apps.products.utils.slugs import unique_slug
 from app.apps.sellers.models import Seller
 
 User = get_user_model()
@@ -148,13 +149,7 @@ class Category(TimeStampedModel):
 
     def save(self, *args, **kwargs):
         if not self.slug and self.name:
-            base_slug = slugify(self.name)
-            slug = base_slug
-            counter = 1
-            while Category.objects.filter(slug=slug).exists():
-                slug = f"{base_slug}-{counter}"
-                counter += 1
-            self.slug = slug
+            self.slug = unique_slug(Category, self.name, fallback="category", exclude_pk=self.pk)
 
         if not self.barcode:
             # Генерируем уникальный код для категории
