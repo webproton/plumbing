@@ -16,7 +16,7 @@
 | Backend | Python 3.12, Django 4.2, DRF 3.15, SimpleJWT, allauth + dj-rest-auth |
 | БД / кэш | PostgreSQL 14, Redis (кэш Django) |
 | Парсеры | openpyxl, pandas, rapidfuzz |
-| Frontend | React (CRA, JS) — будет переписан на TS (шаг 7) |
+| Frontend | React Router 8 (SSR), React 19, TypeScript, Tailwind CSS 4 — `frontend/web` |
 | Infra | Docker Compose, nginx, gunicorn |
 
 ---
@@ -38,7 +38,8 @@ PlumbingProject/
 │   │   └── callback/       # заявка «перезвоните мне» → Telegram, настройки сайта
 │   ├── parsers/            # парсеры накладных поставщиков (см. §5)
 │   └── fonts/
-├── frontend/plumbreact/    # React SPA + nginx.conf для прод-контейнера
+├── frontend/web/           # витрина: SSR на React Router 8 (TS)
+├── deploy/nginx/           # конфиг nginx перед Django и фронтендом
 ├── docs/                   # эта документация
 ├── Dockerfile, docker-compose.prod.yml
 ├── requirements.txt        # runtime-зависимости
@@ -50,6 +51,14 @@ PlumbingProject/
 ---
 
 ## 3. Backend: приложения и ответственность
+
+### Витрина (`frontend/web`)
+SSR на React Router 8: страницы рендерятся на сервере и гидрируются в браузере (поисковики видят готовый HTML,
+JSON-LD и OG-теги товара). Все обращения к Django — из `loader`/`action` на сервере витрины. JWT пользователя
+хранятся в подписанной HttpOnly-cookie сессии витрины (схема BFF): JavaScript в браузере токенов не видит,
+истёкший токен обновляется автоматически. Корзина гостя — по `cart_uuid` в сессии, после входа переходит к
+пользователю (`GET /api/orders/cart/current/`). Формы работают и без JavaScript. Старые адреса SPA
+(`/products/…`) отвечают 301 на новые (`/product/…`, `/catalog`).
 
 ### accounts
 - `User` (логин по email), `Profile` (контакты, создаётся сигналом при создании пользователя;
@@ -249,8 +258,10 @@ docker compose -f docker-compose.prod.yml up -d --build
 docker compose -f docker-compose.prod.yml exec app python app/manage.py createsuperuser
 ```
 Сервисы: `db` (PostgreSQL 14, данные в `./data/db`), `redis`, `migrate` (одноразово: миграции + статика),
-`app` (gunicorn, healthcheck `/api/health/`), `web` (nginx: SPA + прокси `/api`, `/admin`, `/account`;
-порт `HTTP_PORT`, по умолчанию 80). Хосты БД/Redis задаёт compose — в `.env` их менять не нужно.
+`app` (Django + gunicorn, healthcheck `/api/health/`), `frontend` (SSR-витрина, Node), `nginx` (порт
+`HTTP_PORT`, по умолчанию 80: `/api`, `/admin`, `/account` → Django, остальное → витрина). Хосты БД/Redis задаёт
+compose — в `.env` их менять не нужно. Обязательно задать `SESSION_SECRET` (`openssl rand -hex 32`);
+без HTTPS — `INSECURE_COOKIES=true`, иначе браузер не вернёт cookie сессии.
 TLS: терминировать перед `web` (Cloudflare / certbot / балансировщик), в `.env` — `TRUSTED_PROXY=True`.
 
 **Существующая БД** (`./data/db` с прошлых версий) — перед первым запуском сделать бэкап и пометить миграцию:
@@ -260,8 +271,9 @@ docker compose -f docker-compose.prod.yml run --rm migrate python app/manage.py 
 
 **Локальная разработка:** `docker compose -f docker-compose.dev.yml up -d` (БД и Redis), в `.env`:
 `DEBUG=True`, `POSTGRES_HOST=localhost`, `REDIS_URL=redis://localhost:6379/1`; затем
-`python app/manage.py migrate && python app/manage.py runserver`. Переключать «dev/боевой» правкой кода
-не нужно — всё задаётся переменными окружения.
+`python app/manage.py migrate && python app/manage.py runserver`; витрина — `cd frontend/web && npm install &&
+npm run dev` (http://localhost:3000, ходит в Django на :8000). Переключать «dev/боевой» правкой кода не нужно —
+всё задаётся переменными окружения.
 
 ---
 
@@ -360,3 +372,25 @@ API запрещено.
 дубли (~550 строк в команде импорта); приложение `telemetry` и GeoIP (78 МБ) — в архиве (тег `archive/telemetry`).
 
 Тесты: 116.
+
+### 2026-10-17 — Новая витрина, безопасность паролей
+**Безопасность.** Регистрация сохраняла пароль **открытым текстом** в `Profile.password`, а админка показывала его
+в списке. Поле удалено (миграция `accounts/0006` дропает колонку вместе с сохранёнными паролями), добавлен
+регрессионный тест. Белый список почтовых доменов при регистрации дополнен украинскими сервисами (ukr.net, i.ua,
+meta.ua, bigmir.net…), которые раньше отклонялись.
+
+**Витрина v2** (`frontend/web`) вместо старого SPA (CRA): SSR, TypeScript, Tailwind 4, BFF-авторизация, все
+сценарии покупки и кабинета (см. раздел «Витрина»). Проверено вживую против Django: гость — каталог по
+категории → товар → корзина → оформление (резерв 2 шт., остаток на сайте 5 → 3); пользователь — вход, профиль,
+избранное, заказ, отмена (резерв снят), выход; 404 и 301 со старых адресов. Тесты витрины: 20, типы и ESLint чистые.
+Старый SPA — в архиве (тег `archive/frontend-cra`).
+
+**Docker.** Вместо `web` (nginx + CRA) — `frontend` (Node SSR) + `nginx` (`deploy/nginx/default.conf`).
+⚠️ Сборка образов не прогнана: Docker-демон на машине разработки завис; compose проверен (`docker compose config`).
+
+**Каталог.** Кириллические категории получали пустой slug (`slugify` без транслитерации) — ссылки
+`?category=` не работали. Общий хелпер `make_slug`, data-миграция `products/0016`.
+
+**API.** `GET /api/orders/cart/current/` — текущая корзина (гостевая переходит к пользователю после входа).
+
+Тесты: backend 119, frontend 20.

@@ -49,7 +49,7 @@
 - [x] 3.2 Приватное хранение накладных и PDF, выдача через API (PDF — сделано; файлы накладных ещё в публичном media)
 - [x] 3.3 Продавец не может менять комиссию и удалять себя вместе с историей
 - [x] 3.4 Callback: таймауты, не отдавать chat_id, экранирование HTML в Telegram
-- [ ] 3.5 HttpOnly refresh-cookie (вместе с фронтендом v2)
+- [x] 3.5 Токены в HttpOnly-cookie сессии витрины (BFF), браузер их не видит
 
 ## Шаг 4. Парсеры накладных
 - [x] 4.1 Хэш файла + уникальность документа (идемпотентность)
@@ -71,11 +71,11 @@
 - [x] 6.3 Остаток в API каталога
 
 ## Шаг 7. Frontend v2 (TypeScript)
-- [ ] 7.1 Новый проект: Vite + React 19 + TS strict + React Router 7 + TanStack Query + ESLint/Prettier
-- [ ] 7.2 Дизайн-система и UX (каталог, карточка, корзина, checkout, ЛК)
-- [ ] 7.3 Типизированный API-клиент, auth через HttpOnly cookie
-- [ ] 7.4 Защищённые маршруты, состояния loading / error / empty
-- [ ] 7.5 Тесты (Vitest + Testing Library), сборка в nginx
+- [x] 7.1 Новый проект: React Router 8 (SSR) + React 19 + TS strict + Tailwind 4 + ESLint/Prettier (TanStack Query не понадобился — данные через loaders/actions)
+- [x] 7.2 Дизайн-система и UX (каталог, карточка, корзина, checkout, ЛК)
+- [x] 7.3 Типизированный API-клиент, auth через HttpOnly cookie
+- [x] 7.4 Защищённые маршруты, состояния loading / error / empty
+- [x] 7.5 Тесты (Vitest + Testing Library), сборка в nginx
 
 ## Шаг 8. Docker / Production
 - [x] 8.1 Multi-stage Dockerfile, non-root, gunicorn config
@@ -96,3 +96,11 @@
 - [x] Приложение `telemetry` и GeoIP — в архив (тег `archive/telemetry`)
 - [x] ruff + pre-commit, весь бэкенд отформатирован
 - [x] Карта проекта: [PROJECT_MAP.md](PROJECT_MAP.md)
+
+## Шаг 7+. Витрина — что было в старом SPA и ещё не перенесено
+- [ ] Сравнение товаров (`ComparePage`)
+- [ ] Расширенные фильтры каталога (бренд, материал, габариты, атрибуты мебели — API их уже поддерживает)
+- [ ] Избранное для гостя (localStorage) — сейчас только после входа
+- [ ] Слайдер баннеров на главной (`BannerSlider`)
+- [ ] Смена email и пароля в кабинете (`EmailChangeForm`, `PasswordChangeForm`)
+- [ ] Прогнать `docker compose -f docker-compose.prod.yml up --build` после восстановления Docker-демона

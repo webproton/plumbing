@@ -3,7 +3,7 @@
 Что где лежит, за что отвечает, какие ключевые функции, что удалено и что ушло в архив.
 Устройство и бизнес-правила подробнее — в [PROJECT_STRUCTURE.md](PROJECT_STRUCTURE.md), план — в [ROADMAP.md](ROADMAP.md).
 
-> Обновлено: 2026-10-15 · ветка `refactor/production-readiness`
+> Обновлено: 2026-10-17 · ветка `refactor/production-readiness`
 
 ---
 
@@ -16,7 +16,8 @@
 | `config/urls.py` | Маршруты: всё API под `/api/`, `/admin/`, `/account/` (allauth) |
 | `Dockerfile` | Образ бэкенда: Python 3.12 slim, wheels в отдельной стадии, non-root, gunicorn |
 | `gunicorn.conf.py` | Воркеры/таймауты gunicorn (через env) |
-| `docker-compose.prod.yml` | Prod: `db`, `redis`, `migrate` (миграции+статика), `app`, `web` (nginx+SPA) |
+| `docker-compose.prod.yml` | Prod: `db`, `redis`, `migrate` (миграции+статика), `app` (Django), `frontend` (SSR), `nginx` |
+| `deploy/nginx/default.conf` | Маршрутизация nginx между Django и SSR-фронтендом |
 | `docker-compose.dev.yml` | Dev: только `db` и `redis` на localhost |
 | `.dockerignore` | Что не попадает в образ (frontend, data, media, .env, …) |
 | `requirements.txt` / `requirements-dev.txt` | Runtime / тесты и линтер |
@@ -44,6 +45,7 @@
 
 | Файл | Что внутри |
 |---|---|
+| `utils/slugs.py` | `make_slug` / `unique_slug` — латинский slug из кириллицы (рус./укр.) |
 | `models.py` | `Category`, `Product`, `ProductVariant` (цена, скидка, код, штрихкод, **`stock`/`reserved` Decimal**, `available_stock`, себестоимость), `Wishlist`, `ProductPhoto`, ~20 справочников атрибутов |
 | `views.py` | `catalog_queryset()` — только товары с видимыми вариантами + `min_price`; `ProductListView` (список/карточка, сортировка `price/-price/name/-name/new`), `CategoryList`, `NewProducts`, `WishlistViewSet` |
 | `serializers.py` | `ProductListSerializer` (цена «от», первый видимый вариант), `ProductDetailSerializer` (только видимые варианты), `ProductVariantSerializer` (+`in_stock`, `available_qty`), `WishlistSerializer` |
@@ -109,13 +111,29 @@ API (`/api/warehouse/`): `warehouses/` (+`{id}/balances/`), `suppliers/`, `stock
 
 ---
 
-## 3. Frontend — `frontend/plumbreact/`
+## 3. Frontend — `frontend/web/` (v2)
 
-Текущий SPA (CRA, JS, class-компоненты) — **будет заменён** (шаг 7 ROADMAP).
-`Dockerfile` собирает SPA и кладёт в nginx; `nginx.conf` проксирует `/api`, `/admin`, `/account` в Django.
-Prerender для ботов удалён (SEO решается в новом фронтенде через SSR/пререндер при сборке).
+React Router 8 (SSR) · React 19 · TypeScript strict · Tailwind CSS 4 · zod · Vitest. Подробности — `frontend/web/README.md`.
 
----
+| Путь | Назначение |
+|---|---|
+| `app/root.tsx` | Каркас документа, корневой middleware сессии, общий loader (пользователь, счётчик корзины, категории, контакты), страница ошибки |
+| `app/routes.ts` | Карта маршрутов (включая 301 со старых адресов SPA) |
+| `app/lib/api.server.ts` | `Api` — клиент Django: Bearer-токен, авто-refresh, откат к гостю, `X-Real-IP`, `ApiError.fieldErrors` |
+| `app/lib/session.server.ts` | Подписанная HttpOnly-cookie сессия: токены, корзина гостя, пользователь |
+| `app/lib/context.server.ts` | `sessionMiddleware`: сессия и API в `context`, запись cookie при изменении |
+| `app/lib/cart.server.ts` | `getCart` / `saveCart` (корзина целиком), итоги |
+| `app/lib/auth.server.ts` | `requireUser` (редирект на вход с возвратом), `safeNext` |
+| `app/lib/validation.ts` | zod-схемы форм, `normalizePhone` (+380…) |
+| `app/lib/format.ts` | Цены (₴), количества, даты, склонения, цвет статуса заказа |
+| `app/lib/types.ts` | Типы ответов API |
+| `app/components/` | UI-кит (`ui.tsx`), шапка, подвал, карточка товара, цена, пагинация, количество, «в корзину», заявка на звонок |
+| `app/routes/` | Страницы: главная, каталог, товар, корзина, оформление, вход/регистрация/пароль, кабинет, избранное, доставка, контакты |
+| `tests/` | Vitest: форматирование, валидация, API-клиент, компоненты |
+| `Dockerfile` | Node 24 alpine, SSR-сервер `react-router-serve` на :3000 |
+
+`deploy/nginx/default.conf` — nginx перед магазином: `/api`, `/admin`, `/account` → Django; `/django-static/`, `/media/` —
+файлы; остальное → SSR-фронтенд.
 
 ## 4. Удалено (и почему)
 
@@ -135,6 +153,8 @@ Prerender для ботов удалён (SEO решается в новом ф�
 | `products/paginations.py`, `products/signals.py`, `BrandList`, `ProductSetLikesSerializer` | `90f8e2d` | Не использовались / ссылались на несуществующие поля |
 | Дубли функций в `import_products.py` (~550 строк) | `9c5c8f7` | Идентичные копии `utils/color_utils.py` |
 | `.flake8`, `.pylintrc` | `9c5c8f7` | Заменены ruff (конфиг flake8 был невалиден) |
+| `Profile.password` (миграция `accounts/0006`) | `26a93ce` | Хранил пароль открытым текстом и показывал его в админке |
+| `frontend/plumbreact` (старый SPA) | после `595d25d` | Заменён `frontend/web`; в архиве (тег `archive/frontend-cra`) |
 | `products/permission.py`, `sellers/tests.py` | `9aa1934` | Не использовались / пустой |
 | Закомментированный код, отладочные `print` | разные | Мусор |
 
@@ -145,4 +165,5 @@ Prerender для ботов удалён (SEO решается в новом ф�
 | Что | Где | Как восстановить |
 |---|---|---|
 | Приложение `telemetry` (антифрод/телеметрия) + базы GeoIP (78 МБ) | git-тег `archive/telemetry` | `git checkout archive/telemetry -- app/apps/telemetry app/geoip`, вернуть в `INSTALLED_APPS`, `geoip2` и `device-detector` в requirements. Перед этим исправить синтаксическую ошибку в `telemetry/serializers.py` (строка заметки в конце файла) |
+| Старый SPA `frontend/plumbreact` (CRA, JS, class-компоненты) | git-тег `archive/frontend-cra` | `git checkout archive/frontend-cra -- frontend/plumbreact` |
 | Незакоммиченные правки 2026-10-15 (settings/urls/docker/nginx до переделки) | `docs/archive/2026-10-15-user-wip.patch` | `git apply docs/archive/2026-10-15-user-wip.patch` (на соответствующую ревизию) |
