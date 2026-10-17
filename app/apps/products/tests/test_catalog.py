@@ -90,3 +90,14 @@ def test_list_query_count_does_not_grow_with_products(client):
     with CaptureQueriesContext(connection) as big:
         client.get(reverse("products:product-list"))
     assert len(big) == len(small)
+
+
+def test_cyrillic_category_gets_latin_slug_and_filters(client):
+    a = Category.objects.create(name="Смесители")
+    b = Category.objects.create(name="Змішувачі для кухні")
+    c = Category.objects.create(name="Смесители")
+    assert (a.slug, b.slug, c.slug) == ("smesiteli", "zmishuvachi-dlja-kuhni", "smesiteli-2")
+    _product("Grohe", category=a)
+    _product("Kran", category=b)
+    names = [p["name"] for p in _results(client.get(reverse("products:product-list"), {"category": "smesiteli"}))]
+    assert names == ["Grohe"]
