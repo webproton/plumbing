@@ -103,4 +103,4 @@
 - [ ] Избранное для гостя (localStorage) — сейчас только после входа
 - [ ] Слайдер баннеров на главной (`BannerSlider`)
 - [ ] Смена email и пароля в кабинете (`EmailChangeForm`, `PasswordChangeForm`)
-- [ ] Прогнать `docker compose -f docker-compose.prod.yml up --build` после восстановления Docker-демона
+- [x] Прогнать `docker compose -f docker-compose.prod.yml up --build` (исправлен DisallowedHost для `app:8000`)

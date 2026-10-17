@@ -29,6 +29,8 @@ if env_file.exists():
 SECRET_KEY = env("SECRET_KEY")
 DEBUG = env.bool("DEBUG", default=False)
 ALLOWED_HOSTS = env.list("DJANGO_ALLOWED_HOSTS", default=["localhost", "127.0.0.1"])
+# Внутренние имена сервисов (в docker витрина ходит в Django по http://app:8000 — Host: app)
+ALLOWED_HOSTS += env.list("DJANGO_INTERNAL_HOSTS", default=[])
 
 FRONTEND_URL = env("FRONTEND_URL", default="") or "http://localhost:3000"
 
