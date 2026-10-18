@@ -3,6 +3,7 @@ from decimal import Decimal
 from django.contrib.admin.views.decorators import staff_member_required
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
+from django.db.models import Count, F, Q, Sum
 from django.http import FileResponse, HttpResponse
 from django.shortcuts import get_object_or_404, render
 from django.utils.translation import gettext as _
@@ -15,6 +16,7 @@ from rest_framework.views import APIView
 
 from app.apps.products.models import Product, ProductVariant
 from app.apps.products.serializers import ProductVariantSerializer
+from app.core.pagination import StandardPagination
 
 from . import stock
 from .inventory.barcode_scanner import find_variant_by_code, scan_barcode
@@ -30,6 +32,7 @@ from .serializers import (
     StockMovementListSerializer,
     SupplierSerializer,
     TransferSerializer,
+    VariantLookupSerializer,
     WarehouseSerializer,
 )
 from .services import (
@@ -276,14 +279,25 @@ class StockMovementViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, vie
 
     permission_classes = [IsWarehouseStaff]
     serializer_class = StockMovementListSerializer
+    pagination_class = StandardPagination
     filterset_fields = ["movement_type", "warehouse", "variant", "inventory_document"]
 
     def get_queryset(self):
-        qs = StockMovement.objects.select_related("variant", "seller", "warehouse", "supplier", "created_by")
-        if self.request.user.is_superuser:
-            return qs
-        seller = get_active_seller(self.request.user)
-        return qs.filter(seller=seller) if seller else qs.none()
+        qs = StockMovement.objects.select_related(
+            "variant__product", "seller", "warehouse", "supplier", "created_by"
+        ).order_by("-created_at", "-id")
+        if not self.request.user.is_superuser:
+            seller = get_active_seller(self.request.user)
+            qs = qs.filter(seller=seller) if seller else qs.none()
+        search = self.request.query_params.get("search", "").strip()
+        if search:
+            qs = qs.filter(
+                Q(variant__variant_name__icontains=search)
+                | Q(variant__code__iexact=search)
+                | Q(variant__barcode__iexact=search)
+                | Q(document_number__icontains=search)
+            )
+        return qs
 
     def create(self, request, *args, **kwargs):
         """Ручная операция: приход / расход / возврат от клиента / возврат поставщику."""
@@ -495,5 +509,110 @@ class InventoryDocumentViewSet(viewsets.ModelViewSet):
                 "name": variant.variant_name,
                 "sku": variant.code,
                 "current_doc_qty": doc_qty,
+            }
+        )
+
+
+# ---------------------------------------------------------------------------
+# Кабинет склада: профиль, остатки, поиск товара, сводка
+# ---------------------------------------------------------------------------
+
+
+class WarehouseMeAPIView(APIView):
+    """Кто я для склада: роль и склады. Витрина по ответу решает, показывать ли раздел «Склад»."""
+
+    def get(self, request):
+        user = request.user
+        seller = get_active_seller(user)
+        pending = getattr(user, "seller_profile", None) if seller is None else None
+        return Response(
+            {
+                "is_staff_user": bool(user.is_superuser or seller),
+                "is_superuser": user.is_superuser,
+                "seller": {"id": seller.pk, "shop_name": seller.shop_name} if seller else None,
+                "seller_pending": bool(pending and not pending.is_approved),
+                "warehouses": [
+                    {"id": w.pk, "name": w.name, "is_default": w.is_default}
+                    for w in _seller_warehouses(user).order_by("id")
+                ],
+            }
+        )
+
+
+class StockBalanceViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
+    """
+    Остатки по складам. ?warehouse=<id> · ?search=название|артикул|штрихкод · ?in_stock=1 · ?ordering=quantity|-quantity|name
+    """
+
+    permission_classes = [IsWarehouseStaff]
+    serializer_class = StockBalanceSerializer
+    pagination_class = StandardPagination
+
+    def get_queryset(self):
+        qs = StockBalance.objects.filter(warehouse__in=_seller_warehouses(self.request.user)).select_related(
+            "variant__product", "warehouse"
+        )
+        params = self.request.query_params
+        if params.get("warehouse"):
+            qs = qs.filter(warehouse_id=params["warehouse"])
+        if params.get("in_stock") in ("1", "true"):
+            qs = qs.filter(quantity__gt=0)
+        search = params.get("search", "").strip()
+        if search:
+            qs = qs.filter(
+                Q(variant__variant_name__icontains=search)
+                | Q(variant__product__name__icontains=search)
+                | Q(variant__code__iexact=search)
+                | Q(variant__barcode__iexact=search)
+            )
+        ordering = {"quantity": "quantity", "-quantity": "-quantity", "name": "variant__variant_name"}.get(
+            params.get("ordering", ""), "variant__variant_name"
+        )
+        return qs.order_by(ordering, "id")
+
+
+class VariantSearchAPIView(APIView):
+    """Подбор товара для форм склада: ?q=название|артикул|штрихкод (до 20 результатов)."""
+
+    permission_classes = [IsWarehouseStaff]
+
+    def get(self, request):
+        variants = suggest_variants(request.query_params.get("q"), limit=20)
+        return Response(VariantLookupSerializer(variants, many=True).data)
+
+
+class WarehouseDashboardAPIView(APIView):
+    """Сводка для главной страницы кабинета."""
+
+    permission_classes = [IsWarehouseStaff]
+
+    def get(self, request):
+        warehouses = _seller_warehouses(request.user)
+        balances = StockBalance.objects.filter(warehouse__in=warehouses, quantity__gt=0)
+        totals = balances.aggregate(
+            positions=Count("variant", distinct=True),
+            units=Sum("quantity"),
+            value=Sum(F("quantity") * F("variant__cost_price")),
+        )
+        movements = StockMovement.objects.filter(seller__in=warehouses.values("seller")).select_related(
+            "variant__product", "warehouse"
+        )
+        documents = InventoryDocument.objects.filter(seller__in=warehouses.values("seller"))
+        return Response(
+            {
+                "positions": totals["positions"] or 0,
+                "units": totals["units"] or 0,
+                "value": totals["value"] or 0,
+                "reserved_units": ProductVariant.objects.filter(movements__warehouse__in=warehouses, reserved__gt=0)
+                .distinct()
+                .aggregate(s=Sum("reserved"))["s"]
+                or 0,
+                "documents_pending": documents.filter(processed=False).count(),
+                "documents_need_review": documents.filter(
+                    processed=False, extracted_data__summary__needs_review__gt=0
+                ).count(),
+                "recent_movements": StockMovementListSerializer(
+                    movements.order_by("-created_at", "-id")[:8], many=True
+                ).data,
             }
         )

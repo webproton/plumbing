@@ -28,12 +28,47 @@ class WarehouseSerializer(serializers.ModelSerializer):
 
 
 class StockBalanceSerializer(serializers.ModelSerializer):
-    variant_name = serializers.CharField(source="variant.variant_name", read_only=True)
+    variant_name = serializers.SerializerMethodField()
+    sku = serializers.CharField(source="variant.code", read_only=True, default=None)
+    barcode = serializers.CharField(source="variant.barcode", read_only=True, default=None)
+    cost_price = serializers.DecimalField(
+        source="variant.cost_price", max_digits=12, decimal_places=4, read_only=True, default=None
+    )
+    price = serializers.DecimalField(
+        source="variant.price", max_digits=12, decimal_places=2, read_only=True, default=None
+    )
+    reserved = serializers.DecimalField(source="variant.reserved", max_digits=12, decimal_places=3, read_only=True)
     warehouse_name = serializers.CharField(source="warehouse.name", read_only=True)
+    value = serializers.SerializerMethodField(help_text="Сумма остатка по себестоимости")
 
     class Meta:
         model = StockBalance
-        fields = ["id", "variant", "variant_name", "warehouse", "warehouse_name", "quantity", "updated_at"]
+        fields = [
+            "id", "variant", "variant_name", "sku", "barcode", "warehouse", "warehouse_name",
+            "quantity", "reserved", "cost_price", "price", "value", "updated_at",
+        ]  # fmt: skip
+
+    def get_variant_name(self, obj):
+        return obj.variant.variant_name or (obj.variant.product.name if obj.variant.product_id else "")
+
+    def get_value(self, obj):
+        cost = obj.variant.cost_price
+        return str((obj.quantity * cost).quantize(Decimal("0.01"))) if cost is not None else None
+
+
+class VariantLookupSerializer(serializers.ModelSerializer):
+    """Короткая карточка товара для выбора в формах склада."""
+
+    name = serializers.SerializerMethodField()
+    sku = serializers.CharField(source="code", read_only=True)
+    available = serializers.DecimalField(source="available_stock", max_digits=12, decimal_places=3, read_only=True)
+
+    class Meta:
+        model = ProductVariant
+        fields = ["id", "name", "sku", "barcode", "cost_price", "price", "stock", "reserved", "available"]
+
+    def get_name(self, obj):
+        return obj.variant_name or (obj.product.name if obj.product_id else "")
 
 
 class StockMovementListSerializer(serializers.ModelSerializer):

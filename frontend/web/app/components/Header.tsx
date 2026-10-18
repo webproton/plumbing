@@ -1,4 +1,4 @@
-import { Heart, Menu, Phone, Search, ShoppingCart, User } from "lucide-react";
+import { Heart, Menu, Phone, Search, ShoppingCart, User, Warehouse } from "lucide-react";
 import { Form, Link as RawLink, useLocation } from "react-router";
 
 import { LANG_LABEL, LANGS, localizePath, stripLang } from "~/i18n";
@@ -7,7 +7,7 @@ import type { Category } from "~/lib/types";
 
 export interface HeaderProps {
   siteName: string;
-  user: { email: string; name: string } | null;
+  user: { email: string; name: string; staff?: boolean } | null;
   cartCount: number;
   categories: Category[];
   phone: string | null;
@@ -68,6 +68,11 @@ export function Header({ siteName, user, cartCount, categories, phone }: HeaderP
           <IconLink to="/catalog" label={t("nav.search")} className="sm:hidden">
             <Search className="size-5" />
           </IconLink>
+          {user?.staff && (
+            <IconLink to="/seller" label={t("wh.title")}>
+              <Warehouse className="size-5" />
+            </IconLink>
+          )}
           {user && (
             <IconLink to="/wishlist" label={t("nav.wishlist")}>
               <Heart className="size-5" />

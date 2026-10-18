@@ -45,6 +45,9 @@ export async function action({ request, context }: Route.ActionArgs) {
     if (!access || !refresh) throw new ApiError(500, { detail: t("auth.noTokens") });
     const name = [res.user?.first_name, res.user?.last_name].filter(Boolean).join(" ");
     api.signIn({ access, refresh }, { email: res.user?.email ?? parsed.data.email, name });
+    // персоналу склада — ссылка «Склад» в шапке (роль всё равно проверяет сервер при каждом запросе)
+    const me = await api.get<{ is_staff_user: boolean }>("/warehouse/me/").catch(() => null);
+    if (me?.is_staff_user) api.signIn({ access, refresh }, { email: res.user?.email ?? parsed.data.email, name, staff: true });
     return localRedirect(request, safeNext(values.next, "/account"));
   } catch (e) {
     if (!(e instanceof ApiError)) throw e;

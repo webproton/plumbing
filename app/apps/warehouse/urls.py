@@ -5,8 +5,12 @@ from .views import (
     InventoryDocumentViewSet,
     ScannerCreateAndAddAPIView,
     ScannerFindByBarcodeOrSkuAPIView,
+    StockBalanceViewSet,
     StockMovementViewSet,
     SupplierViewSet,
+    VariantSearchAPIView,
+    WarehouseDashboardAPIView,
+    WarehouseMeAPIView,
     WarehouseViewSet,
     scanner_mock_view,
 )
@@ -16,10 +20,14 @@ app_name = "warehouse"
 router = DefaultRouter()
 router.register(r"suppliers", SupplierViewSet, basename="supplier")
 router.register(r"warehouses", WarehouseViewSet, basename="warehouse")
+router.register(r"balances", StockBalanceViewSet, basename="balances")
 router.register(r"stock-movements", StockMovementViewSet, basename="stock-movements")
 router.register(r"inventory-documents", InventoryDocumentViewSet, basename="inventorydocument")
 
 urlpatterns = [
+    path("me/", WarehouseMeAPIView.as_view(), name="me"),
+    path("dashboard/", WarehouseDashboardAPIView.as_view(), name="dashboard"),
+    path("variants/search/", VariantSearchAPIView.as_view(), name="variant_search"),
     # Эндпоинты сканера объявлены до роутера, чтобы не пересекаться с detail-маршрутами
     path("stock-movements/find_by_barcode_or_sku/", ScannerFindByBarcodeOrSkuAPIView.as_view(), name="scanner_find"),
     path("stock-movements/create_and_add/", ScannerCreateAndAddAPIView.as_view(), name="scanner_create"),

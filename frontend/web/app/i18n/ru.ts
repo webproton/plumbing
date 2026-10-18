@@ -1,7 +1,8 @@
+import { sellerRu } from "./seller.ru";
 import type { Dict } from "./uk";
 
 // Русский. Тип Dict гарантирует, что переведены все ключи украинского словаря.
-export const ru: Dict = {
+const base: Omit<Dict, keyof typeof sellerRu> = {
   "site.tagline": "Сантехника и мебель с доставкой по Украине",
   "site.description": "Смесители, трубы, сантехника и мебель. Наличие на складе, доставка Новой Почтой.",
   "common.currencyFrom": "от ",
@@ -232,3 +233,5 @@ export const ru: Dict = {
   "page.contacts.hours": "Пн–Пт 9:00–18:00",
   "page.contacts.unavailable": "Контакты временно недоступны.",
 };
+
+export const ru: Dict = { ...base, ...sellerRu };
