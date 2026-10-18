@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { checkoutSchema, normalizePhone, registerSchema, zodErrors } from "~/lib/validation";
+import { makeT } from "~/i18n";
+import { defaultSchemas, normalizePhone, schemas, zodErrors } from "~/lib/validation";
+
+const { checkout: checkoutSchema, register: registerSchema } = defaultSchemas;
 
 const base = {
   first_name: "Мар'яна",
@@ -48,6 +51,16 @@ describe("registerSchema", () => {
   it("checks password confirmation", () => {
     const r = registerSchema.safeParse({ email: "a@ukr.net", password1: "Secret123!", password2: "other" });
     expect(r.success).toBe(false);
-    if (!r.success) expect(zodErrors(r.error).password2).toBe("Пароли не совпадают");
+    if (!r.success) expect(zodErrors(r.error).password2).toBe("Паролі не збігаються");
+  });
+});
+
+describe("i18n validation messages", () => {
+  it("returns messages in the page language", () => {
+    const ru = schemas(makeT("ru")).checkout.safeParse({ ...base, phone_number: "123" });
+    const uk = schemas(makeT("uk")).checkout.safeParse({ ...base, phone_number: "123" });
+    if (ru.success || uk.success) throw new Error("expected failure");
+    expect(zodErrors(ru.error).phone_number).toBe("Телефон в формате +380 XX XXX XX XX");
+    expect(zodErrors(uk.error).phone_number).toBe("Телефон у форматі +380 XX XXX XX XX");
   });
 });

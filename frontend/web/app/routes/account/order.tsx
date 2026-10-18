@@ -1,6 +1,8 @@
-import { data, Form, Link, useNavigation } from "react-router";
+import { data, Form, useNavigation } from "react-router";
 
 import { Alert, Badge, Button, Card, PageTitle } from "~/components/ui";
+import { langFromRequest, makeT, tFromMatches } from "~/i18n";
+import { Link, useLang, useT } from "~/i18n/react";
 import { ApiError } from "~/lib/api.server";
 import { requireUser } from "~/lib/auth.server";
 import { apiContext } from "~/lib/context.server";
@@ -9,7 +11,9 @@ import type { OrderDetail, OrderListItem } from "~/lib/types";
 
 import type { Route } from "./+types/order";
 
-export const meta: Route.MetaFunction = ({ params }) => [{ title: `Заказ №${params.id}` }];
+export const meta: Route.MetaFunction = ({ params, matches }) => [
+  { title: tFromMatches(matches)("account.order", { id: params.id ?? "" }) },
+];
 
 export async function loader({ request, params, context }: Route.LoaderArgs) {
   requireUser(request, context);
@@ -22,7 +26,7 @@ export async function loader({ request, params, context }: Route.LoaderArgs) {
     const canCancel = list.find((o) => String(o.id) === params.id)?.can_be_canceled ?? false;
     return { order, canCancel };
   } catch (e) {
-    if (e instanceof ApiError && e.status === 404) throw data("Заказ не найден", { status: 404 });
+    if (e instanceof ApiError && e.status === 404) throw data(makeT(langFromRequest(request))("account.orderNotFound"), { status: 404 });
     throw e;
   }
 }
@@ -34,17 +38,19 @@ export async function action({ request, params, context }: Route.ActionArgs) {
     return { error: null };
   } catch (e) {
     if (!(e instanceof ApiError)) throw e;
-    return data({ error: e.fieldErrors.form ?? "Не удалось отменить заказ" }, { status: 400 });
+    return data({ error: e.fieldErrors.form ?? makeT(langFromRequest(request))("account.cancelError") }, { status: 400 });
   }
 }
 
 export default function Order({ loaderData, actionData }: Route.ComponentProps) {
   const { order, canCancel } = loaderData;
   const canceling = useNavigation().state === "submitting";
+  const t = useT();
+  const lang = useLang();
   return (
     <div className="space-y-4">
-      <Link to="/account/orders" className="text-sm text-brand-600 hover:underline">← Все заказы</Link>
-      <PageTitle subtitle={formatDate(order.creation_date)}>Заказ №{order.number_order}</PageTitle>
+      <Link to="/account/orders" className="text-sm text-brand-600 hover:underline">{t("account.allOrders")}</Link>
+      <PageTitle subtitle={formatDate(order.creation_date, lang)}>{t("account.order", { id: order.number_order })}</PageTitle>
       {actionData?.error && <Alert tone="danger">{actionData.error}</Alert>}
       <div className="flex flex-wrap gap-2">
         <Badge tone={statusTone(order.status_order)}>{order.status_order_display}</Badge>
@@ -58,25 +64,25 @@ export default function Order({ loaderData, actionData }: Route.ComponentProps) 
               <p className="font-medium">{line.name}</p>
               <p className="text-sm text-muted">
                 {formatQty(line.quantity)} × {formatPrice(line.price)}
-                {line.sku && ` · арт. ${line.sku}`}
+                {line.sku && ` · ${t("account.skuShort")} ${line.sku}`}
               </p>
             </div>
             <span className="font-semibold">{formatPrice(line.total)}</span>
           </div>
         ))}
         <div className="flex justify-between p-4 text-lg font-bold">
-          <span>Итого</span>
+          <span>{t("cart.total")}</span>
           <span>{formatPrice(order.total_price)}</span>
         </div>
       </Card>
       <Card className="space-y-1 p-4 text-sm">
-        <p><span className="text-muted">Получатель:</span> {order.customer_name}</p>
-        <p><span className="text-muted">Доставка:</span> {order.address}</p>
-        {order.comment && <p><span className="text-muted">Комментарий:</span> {order.comment}</p>}
+        <p><span className="text-muted">{t("account.recipient")}:</span> {order.customer_name}</p>
+        <p><span className="text-muted">{t("account.deliveryTo")}:</span> {order.address}</p>
+        {order.comment && <p><span className="text-muted">{t("account.comment")}:</span> {order.comment}</p>}
       </Card>
       {canCancel && (
-        <Form method="post" onSubmit={(e) => !confirm("Отменить заказ? Товар вернётся в продажу.") && e.preventDefault()}>
-          <Button type="submit" variant="secondary" loading={canceling}>Отменить заказ</Button>
+        <Form method="post" onSubmit={(e) => !confirm(t("account.cancelConfirm")) && e.preventDefault()}>
+          <Button type="submit" variant="secondary" loading={canceling}>{t("account.cancel")}</Button>
         </Form>
       )}
     </div>

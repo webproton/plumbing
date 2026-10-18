@@ -1,5 +1,7 @@
-import { redirect } from "react-router";
+import { localRedirect } from "~/i18n/server";
 
-export function loader() {
-  return redirect("/catalog", 301);
+import type { Route } from "./+types/category";
+
+export function loader({ request }: Route.LoaderArgs) {
+  return localRedirect(request, "/catalog", 301);
 }

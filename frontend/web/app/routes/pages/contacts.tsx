@@ -2,17 +2,20 @@ import { Mail, MessageCircle, Phone } from "lucide-react";
 
 import { CallbackForm } from "~/components/CallbackForm";
 import { Card, PageTitle } from "~/components/ui";
+import { tFromMatches } from "~/i18n";
+import { useT } from "~/i18n/react";
 import { useRootData } from "~/root";
 
 import type { Route } from "./+types/contacts";
 
-export const meta: Route.MetaFunction = () => [{ title: "Контакты" }];
+export const meta: Route.MetaFunction = ({ matches }) => [{ title: tFromMatches(matches)("page.contacts.title") }];
 
 export default function Contacts() {
   const s = useRootData()?.settings;
+  const t = useT();
   return (
     <div className="max-w-2xl space-y-6">
-      <PageTitle subtitle="Пн–Пт 9:00–18:00">Контакты</PageTitle>
+      <PageTitle subtitle={t("page.contacts.hours")}>{t("page.contacts.title")}</PageTitle>
       <Card className="space-y-3 p-5">
         {s?.phone && (
           <a href={`tel:${s.phone}`} className="flex items-center gap-3 text-lg font-medium">
@@ -29,10 +32,10 @@ export default function Contacts() {
             <MessageCircle className="size-5 text-brand-600" aria-hidden /> Telegram: {s.telegram}
           </p>
         )}
-        {!s && <p className="text-muted">Контакты временно недоступны.</p>}
+        {!s && <p className="text-muted">{t("page.contacts.unavailable")}</p>}
       </Card>
       <Card className="space-y-3 p-5">
-        <h2 className="font-semibold">Перезвоним вам</h2>
+        <h2 className="font-semibold">{t("callback.title")}</h2>
         <CallbackForm />
       </Card>
     </div>

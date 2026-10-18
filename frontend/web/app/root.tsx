@@ -6,6 +6,7 @@ import {
   Outlet,
   Scripts,
   ScrollRestoration,
+  useLocation,
   useNavigation,
   useRouteLoaderData,
 } from "react-router";
@@ -15,6 +16,8 @@ import "./app.css";
 import { Footer } from "./components/Footer";
 import { Header } from "./components/Header";
 import { ButtonLink, EmptyState } from "./components/ui";
+import { LANGS, langFromRequest, localizePath, stripLang } from "./i18n";
+import { useT } from "./i18n/react";
 import { cartCount, getCart } from "./lib/cart.server";
 import { config } from "./lib/config.server";
 import { apiContext, sessionMiddleware } from "./lib/context.server";
@@ -40,7 +43,7 @@ async function safe<T>(promise: Promise<T>, fallback: T): Promise<T> {
   }
 }
 
-export async function loader({ context }: Route.LoaderArgs) {
+export async function loader({ request, context }: Route.LoaderArgs) {
   const api = context.get(apiContext);
   const session = context.get(sessionContext);
   const [cart, categories, settings] = await Promise.all([
@@ -49,6 +52,7 @@ export async function loader({ context }: Route.LoaderArgs) {
     safe(api.get<SiteSettings>("/callback/site-settings/"), null),
   ]);
   return {
+    lang: langFromRequest(request),
     siteName: config.siteName,
     publicUrl: config.publicUrl,
     user: session.get("user") ?? null,
@@ -66,18 +70,27 @@ export function useRootData() {
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const data = useRouteLoaderData<typeof loader>("root");
+  const { pathname, search } = useLocation();
+  const lang = data?.lang ?? "uk";
+  const base = stripLang(pathname);
+  const origin = data?.publicUrl ?? "";
   return (
-    <html lang="ru">
+    <html lang={lang}>
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <meta name="theme-color" content="#1d6fa5" />
         <Meta />
+        <link rel="canonical" href={`${origin}${localizePath(lang, base)}${search}`} />
+        {LANGS.map((l) => (
+          <link key={l} rel="alternate" hrefLang={l} href={`${origin}${localizePath(l, base)}${search}`} />
+        ))}
+        <link rel="alternate" hrefLang="x-default" href={`${origin}${base}${search}`} />
         <Links />
       </head>
       <body className="flex min-h-dvh flex-col">
         <Header
-          siteName={data?.siteName ?? "Магазин"}
+          siteName={data?.siteName ?? "LUXORA"}
           user={data?.user ?? null}
           cartCount={data?.cartCount ?? 0}
           categories={data?.categories ?? []}
@@ -85,7 +98,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         />
         <NavigationProgress />
         <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:py-8">{children}</main>
-        <Footer siteName={data?.siteName ?? "Магазин"} settings={data?.settings ?? null} />
+        <Footer siteName={data?.siteName ?? "LUXORA"} settings={data?.settings ?? null} />
         <ScrollRestoration />
         <Scripts />
       </body>
@@ -111,21 +124,22 @@ export default function App() {
 }
 
 export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
+  const t = useT();
   if (isRouteErrorResponse(error) && error.status === 404) {
     return (
-      <EmptyState icon={SearchX} title="Страница не найдена">
-        <p className="mb-4">Возможно, товар снят с продажи или ссылка устарела.</p>
-        <ButtonLink to="/catalog">Перейти в каталог</ButtonLink>
+      <EmptyState icon={SearchX} title={t("error.notFound.title")}>
+        <p className="mb-4">{t("error.notFound.text")}</p>
+        <ButtonLink to="/catalog">{t("common.toCatalog")}</ButtonLink>
       </EmptyState>
     );
   }
   return (
-    <EmptyState icon={ServerCrash} title="Что-то пошло не так">
-      <p className="mb-4">Мы уже знаем о проблеме. Попробуйте обновить страницу через минуту.</p>
+    <EmptyState icon={ServerCrash} title={t("error.server.title")}>
+      <p className="mb-4">{t("error.server.text")}</p>
       {import.meta.env.DEV && error instanceof Error && (
         <pre className="mb-4 max-w-full overflow-x-auto rounded-lg bg-surface p-3 text-left text-xs">{error.stack}</pre>
       )}
-      <ButtonLink to="/">На главную</ButtonLink>
+      <ButtonLink to="/">{t("common.toHome")}</ButtonLink>
     </EmptyState>
   );
 }

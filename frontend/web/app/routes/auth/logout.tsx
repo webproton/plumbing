@@ -1,11 +1,11 @@
-import { redirect } from "react-router";
+import { localRedirect } from "~/i18n/server";
 
 import { apiContext } from "~/lib/context.server";
 import { sessionContext } from "~/lib/session.server";
 
 import type { Route } from "./+types/logout";
 
-export async function action({ context }: Route.ActionArgs) {
+export async function action({ request, context }: Route.ActionArgs) {
   const api = context.get(apiContext);
   const session = context.get(sessionContext);
   const refresh = session.get("refresh");
@@ -13,9 +13,9 @@ export async function action({ context }: Route.ActionArgs) {
   if (refresh) await api.post("/dj-rest-auth/logout/", { refresh }).catch(() => undefined);
   api.signOut();
   session.unset("cartUuid");
-  return redirect("/");
+  return localRedirect(request, "/");
 }
 
-export function loader() {
-  return redirect("/");
+export function loader({ request }: Route.LoaderArgs) {
+  return localRedirect(request, "/");
 }

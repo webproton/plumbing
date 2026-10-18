@@ -1,7 +1,9 @@
 import { ImageOff, ShoppingCart, Trash2 } from "lucide-react";
-import { data, Link, useFetcher } from "react-router";
+import { data, useFetcher } from "react-router";
 
 import { ButtonLink, Card, EmptyState, PageTitle } from "~/components/ui";
+import { langFromRequest, makeT } from "~/i18n";
+import { Link, useT } from "~/i18n/react";
 import { ApiError } from "~/lib/api.server";
 import { cartLines, cartTotal, getCart, saveCart } from "~/lib/cart.server";
 import { apiContext } from "~/lib/context.server";
@@ -11,7 +13,10 @@ import type { CartItem } from "~/lib/types";
 
 import type { Route } from "./+types/cart";
 
-export const meta: Route.MetaFunction = () => [{ title: "Корзина" }, { name: "robots", content: "noindex" }];
+export const meta: Route.MetaFunction = ({ matches }) => {
+  const lang = (matches[0]?.loaderData as { lang?: "uk" | "ru" } | undefined)?.lang ?? "uk";
+  return [{ title: makeT(lang)("cart.title") }, { name: "robots", content: "noindex" }];
+};
 
 export async function loader({ context }: Route.LoaderArgs) {
   const cart = await getCart(context.get(apiContext), context.get(sessionContext));
@@ -26,6 +31,7 @@ export async function action({ request, context }: Route.ActionArgs) {
   const intent = String(form.get("intent"));
   const variant = Number(form.get("variant")) || null;
   const quantity = Math.max(0, Math.floor(Number(form.get("quantity")) || 0));
+  const t = makeT(langFromRequest(request));
 
   try {
     let lines = cartLines(await getCart(api, session));
@@ -41,30 +47,31 @@ export async function action({ request, context }: Route.ActionArgs) {
     } else if (intent === "clear") {
       lines = [];
     } else {
-      return data({ ok: false, error: "Неизвестное действие" }, { status: 400 });
+      return data({ ok: false, error: t("cart.unknownAction") }, { status: 400 });
     }
     await saveCart(api, session, lines);
     return { ok: true };
   } catch (e) {
-    const message = e instanceof ApiError ? Object.values(e.fieldErrors)[0] : "Не удалось обновить корзину";
+    const message = e instanceof ApiError ? Object.values(e.fieldErrors)[0] : t("cart.error");
     return data({ ok: false, error: message }, { status: 400 });
   }
 }
 
 export default function CartPage({ loaderData }: Route.ComponentProps) {
   const { items, total } = loaderData;
+  const t = useT();
   if (!items.length) {
     return (
-      <EmptyState icon={ShoppingCart} title="Корзина пуста">
-        <p className="mb-4">Добавьте товары из каталога — они сохранятся, даже если закрыть вкладку.</p>
-        <ButtonLink to="/catalog">Перейти в каталог</ButtonLink>
+      <EmptyState icon={ShoppingCart} title={t("cart.empty.title")}>
+        <p className="mb-4">{t("cart.empty.text")}</p>
+        <ButtonLink to="/catalog">{t("common.toCatalog")}</ButtonLink>
       </EmptyState>
     );
   }
   const overLimit = items.some((i) => i.available !== null && i.quantity > Number(i.available));
   return (
     <div>
-      <PageTitle>Корзина</PageTitle>
+      <PageTitle>{t("cart.title")}</PageTitle>
       <div className="grid gap-6 lg:grid-cols-[1fr_22rem]">
         <ul className="space-y-3">
           {items.map((item) => (
@@ -73,17 +80,17 @@ export default function CartPage({ loaderData }: Route.ComponentProps) {
         </ul>
         <Card className="space-y-4 self-start p-5 lg:sticky lg:top-24">
           <div className="flex items-baseline justify-between">
-            <span className="text-muted">Итого</span>
+            <span className="text-muted">{t("cart.total")}</span>
             <span className="text-2xl font-bold">{formatPrice(total)}</span>
           </div>
           {overLimit && (
-            <p className="text-sm text-danger">Некоторых товаров меньше, чем в корзине — уменьшите количество.</p>
+            <p className="text-sm text-danger">{t("cart.overLimit")}</p>
           )}
           <ButtonLink to="/checkout" size="lg" className={`w-full ${overLimit ? "pointer-events-none opacity-60" : ""}`} aria-disabled={overLimit}>
-            Оформить заказ
+            {t("cart.checkout")}
           </ButtonLink>
           <Link to="/catalog" className="block text-center text-sm text-brand-600 hover:underline">
-            Продолжить покупки
+            {t("cart.continue")}
           </Link>
         </Card>
       </div>
@@ -93,6 +100,7 @@ export default function CartPage({ loaderData }: Route.ComponentProps) {
 
 function CartRow({ item }: { item: CartItem }) {
   const fetcher = useFetcher<{ ok: boolean; error?: string }>();
+  const t = useT();
   const pending = fetcher.formData;
   // оптимистичное обновление: показываем новое количество сразу
   const quantity = pending?.get("intent") === "set" ? Number(pending.get("quantity")) : item.quantity;
@@ -110,12 +118,12 @@ function CartRow({ item }: { item: CartItem }) {
           <fetcher.Form method="post">
             <input type="hidden" name="intent" value="remove" />
             <input type="hidden" name="variant" value={item.variant ?? ""} />
-            <button type="submit" className="text-muted hover:text-danger" aria-label="Удалить из корзины">
+            <button type="submit" className="text-muted hover:text-danger" aria-label={t("cart.remove")}>
               <Trash2 className="size-5" />
             </button>
           </fetcher.Form>
         </div>
-        <p className="text-sm text-muted">{formatPrice(item.price)} за шт.</p>
+        <p className="text-sm text-muted">{t("cart.perUnit", { price: formatPrice(item.price) })}</p>
         <div className="mt-auto flex flex-wrap items-center justify-between gap-3">
           <fetcher.Form method="post" className="flex items-center gap-2">
             <input type="hidden" name="intent" value="set" />
@@ -128,7 +136,7 @@ function CartRow({ item }: { item: CartItem }) {
                 value={quantity + delta}
                 disabled={quantity + delta < 1 || (delta > 0 && available !== null && quantity >= available)}
                 className="grid size-9 place-items-center rounded-lg border border-line text-lg disabled:opacity-40"
-                aria-label={delta > 0 ? "Увеличить" : "Уменьшить"}
+                aria-label={delta > 0 ? t("common.increase") : t("common.decrease")}
                 style={{ order: delta < 0 ? 0 : 2 }}
               >
                 {delta > 0 ? "+" : "−"}
@@ -139,7 +147,7 @@ function CartRow({ item }: { item: CartItem }) {
           <span className="font-semibold">{formatPrice(Number(item.price ?? 0) * quantity)}</span>
         </div>
         {available !== null && quantity > available && (
-          <p className="text-sm text-danger">В наличии только {formatQty(available)} шт.</p>
+          <p className="text-sm text-danger">{t("cart.onlyLeft", { qty: formatQty(available) })}</p>
         )}
         {fetcher.data?.error && <p className="text-sm text-danger">{fetcher.data.error}</p>}
       </div>

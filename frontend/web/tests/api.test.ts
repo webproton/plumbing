@@ -69,11 +69,11 @@ describe("Api", () => {
   it("throws ApiError with body on failure and 503 when unreachable", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(json(400, { detail: "x", code: "insufficient_stock" })));
     const { api } = await makeApi();
-    const err = await api.post("/orders/order-create/", {}).catch((e) => e);
+    const err = (await api.post("/orders/order-create/", {}).catch((e: unknown) => e)) as ApiError;
     expect(err).toBeInstanceOf(ApiError);
     expect(err.code).toBe("insufficient_stock");
 
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("ECONNREFUSED")));
-    expect((await api.get("/x/").catch((e) => e)).status).toBe(503);
+    expect(((await api.get("/x/").catch((e: unknown) => e)) as ApiError).status).toBe(503);
   });
 });

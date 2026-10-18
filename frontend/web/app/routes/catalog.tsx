@@ -1,9 +1,11 @@
 import { PackageSearch, SlidersHorizontal } from "lucide-react";
-import { Form, Link, useNavigation, useSubmit } from "react-router";
+import { Form, useNavigation, useSubmit } from "react-router";
 
 import { Pagination } from "~/components/Pagination";
 import { ProductCard } from "~/components/ProductCard";
 import { Button, EmptyState, Input, PageTitle, Select } from "~/components/ui";
+import { makeT, type Lang } from "~/i18n";
+import { Link, useT } from "~/i18n/react";
 import { apiContext } from "~/lib/context.server";
 import { pluralize } from "~/lib/format";
 import type { Paginated, ProductListItem } from "~/lib/types";
@@ -13,11 +15,11 @@ import type { Route } from "./+types/catalog";
 
 const PAGE_SIZE = 24;
 const SORTS = [
-  { value: "", label: "Сначала дешёвые" },
-  { value: "-price", label: "Сначала дорогие" },
-  { value: "new", label: "Новинки" },
-  { value: "name", label: "По названию" },
-];
+  { value: "", label: "catalog.sort.cheap" },
+  { value: "-price", label: "catalog.sort.expensive" },
+  { value: "new", label: "catalog.sort.new" },
+  { value: "name", label: "catalog.sort.name" },
+] as const;
 
 export async function loader({ request, context }: Route.LoaderArgs) {
   const url = new URL(request.url);
@@ -42,20 +44,24 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 }
 
 export function meta({ loaderData, matches }: Route.MetaArgs) {
-  const root = matches[0]?.loaderData as { categories?: { slug: string; name: string }[]; siteName?: string } | undefined;
+  const root = matches[0]?.loaderData as
+    | { categories?: { slug: string; name: string }[]; siteName?: string; lang?: Lang }
+    | undefined;
+  const t = makeT(root?.lang ?? "uk");
   const category = root?.categories?.find((c) => c.slug === loaderData?.filters.category);
   const title = loaderData?.filters.search
-    ? `Поиск «${loaderData.filters.search}»`
-    : category?.name ?? "Каталог";
+    ? t("catalog.searchMeta", { query: loaderData.filters.search })
+    : (category?.name ?? t("catalog.title"));
   return [
     { title: `${title} — ${root?.siteName ?? ""}` },
-    { name: "description", content: `${title}: цены, наличие на складе, доставка по Украине.` },
+    { name: "description", content: t("catalog.metaDescription", { title }) },
   ];
 }
 
 export default function Catalog({ loaderData }: Route.ComponentProps) {
   const { results, count, page, pages, filters } = loaderData;
   const categories = useRootData()?.categories ?? [];
+  const t = useT();
   const submit = useSubmit();
   const navigation = useNavigation();
   const loading = navigation.state === "loading" && navigation.location?.pathname === "/catalog";
@@ -63,8 +69,8 @@ export default function Catalog({ loaderData }: Route.ComponentProps) {
 
   return (
     <div>
-      <PageTitle subtitle={`${count} ${pluralize(count, ["товар", "товара", "товаров"])}`}>
-        {filters.search ? `Поиск: «${filters.search}»` : category?.name ?? "Каталог"}
+      <PageTitle subtitle={`${count} ${pluralize(count, t("plural.product"))}`}>
+        {filters.search ? t("catalog.searchTitle", { query: filters.search }) : (category?.name ?? t("catalog.title"))}
       </PageTitle>
 
       <div className="grid gap-6 lg:grid-cols-[16rem_1fr]">
@@ -79,16 +85,16 @@ export default function Catalog({ loaderData }: Route.ComponentProps) {
           }}
         >
           <p className="flex items-center gap-2 font-semibold">
-            <SlidersHorizontal className="size-4" aria-hidden /> Фильтры
+            <SlidersHorizontal className="size-4" aria-hidden /> {t("catalog.filters")}
           </p>
           <label className="block space-y-1.5">
-            <span className="text-sm font-medium">Поиск</span>
-            <Input name="search" type="search" defaultValue={filters.search} placeholder="Название или артикул" autoFocus={false} />
+            <span className="text-sm font-medium">{t("catalog.search")}</span>
+            <Input name="search" type="search" defaultValue={filters.search} placeholder={t("catalog.searchPlaceholder")} autoFocus={false} />
           </label>
           <label className="block space-y-1.5">
-            <span className="text-sm font-medium">Категория</span>
+            <span className="text-sm font-medium">{t("catalog.category")}</span>
             <Select name="category" defaultValue={filters.category}>
-              <option value="">Все категории</option>
+              <option value="">{t("catalog.allCategories")}</option>
               {categories.map((c) => (
                 <option key={c.id} value={c.slug}>
                   {c.name}
@@ -97,36 +103,36 @@ export default function Catalog({ loaderData }: Route.ComponentProps) {
             </Select>
           </label>
           <fieldset className="space-y-1.5">
-            <legend className="text-sm font-medium">Цена, ₴</legend>
+            <legend className="text-sm font-medium">{t("catalog.price")}</legend>
             <div className="flex gap-2">
-              <Input name="min_price" type="number" min={0} inputMode="numeric" placeholder="от" defaultValue={filters.min_price} />
-              <Input name="max_price" type="number" min={0} inputMode="numeric" placeholder="до" defaultValue={filters.max_price} />
+              <Input name="min_price" type="number" min={0} inputMode="numeric" placeholder={t("catalog.priceFrom")} defaultValue={filters.min_price} />
+              <Input name="max_price" type="number" min={0} inputMode="numeric" placeholder={t("catalog.priceTo")} defaultValue={filters.max_price} />
             </div>
           </fieldset>
           <label className="block space-y-1.5">
-            <span className="text-sm font-medium">Сортировка</span>
+            <span className="text-sm font-medium">{t("catalog.sort")}</span>
             <Select name="ordering" defaultValue={filters.ordering}>
               {SORTS.map((s) => (
                 <option key={s.value} value={s.value}>
-                  {s.label}
+                  {t(s.label)}
                 </option>
               ))}
             </Select>
           </label>
           <Button type="submit" variant="secondary" className="w-full">
-            Показать
+            {t("common.show")}
           </Button>
           {(filters.search || filters.category || filters.min_price || filters.max_price) && (
             <Link to="/catalog" className="block text-center text-sm text-brand-600 hover:underline">
-              Сбросить фильтры
+              {t("catalog.reset")}
             </Link>
           )}
         </Form>
 
         <section aria-busy={loading} className={loading ? "opacity-60 transition-opacity" : "transition-opacity"}>
           {results.length === 0 ? (
-            <EmptyState icon={PackageSearch} title="Ничего не нашлось">
-              Попробуйте изменить фильтры или поискать по артикулу.
+            <EmptyState icon={PackageSearch} title={t("catalog.empty.title")}>
+              {t("catalog.empty.text")}
             </EmptyState>
           ) : (
             <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-4">

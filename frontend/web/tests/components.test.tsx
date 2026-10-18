@@ -8,12 +8,22 @@ import { Pagination } from "~/components/Pagination";
 import { Price } from "~/components/Price";
 import { QuantityStepper } from "~/components/QuantityStepper";
 
+/** Рендер внутри маршрутизатора (компоненты берут язык из данных root) */
+function renderInRouter(ui: React.ReactNode, lang: "uk" | "ru" = "uk") {
+  const Stub = createRoutesStub([{ id: "root", path: "/", loader: () => ({ lang }), Component: () => ui }]);
+  return render(<Stub />);
+}
+
 describe("Price", () => {
-  it("shows old price only when it is higher", () => {
-    const { rerender } = render(<Price value="900" original="1000" from />);
-    expect(screen.getByText(/от/)).toBeInTheDocument();
+  it("shows old price only when it is higher, «from» in page language", async () => {
+    renderInRouter(<Price value="900" original="1000" from />);
+    expect(await screen.findByText(/від/)).toBeInTheDocument();
     expect(screen.getByText(/1\s000/)).toHaveClass("line-through");
-    rerender(<Price value="900" original="900" />);
+  });
+
+  it("uses Russian on /ru", async () => {
+    renderInRouter(<Price value="900" original="900" from />, "ru");
+    expect(await screen.findByText(/от/)).toBeInTheDocument();
     expect(document.querySelector(".line-through")).toBeNull();
   });
 });
@@ -24,18 +34,20 @@ describe("QuantityStepper", () => {
       const [v, setV] = useState(1);
       return <QuantityStepper value={v} onChange={setV} max={2} />;
     }
-    render(<Wrapper />);
-    const input = screen.getByLabelText("Количество");
-    expect(screen.getByLabelText("Уменьшить")).toBeDisabled();
-    await userEvent.click(screen.getByLabelText("Увеличить"));
+    renderInRouter(<Wrapper />);
+    const input = await screen.findByLabelText("Кількість");
+    expect(screen.getByLabelText("Зменшити")).toBeDisabled();
+    await userEvent.click(screen.getByLabelText("Збільшити"));
     expect(input).toHaveValue(2);
-    expect(screen.getByLabelText("Увеличить")).toBeDisabled();
+    expect(screen.getByLabelText("Збільшити")).toBeDisabled();
   });
 });
 
 describe("Pagination", () => {
   it("keeps filters in links and marks current page", async () => {
-    const Stub = createRoutesStub([{ path: "/catalog", Component: () => <Pagination page={2} pages={5} /> }]);
+    const Stub = createRoutesStub([
+      { id: "root", path: "/catalog", loader: () => ({ lang: "uk" }), Component: () => <Pagination page={2} pages={5} /> },
+    ]);
     render(<Stub initialEntries={["/catalog?category=krany&page=2"]} />);
     const current = await screen.findByRole("link", { current: "page" });
     expect(current).toHaveTextContent("2");

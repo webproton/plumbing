@@ -1,9 +1,12 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Link, useLocation } from "react-router";
 
+import { useT } from "~/i18n/react";
+
 import { buttonClass } from "./ui";
 
 export function Pagination({ page, pages }: { page: number; pages: number }) {
+  const t = useT();
   const { pathname, search } = useLocation();
   if (pages <= 1) return null;
   const href = (p: number) => {
@@ -15,9 +18,9 @@ export function Pagination({ page, pages }: { page: number; pages: number }) {
   };
   const shown = [...new Set([1, page - 1, page, page + 1, pages])].filter((p) => p >= 1 && p <= pages);
   return (
-    <nav aria-label="Страницы" className="mt-8 flex flex-wrap items-center justify-center gap-2">
+    <nav aria-label={t("common.pages")} className="mt-8 flex flex-wrap items-center justify-center gap-2">
       {page > 1 && (
-        <Link to={href(page - 1)} className={buttonClass("secondary", "sm")} aria-label="Назад">
+        <Link to={href(page - 1)} className={buttonClass("secondary", "sm")} aria-label={t("common.back")}>
           <ChevronLeft className="size-4" />
         </Link>
       )}
@@ -34,7 +37,7 @@ export function Pagination({ page, pages }: { page: number; pages: number }) {
         </span>
       ))}
       {page < pages && (
-        <Link to={href(page + 1)} className={buttonClass("secondary", "sm")} aria-label="Вперёд">
+        <Link to={href(page + 1)} className={buttonClass("secondary", "sm")} aria-label={t("common.forward")}>
           <ChevronRight className="size-4" />
         </Link>
       )}

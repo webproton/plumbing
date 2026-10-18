@@ -1,4 +1,6 @@
-import { redirect, type RouterContextProvider } from "react-router";
+import { type RouterContextProvider } from "react-router";
+
+import { localRedirect } from "~/i18n/server";
 
 import { sessionContext } from "./session.server";
 
@@ -8,7 +10,7 @@ export function requireUser(request: Request, context: Readonly<RouterContextPro
   const user = session.get("user");
   if (!user || !session.has("access")) {
     const url = new URL(request.url);
-    throw redirect(`/login?next=${encodeURIComponent(url.pathname + url.search)}`);
+    throw localRedirect(request, `/login?next=${encodeURIComponent(url.pathname + url.search)}`);
   }
   return user;
 }

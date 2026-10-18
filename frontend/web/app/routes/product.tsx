@@ -1,11 +1,13 @@
 import { Heart, ImageOff, PackageCheck, PackageX, Truck } from "lucide-react";
 import { useState } from "react";
-import { data, Link, useFetcher, useSearchParams } from "react-router";
+import { data, useFetcher, useSearchParams } from "react-router";
 
 import { AddToCartButton } from "~/components/AddToCartButton";
 import { Price } from "~/components/Price";
 import { QuantityStepper } from "~/components/QuantityStepper";
 import { Badge, Button } from "~/components/ui";
+import { langFromRequest, makeT, type Lang, type TFunction } from "~/i18n";
+import { Link, useLocalPath, useT } from "~/i18n/react";
 import { ApiError } from "~/lib/api.server";
 import { apiContext } from "~/lib/context.server";
 import { formatQty } from "~/lib/format";
@@ -14,26 +16,27 @@ import { useRootData } from "~/root";
 
 import type { Route } from "./+types/product";
 
-export async function loader({ params, context }: Route.LoaderArgs) {
+export async function loader({ params, request, context }: Route.LoaderArgs) {
   const api = context.get(apiContext);
   try {
     const product = await api.get<ProductDetail>(`/products/${encodeURIComponent(params.slug)}/`);
     return { product };
   } catch (e) {
-    if (e instanceof ApiError && e.status === 404) throw data("Товар не найден", { status: 404 });
+    if (e instanceof ApiError && e.status === 404) throw data(makeT(langFromRequest(request))("product.notFound"), { status: 404 });
     throw e;
   }
 }
 
 export function meta({ loaderData, matches }: Route.MetaArgs) {
-  if (!loaderData) return [{ title: "Товар не найден" }];
+  const root = matches[0]?.loaderData as { siteName?: string; publicUrl?: string; lang?: Lang } | undefined;
+  const t = makeT(root?.lang ?? "uk");
+  if (!loaderData) return [{ title: t("product.notFound") }];
   const { product } = loaderData;
-  const root = matches[0]?.loaderData as { siteName?: string; publicUrl?: string } | undefined;
   const v = product.variants[0];
   const image = v?.photo ?? product.photo;
-  const description = (product.description ?? v?.description ?? `Купить ${product.name} с доставкой по Украине`).slice(0, 160);
+  const description = (product.description ?? v?.description ?? t("product.metaDescription", { name: product.name })).slice(0, 160);
   return [
-    { title: `${product.name} — купить в ${root?.siteName ?? "магазине"}` },
+    { title: t("product.metaTitle", { name: product.name, site: root?.siteName ?? "" }) },
     { name: "description", content: description },
     { property: "og:title", content: product.name },
     { property: "og:type", content: "product" },
@@ -59,14 +62,15 @@ export function meta({ loaderData, matches }: Route.MetaArgs) {
   ];
 }
 
-function variantLabel(v: Variant) {
-  return v.color?.name ?? v.product_name ?? v.code ?? `Вариант ${v.id}`;
+function variantLabel(v: Variant, t: TFunction) {
+  return v.color?.name ?? v.product_name ?? v.code ?? t("product.variantN", { n: v.id });
 }
 
 export default function ProductPage({ loaderData }: Route.ComponentProps) {
   const { product } = loaderData;
   const [params, setParams] = useSearchParams();
   const user = useRootData()?.user;
+  const t = useT();
   const variant =
     product.variants.find((v) => String(v.id) === params.get("v")) ?? product.variants[0] ?? null;
   const [qty, setQty] = useState(1);
@@ -78,8 +82,8 @@ export default function ProductPage({ loaderData }: Route.ComponentProps) {
 
   return (
     <div className="space-y-10">
-      <nav aria-label="Навигация" className="text-sm text-muted">
-        <Link to="/catalog" className="hover:text-ink">Каталог</Link>
+      <nav aria-label={t("nav.catalog")} className="text-sm text-muted">
+        <Link to="/catalog" className="hover:text-ink">{t("nav.catalog")}</Link>
         {product.category && (
           <>
             {" / "}
@@ -106,7 +110,7 @@ export default function ProductPage({ loaderData }: Route.ComponentProps) {
                   key={src}
                   type="button"
                   onClick={() => setActive(i)}
-                  aria-label={`Фото ${i + 1}`}
+                  aria-label={t("product.photo", { n: i + 1 })}
                   aria-pressed={i === active}
                   className={`size-20 shrink-0 overflow-hidden rounded-xl border bg-white ${i === active ? "border-brand-500 ring-2 ring-brand-100" : "border-line"}`}
                 >
@@ -120,7 +124,7 @@ export default function ProductPage({ loaderData }: Route.ComponentProps) {
         <div className="space-y-6">
           <div className="space-y-2">
             <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{product.name}</h1>
-            {variant?.code && <p className="text-sm text-muted">Артикул: {variant.code}</p>}
+            {variant?.code && <p className="text-sm text-muted">{t("product.sku", { sku: variant.code })}</p>}
           </div>
 
           {variant ? (
@@ -129,18 +133,18 @@ export default function ProductPage({ loaderData }: Route.ComponentProps) {
               <div className="flex items-center gap-2">
                 {variant.in_stock ? (
                   <Badge tone="success">
-                    <PackageCheck className="mr-1 size-3.5" aria-hidden /> В наличии: {formatQty(available)} шт.
+                    <PackageCheck className="mr-1 size-3.5" aria-hidden /> {t("product.inStockQty", { qty: formatQty(available) })}
                   </Badge>
                 ) : (
                   <Badge tone="muted">
-                    <PackageX className="mr-1 size-3.5" aria-hidden /> Нет в наличии
+                    <PackageX className="mr-1 size-3.5" aria-hidden /> {t("product.outOfStock")}
                   </Badge>
                 )}
               </div>
 
               {product.variants.length > 1 && (
                 <fieldset className="space-y-2">
-                  <legend className="text-sm font-medium">Вариант</legend>
+                  <legend className="text-sm font-medium">{t("product.variant")}</legend>
                   <div className="flex flex-wrap gap-2">
                     {product.variants.map((v) => (
                       <button
@@ -154,7 +158,7 @@ export default function ProductPage({ loaderData }: Route.ComponentProps) {
                         aria-pressed={v.id === variant.id}
                         className={`rounded-xl border px-3 py-2 text-sm ${v.id === variant.id ? "border-brand-500 bg-brand-50 font-medium" : "border-line bg-white hover:border-brand-500"} ${v.in_stock ? "" : "text-muted"}`}
                       >
-                        {variantLabel(v)}
+                        {variantLabel(v, t)}
                       </button>
                     ))}
                   </div>
@@ -175,11 +179,11 @@ export default function ProductPage({ loaderData }: Route.ComponentProps) {
               </div>
 
               <p className="flex items-center gap-2 text-sm text-muted">
-                <Truck className="size-4" aria-hidden /> Доставка Новой Почтой по Украине, 1–3 дня
+                <Truck className="size-4" aria-hidden /> {t("product.deliveryNote")}
               </p>
             </>
           ) : (
-            <Badge tone="muted">Товар временно недоступен</Badge>
+            <Badge tone="muted">{t("product.unavailable")}</Badge>
           )}
 
           <Specs variant={variant} />
@@ -188,7 +192,7 @@ export default function ProductPage({ loaderData }: Route.ComponentProps) {
 
       {(variant?.description || product.description || variant?.features) && (
         <section className="max-w-3xl space-y-3">
-          <h2 className="text-xl font-bold">Описание</h2>
+          <h2 className="text-xl font-bold">{t("product.description")}</h2>
           <p className="leading-relaxed whitespace-pre-line text-ink/90">{variant?.description || product.description}</p>
           {variant?.features && <p className="leading-relaxed whitespace-pre-line text-muted">{variant.features}</p>}
         </section>
@@ -198,14 +202,15 @@ export default function ProductPage({ loaderData }: Route.ComponentProps) {
 }
 
 function Specs({ variant }: { variant: Variant | null }) {
+  const t = useT();
   if (!variant) return null;
   const rows: [string, string | null | undefined][] = [
-    ["Бренд", variant.brand?.name],
-    ["Цвет", variant.color?.name],
-    ["Ширина, мм", variant.dimensions_width],
-    ["Высота, мм", variant.dimensions_height],
-    ["Глубина, мм", variant.dimensions_depth],
-    ["Вес, кг", variant.dimensions_weight],
+    [t("product.spec.brand"), variant.brand?.name],
+    [t("product.spec.color"), variant.color?.name],
+    [t("product.spec.width"), variant.dimensions_width],
+    [t("product.spec.height"), variant.dimensions_height],
+    [t("product.spec.depth"), variant.dimensions_depth],
+    [t("product.spec.weight"), variant.dimensions_weight],
   ];
   const filled = rows.filter(([, v]) => v);
   if (!filled.length) return null;
@@ -223,11 +228,13 @@ function Specs({ variant }: { variant: Variant | null }) {
 
 function WishlistButton({ variantId }: { variantId: number }) {
   const fetcher = useFetcher<{ ok?: boolean }>();
+  const t = useT();
+  const local = useLocalPath();
   return (
-    <fetcher.Form method="post" action="/wishlist">
+    <fetcher.Form method="post" action={local("/wishlist")}>
       <input type="hidden" name="intent" value="add" />
       <input type="hidden" name="variant" value={variantId} />
-      <Button type="submit" variant="secondary" size="lg" aria-label="В избранное" loading={fetcher.state !== "idle"}>
+      <Button type="submit" variant="secondary" size="lg" aria-label={t("product.toWishlist")} loading={fetcher.state !== "idle"}>
         <Heart className={`size-5 ${fetcher.data?.ok ? "fill-danger text-danger" : ""}`} aria-hidden />
       </Button>
     </fetcher.Form>

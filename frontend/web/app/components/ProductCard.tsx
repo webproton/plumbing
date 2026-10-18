@@ -1,5 +1,5 @@
 import { ImageOff } from "lucide-react";
-import { Link } from "react-router";
+import { Link, useT } from "~/i18n/react";
 
 import type { ProductListItem } from "~/lib/types";
 
@@ -8,6 +8,7 @@ import { Price } from "./Price";
 import { Badge } from "./ui";
 
 export function ProductCard({ product }: { product: ProductListItem }) {
+  const t = useT();
   const variant = product.first_variant;
   const image = variant?.photo ?? product.photo;
   const inStock = Boolean(variant?.in_stock);
@@ -37,7 +38,7 @@ export function ProductCard({ product }: { product: ProductListItem }) {
         </Link>
         <div className="mt-auto flex items-end justify-between gap-2">
           <Price value={product.price} original={variant?.original_price} from />
-          <Badge tone={inStock ? "success" : "muted"}>{inStock ? "В наличии" : "Под заказ"}</Badge>
+          <Badge tone={inStock ? "success" : "muted"}>{inStock ? t("product.inStock") : t("product.onOrder")}</Badge>
         </div>
         {variant && <AddToCartButton productId={product.id} variantId={variant.id} disabled={!inStock} size="sm" />}
       </div>
