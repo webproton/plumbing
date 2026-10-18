@@ -3,7 +3,7 @@
 Что где лежит, за что отвечает, какие ключевые функции, что удалено и что ушло в архив.
 Устройство и бизнес-правила подробнее — в [PROJECT_STRUCTURE.md](PROJECT_STRUCTURE.md), план — в [ROADMAP.md](ROADMAP.md).
 
-> Обновлено: 2026-10-17 · ветка `refactor/production-readiness`
+> Обновлено: 2026-10-18 · ветка `refactor/production-readiness`
 
 ---
 
@@ -86,7 +86,7 @@ API: `/api/orders/cart/` (+`by-uuid/`), `/api/orders/order-create/`, `/api/order
 | `views.py`, `serializers.py`, `admin.py` | API склада, сканер, админка (журнал — только чтение, «Провести», «Сверить остатки») |
 | `templates/warehouse/scanner_mock.html` | Тестовая страница сканера (только staff) |
 
-API (`/api/warehouse/`): `warehouses/` (+`{id}/balances/`), `suppliers/`, `stock-movements/` (+`transfer/`, `return_supplier/`, `inventory/`, `summary/`), `inventory-documents/` (+`{id}/parse/`, `{id}/lines/{n}/`, `{id}/process/`, `{id}/scan/`, `{id}/print/`, `{id}/file/`, `variant-search/`), сканер: `stock-movements/find_by_barcode_or_sku/`, `stock-movements/create_and_add/`.
+API (`/api/warehouse/`): `me/`, `dashboard/`, `balances/`, `variants/search/`, `warehouses/` (+`{id}/balances/`), `suppliers/`, `stock-movements/` (+`transfer/`, `return_supplier/`, `inventory/`, `summary/`), `inventory-documents/` (+`{id}/parse/`, `{id}/lines/{n}/`, `{id}/process/`, `{id}/scan/`, `{id}/print/`, `{id}/file/`, `variant-search/`), сканер: `stock-movements/find_by_barcode_or_sku/`, `stock-movements/create_and_add/`.
 
 ### 2.5 `app/parsers/` — парсеры накладных
 
@@ -129,6 +129,9 @@ React Router 8 (SSR) · React 19 · TypeScript strict · Tailwind CSS 4 · zod �
 | `app/lib/types.ts` | Типы ответов API |
 | `app/components/` | UI-кит (`ui.tsx`), шапка, подвал, карточка товара, цена, пагинация, количество, «в корзину», заявка на звонок |
 | `app/routes/` | Страницы: главная, каталог, товар, корзина, оформление, вход/регистрация/пароль, кабинет, избранное, доставка, контакты |
+| `app/routes/seller/` | Кабинет склада/продавца: `layout` (роль, навигация), `index` (обзор), `stock`, `documents` + `document` (накладные), `operations`, `scanner`, `movements`, `warehouses`, `suppliers`, ресурсные маршруты `variants` (поиск товара) и `document-file` (скачивание) |
+| `app/components/seller/` | `Table` (таблицы, карточки-метрики), `VariantPicker` (поиск товара), `CameraScanner` (камера телефона) |
+| `app/i18n/` | Словари: `uk.ts` (еталон), `ru.ts`, кабинет — `seller.uk.ts`/`seller.ru.ts`; `react.tsx` (useT, Link с языком), `server.ts` |
 | `tests/` | Vitest: форматирование, валидация, API-клиент, компоненты |
 | `Dockerfile` | Node 24 alpine, SSR-сервер `react-router-serve` на :3000 |
 

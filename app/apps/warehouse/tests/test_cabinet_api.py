@@ -130,3 +130,15 @@ def test_document_detail_names_variants_and_list_is_paginated(client, wh):
     assert detail["variants"][str(existing.pk)]["name"] == "Змішувач Grohe Eurosmart"
     listing = client.get(reverse("warehouse:inventorydocument-list")).json()
     assert listing["count"] == 1 and listing["results"][0]["variants"] == {}
+
+
+def test_single_default_warehouse(client, seller):
+    url = reverse("warehouse:warehouse-list")
+    first = client.post(url, {"name": "Основной", "address": ""}, format="json").json()
+    assert first["is_default"] is True  # первый склад становится основным автоматически
+    second = client.post(url, {"name": "Магазин", "is_default": True}, format="json").json()
+    assert second["is_default"] is True
+    rows = {w["id"]: w["is_default"] for w in client.get(url).json()}
+    assert rows == {first["id"]: False, second["id"]: True}
+    third = client.post(url, {"name": "Подвал"}, format="json").json()
+    assert third["is_default"] is False

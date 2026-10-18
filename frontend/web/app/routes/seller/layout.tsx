@@ -4,15 +4,13 @@ import {
   ClipboardList,
   FileText,
   LayoutDashboard,
-  Lock,
   PackageSearch,
   ScanBarcode,
   Truck,
   Warehouse,
 } from "lucide-react";
-import { Outlet, useRouteLoaderData } from "react-router";
+import { createContext, data, Outlet, useRouteLoaderData } from "react-router";
 
-import { EmptyState } from "~/components/ui";
 import { tFromMatches, type TKey } from "~/i18n";
 import { NavLink, useT } from "~/i18n/react";
 import { requireSeller } from "~/lib/seller.server";
@@ -25,10 +23,24 @@ export const meta: Route.MetaFunction = ({ matches }) => [
   { name: "robots", content: "noindex" },
 ];
 
-export async function loader({ request, context }: Route.LoaderArgs) {
-  const api = requireSeller(request, context);
-  const me = await api.get<WarehouseMe>("/warehouse/me/");
-  return { me };
+const sellerContext = createContext<WarehouseMe>();
+
+/**
+ * Роль проверяется ДО загрузчиков вложенных страниц (иначе они параллельно получают 403 от API
+ * и показывают ошибку сервера). Ответ 403 показывает корневая ErrorBoundary (root.tsx):
+ * ошибка из middleware поднимается к границе выше маршрута.
+ */
+export const middleware: Route.MiddlewareFunction[] = [
+  async ({ request, context }) => {
+    const api = requireSeller(request, context);
+    const me = await api.get<WarehouseMe>("/warehouse/me/");
+    if (!me.is_staff_user) throw data({ pending: me.seller_pending }, { status: 403 });
+    context.set(sellerContext, me);
+  },
+];
+
+export function loader({ context }: Route.LoaderArgs) {
+  return { me: context.get(sellerContext) };
 }
 
 /** Данные кабинета (роль, склады продавца) для вложенных страниц */
@@ -52,18 +64,6 @@ const NAV: { to: string; label: TKey; icon: typeof Warehouse; end?: boolean }[] 
 export default function SellerLayout({ loaderData }: Route.ComponentProps) {
   const { me } = loaderData;
   const t = useT();
-
-  if (!me.is_staff_user) {
-    return me.seller_pending ? (
-      <EmptyState icon={Lock} title={t("wh.pending.title")}>
-        {t("wh.pending.text")}
-      </EmptyState>
-    ) : (
-      <EmptyState icon={Lock} title={t("wh.noAccess.title")}>
-        {t("wh.noAccess.text")}
-      </EmptyState>
-    );
-  }
 
   const link = ({ isActive }: { isActive: boolean }) =>
     `flex items-center gap-2 whitespace-nowrap rounded-xl px-3 py-2 text-sm font-medium ${isActive ? "bg-brand-50 text-brand-700" : "hover:bg-brand-50"}`;

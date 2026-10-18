@@ -149,7 +149,8 @@ export default function Document({ loaderData, actionData }: Route.ComponentProp
           </Form>
         </Alert>
       )}
-      {failed && failed.intent !== "process" && <Alert tone="danger">{failed.error}</Alert>}
+      {/* ошибка «Провести» показывается в панели проведения; если панели уже нет (документ проведён) — здесь */}
+      {failed && (failed.intent !== "process" || doc.processed) && <Alert tone="danger">{failed.error}</Alert>}
 
       {lines.length > 0 && (
         <>
