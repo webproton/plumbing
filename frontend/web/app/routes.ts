@@ -31,6 +31,11 @@ export default [
         index("routes/seller/index.tsx"),
         route("stock", "routes/seller/stock.tsx"),
         route("movements", "routes/seller/movements.tsx"),
+        route("operations", "routes/seller/operations.tsx"),
+        route("documents", "routes/seller/documents.tsx"),
+        route("documents/:id", "routes/seller/document.tsx"),
+        route("documents/:id/file", "routes/seller/document-file.tsx"),
+        route("variants", "routes/seller/variants.tsx"),
       ]),
     ]),
 

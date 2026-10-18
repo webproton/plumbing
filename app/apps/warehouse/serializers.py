@@ -143,6 +143,9 @@ class InventoryDocumentSerializer(serializers.ModelSerializer):
     supplier_name = serializers.CharField(source="supplier.name", read_only=True, default=None)
     movements_count = serializers.IntegerField(source="stock_movements.count", read_only=True)
     summary = serializers.SerializerMethodField(help_text="Количество строк по статусам сопоставления")
+    variants = serializers.SerializerMethodField(
+        help_text="Названия товаров из строк: {id: {name, sku}} (только в карточке)"
+    )
 
     class Meta:
         model = InventoryDocument
@@ -156,6 +159,7 @@ class InventoryDocumentSerializer(serializers.ModelSerializer):
             "uploaded_at",
             "extracted_data",
             "summary",
+            "variants",
             "processed",
             "processed_at",
             "movements_count",
@@ -166,6 +170,22 @@ class InventoryDocumentSerializer(serializers.ModelSerializer):
 
     def get_summary(self, obj):
         return (obj.extracted_data or {}).get("summary")
+
+    def get_variants(self, obj):
+        """Названия товаров, на которые ссылаются строки (id и кандидаты); в списке не считаем — N+1."""
+        view = self.context.get("view")
+        if getattr(view, "action", None) == "list":
+            return {}
+        lines = (obj.extracted_data or {}).get("lines") or []
+        ids = {ln["variant_id"] for ln in lines if ln.get("variant_id")}
+        ids |= {c["variant_id"] for ln in lines for c in ln.get("candidates", [])}
+        if not ids:
+            return {}
+        found = ProductVariant.objects.filter(pk__in=ids).select_related("product")
+        return {
+            str(v.pk): {"name": v.variant_name or (v.product.name if v.product_id else ""), "sku": v.code}
+            for v in found
+        }
 
     def validate_file(self, f):
         ext = os.path.splitext(f.name)[1].lower()

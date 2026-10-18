@@ -147,6 +147,18 @@ export class Api {
     }
   }
 
+  /** Сырой ответ API (скачивание файлов). Токен подставляется на сервере витрины. */
+  async download(path: string, retried = false): Promise<Response> {
+    const token = this.session.get("access");
+    const response = await fetch(`${config.apiUrl}/api${path}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      signal: AbortSignal.timeout(30_000),
+    });
+    if (response.status === 401 && token && !retried && (await this.refresh())) return this.download(path, true);
+    if (!response.ok) throw new ApiError(response.status, null, this.lang);
+    return response;
+  }
+
   signIn(tokens: { access: string; refresh: string }, user: { email: string; name: string; staff?: boolean }) {
     this.session.set("access", tokens.access);
     this.session.set("refresh", tokens.refresh);
