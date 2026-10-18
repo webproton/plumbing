@@ -100,3 +100,33 @@ def test_cabinet_requires_staff():
     c.force_authenticate(UserFactory())
     for name in ("warehouse:dashboard", "warehouse:balances-list", "warehouse:variant_search"):
         assert c.get(reverse(name)).status_code == 403
+
+
+def test_document_detail_names_variants_and_list_is_paginated(client, wh):
+    from io import BytesIO
+
+    from django.core.files.uploadedfile import SimpleUploadedFile
+    from openpyxl import Workbook
+
+    existing = ProductVariantFactory(variant_name="Змішувач Grohe Eurosmart", code="GROHE-1")
+    wb = Workbook()
+    for row in [
+        ["№", "Артикул", "Товар", "Кількість", "Ціна", "Сума"],
+        [1, "", "Змішувач Grohe Eurosmart хром", 1, 100, 100],
+    ]:
+        wb.active.append(row)
+    buf = BytesIO()
+    wb.save(buf)
+    doc = client.post(
+        reverse("warehouse:inventorydocument-list"),
+        {
+            "document_type": "incoming",
+            "supplier": SupplierFactory().pk,
+            "file": SimpleUploadedFile("a.xlsx", buf.getvalue()),
+        },
+        format="multipart",
+    ).json()
+    detail = client.get(reverse("warehouse:inventorydocument-detail", args=[doc["id"]])).json()
+    assert detail["variants"][str(existing.pk)]["name"] == "Змішувач Grohe Eurosmart"
+    listing = client.get(reverse("warehouse:inventorydocument-list")).json()
+    assert listing["count"] == 1 and listing["results"][0]["variants"] == {}

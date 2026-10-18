@@ -261,6 +261,12 @@ export interface WarehouseRow {
 }
 
 export type LineStatus = "matched" | "needs_review" | "new" | "invalid";
+export type MatchMethod = "memory" | "barcode" | "sku" | "fuzzy" | "manual";
+export interface ProcessingReport {
+  received: number;
+  created: number;
+  skipped: { row: number; reason: string }[];
+}
 
 export interface InvoiceLine {
   position: number;
@@ -273,7 +279,7 @@ export interface InvoiceLine {
   price: string | null;
   status: LineStatus;
   variant_id: number | null;
-  method: string | null;
+  method: MatchMethod | null;
   confidence: number;
   candidates: { variant_id: number; score: number }[];
   error: string | null;
@@ -293,7 +299,7 @@ export interface InvoiceDoc {
   extracted_data: {
     error?: string;
     lines?: InvoiceLine[];
-    processing_report?: { received: number; created: number; skipped: { row: number; reason: string }[] };
+    processing_report?: ProcessingReport;
     detected_supplier?: string;
   } | null;
 }

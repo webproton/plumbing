@@ -370,6 +370,7 @@ class StockMovementViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, vie
 class InventoryDocumentViewSet(viewsets.ModelViewSet):
     serializer_class = InventoryDocumentSerializer
     permission_classes = [IsWarehouseStaff]
+    pagination_class = StandardPagination
     parser_classes = [MultiPartParser, FormParser, JSONParser]
     http_method_names = ["get", "post", "patch", "head", "options"]
 
