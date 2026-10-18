@@ -26,6 +26,14 @@ export default [
       ]),
     ]),
 
+    ...prefix("seller", [
+      layout("routes/seller/layout.tsx", [
+        index("routes/seller/index.tsx"),
+        route("stock", "routes/seller/stock.tsx"),
+        route("movements", "routes/seller/movements.tsx"),
+      ]),
+    ]),
+
     route("delivery", "routes/pages/delivery.tsx"),
     route("contacts", "routes/pages/contacts.tsx"),
     route("callback", "routes/callback.tsx"),

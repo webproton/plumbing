@@ -87,7 +87,9 @@ export class Api {
     }
     // язык ответов API (тексты ошибок валидации)
     const headers: Record<string, string> = { Accept: "application/json", "Accept-Language": LOCALE[this.lang] };
-    if (opts.body !== undefined) headers["Content-Type"] = "application/json";
+    const isForm = opts.body instanceof FormData;
+    // FormData: браузер/fetch сами выставят multipart с boundary
+    if (opts.body !== undefined && !isForm) headers["Content-Type"] = "application/json";
     if (this.clientIp) headers["X-Real-IP"] = this.clientIp;
     const token = this.session.get("access");
     if (token && opts.auth !== false) headers.Authorization = `Bearer ${token}`;
@@ -97,7 +99,7 @@ export class Api {
       response = await fetch(url, {
         method,
         headers,
-        body: opts.body === undefined ? undefined : JSON.stringify(opts.body),
+        body: opts.body === undefined ? undefined : isForm ? (opts.body as FormData) : JSON.stringify(opts.body),
         signal: AbortSignal.timeout(15_000),
       });
     } catch {
@@ -145,7 +147,7 @@ export class Api {
     }
   }
 
-  signIn(tokens: { access: string; refresh: string }, user: { email: string; name: string }) {
+  signIn(tokens: { access: string; refresh: string }, user: { email: string; name: string; staff?: boolean }) {
     this.session.set("access", tokens.access);
     this.session.set("refresh", tokens.refresh);
     this.session.set("user", user);

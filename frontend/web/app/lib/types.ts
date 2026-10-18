@@ -168,3 +168,147 @@ export interface SiteSettings {
 
 /** Ошибки валидации DRF: {field: ["msg"]} или {detail: "msg"} */
 export type FieldErrors = Record<string, string>;
+
+// ---------- склад / кабинет продавца ----------
+
+export interface WarehouseMe {
+  is_staff_user: boolean;
+  is_superuser: boolean;
+  seller: { id: number; shop_name: string } | null;
+  seller_pending: boolean;
+  warehouses: { id: number; name: string; is_default: boolean }[];
+}
+
+export interface StockRow {
+  id: number;
+  variant: number;
+  variant_name: string;
+  sku: string | null;
+  barcode: string | null;
+  warehouse: number;
+  warehouse_name: string;
+  quantity: string;
+  reserved: string;
+  cost_price: string | null;
+  price: string | null;
+  value: string | null;
+}
+
+export type MovementType =
+  | "in"
+  | "out"
+  | "return_in"
+  | "return_out"
+  | "adjustment"
+  | "adjustment_out"
+  | "transfer_in"
+  | "transfer_out";
+
+export interface MovementRow {
+  id: number;
+  movement_type: MovementType;
+  quantity: string;
+  price_per_unit: string | null;
+  document_number: string | null;
+  comment: string;
+  created_at: string;
+  variant: number;
+  variant_name: string | null;
+  warehouse: number;
+  warehouse_name: string;
+  supplier_name: string | null;
+  created_by_email: string | null;
+}
+
+export interface WarehouseDashboard {
+  positions: number;
+  units: string | number;
+  value: string | number;
+  reserved_units: string | number;
+  documents_pending: number;
+  documents_need_review: number;
+  recent_movements: MovementRow[];
+}
+
+export interface VariantLookup {
+  id: number;
+  name: string;
+  sku: string | null;
+  barcode: string | null;
+  cost_price: string | null;
+  price: string | null;
+  stock: string;
+  reserved: string;
+  available: string;
+}
+
+export interface Supplier {
+  id: number;
+  name: string;
+  code: string;
+  contact_person: string;
+  phone: string;
+  email: string;
+  address: string;
+  is_active: boolean;
+}
+
+export interface WarehouseRow {
+  id: number;
+  name: string;
+  address: string;
+  is_default: boolean;
+}
+
+export type LineStatus = "matched" | "needs_review" | "new" | "invalid";
+
+export interface InvoiceLine {
+  position: number;
+  name: string;
+  sku: string;
+  barcode: string;
+  unit: string;
+  currency: string;
+  qty: string | null;
+  price: string | null;
+  status: LineStatus;
+  variant_id: number | null;
+  method: string | null;
+  confidence: number;
+  candidates: { variant_id: number; score: number }[];
+  error: string | null;
+}
+
+export interface InvoiceDoc {
+  id: number;
+  document_type: string;
+  document_number: string | null;
+  supplier: number | null;
+  supplier_name: string | null;
+  uploaded_at: string;
+  processed: boolean;
+  processed_at: string | null;
+  movements_count: number;
+  summary: Record<LineStatus, number> | null;
+  extracted_data: {
+    error?: string;
+    lines?: InvoiceLine[];
+    processing_report?: { received: number; created: number; skipped: { row: number; reason: string }[] };
+    detected_supplier?: string;
+  } | null;
+}
+
+export interface ScanCard {
+  status: "found";
+  variant_id: number;
+  name: string;
+  sku: string | null;
+  barcode: string | null;
+  cost_price: string | null;
+  price: string | null;
+  stock_total: string;
+  reserved: string;
+  available: string;
+  stock_current: string | null;
+  photo: string | null;
+}

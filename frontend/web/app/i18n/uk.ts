@@ -1,5 +1,7 @@
 // Українська — мова за замовчуванням. Ключі цього словника — еталон для інших мов.
-export const uk = {
+import { sellerUk } from "./seller.uk";
+
+const base = {
   // загальне
   "site.tagline": "Сантехніка та меблі з доставкою по Україні",
   "site.description": "Змішувачі, труби, сантехніка та меблі. Наявність на складі, доставка Новою Поштою.",
@@ -244,5 +246,7 @@ export const uk = {
   "page.contacts.hours": "Пн–Пт 9:00–18:00",
   "page.contacts.unavailable": "Контакти тимчасово недоступні.",
 } as const;
+
+export const uk = { ...base, ...sellerUk } as const;
 
 export type Dict = { [K in keyof typeof uk]: string };

@@ -10,7 +10,7 @@ export interface SessionData {
   access: string;
   refresh: string;
   cartUuid: string;
-  user: { email: string; name: string };
+  user: { email: string; name: string; staff?: boolean };
 }
 
 export interface FlashData {
