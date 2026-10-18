@@ -1,3 +1,4 @@
+from django.utils.translation import gettext as _
 from django_ratelimit.decorators import ratelimit
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
@@ -22,7 +23,7 @@ def callback_request(request):
 
     chat_id = telegram.next_manager_chat_id()
     if not chat_id:
-        return Response({"detail": "Сервис временно недоступен"}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+        return Response({"detail": _("Сервис временно недоступен")}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
 
     e = telegram.esc
     text = (
@@ -33,7 +34,7 @@ def callback_request(request):
     )
     if not telegram.send_message(chat_id, text):
         return Response(
-            {"detail": "Не удалось отправить заявку, попробуйте позже"}, status=status.HTTP_503_SERVICE_UNAVAILABLE
+            {"detail": _("Не удалось отправить заявку, попробуйте позже")}, status=status.HTTP_503_SERVICE_UNAVAILABLE
         )
     return Response({"status": "ok"}, status=status.HTTP_201_CREATED)
 

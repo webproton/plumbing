@@ -11,6 +11,7 @@ import logging
 from decimal import Decimal
 
 from django.db import transaction
+from django.utils.translation import gettext as _
 from rest_framework.exceptions import ValidationError
 
 from app.apps.warehouse import stock
@@ -30,7 +31,7 @@ def _resolve_variant(cart_item):
     variants = list(cart_item.product.variants.all()[:2])
     if len(variants) == 1:
         return variants[0]
-    raise ValidationError({"cart": f"Для товара «{cart_item.product.name}» не выбран вариант"})
+    raise ValidationError({"cart": _("Для товара «{name}» не выбран вариант").format(name=cart_item.product.name)})
 
 
 def _stock_lines(order):
@@ -45,17 +46,17 @@ def create_order_from_cart(cart: Cart, *, user=None, **order_fields) -> Order:
     """
     cart = Cart.objects.select_for_update().get(pk=cart.pk)
     if Order.objects.filter(cart=cart).exists():
-        raise ValidationError({"cart": "Заказ для этой корзины уже оформлен"})
+        raise ValidationError({"cart": _("Заказ для этой корзины уже оформлен")})
 
     cart_items = list(cart.cart_items.select_related("product", "variant"))
     if not cart_items:
-        raise ValidationError({"cart": "Корзина пуста, невозможно создать заказ"})
+        raise ValidationError({"cart": _("Корзина пуста, невозможно создать заказ")})
 
     lines = []
     for ci in cart_items:
         variant = _resolve_variant(ci)
         if variant.price is None:
-            raise ValidationError({"cart": f"У товара «{ci.product.name}» не указана цена"})
+            raise ValidationError({"cart": _("У товара «{name}» не указана цена").format(name=ci.product.name)})
         lines.append((ci, variant))
 
     stock.reserve([(variant, ci.quantity) for ci, variant in lines])
@@ -96,7 +97,7 @@ def change_status(order: Order, new_status: str, *, user=None) -> Order:
 
     if new_status == Order.STATUS.canceled:
         if order.stock_state == Order.STOCK_STATE.written_off:
-            raise ValidationError({"status_order": "Товар уже списан со склада — оформите возврат"})
+            raise ValidationError({"status_order": _("Товар уже списан со склада — оформите возврат")})
         if order.stock_state == Order.STOCK_STATE.reserved:
             stock.release(_stock_lines(order))
             order.stock_state = Order.STOCK_STATE.released
@@ -104,7 +105,7 @@ def change_status(order: Order, new_status: str, *, user=None) -> Order:
 
     elif new_status in SHIPPED_STATUSES:
         if order.stock_state == Order.STOCK_STATE.released:
-            raise ValidationError({"status_order": "Заказ был отменён — резерв снят"})
+            raise ValidationError({"status_order": _("Заказ был отменён — резерв снят")})
         if order.stock_state in (Order.STOCK_STATE.reserved, Order.STOCK_STATE.none):
             stock.write_off_reserved(
                 _stock_lines(order),
@@ -115,7 +116,7 @@ def change_status(order: Order, new_status: str, *, user=None) -> Order:
             order.stock_state = Order.STOCK_STATE.written_off
 
     elif order.stock_state == Order.STOCK_STATE.released:
-        raise ValidationError({"status_order": "Отменённый заказ нельзя вернуть в работу"})
+        raise ValidationError({"status_order": _("Отменённый заказ нельзя вернуть в работу")})
 
     order.status_order = new_status
     order.save(update_fields=["status_order", "payment_status", "stock_state"])
@@ -124,9 +125,9 @@ def change_status(order: Order, new_status: str, *, user=None) -> Order:
 
 def cancel_by_customer(order: Order, user) -> Order:
     if order.customer_id != user.pk:
-        raise ValidationError({"detail": "Вы не можете отменить этот заказ"})
+        raise ValidationError({"detail": _("Вы не можете отменить этот заказ")})
     if order.payment_status != Order.PAYMENT_STATUS.waiting_for_payment:
-        raise ValidationError({"detail": "Отменить можно только заказ, ожидающий оплаты"})
+        raise ValidationError({"detail": _("Отменить можно только заказ, ожидающий оплаты")})
     if order.status_order not in (Order.STATUS.in_processing,):
-        raise ValidationError({"detail": "Заказ уже передан в доставку"})
+        raise ValidationError({"detail": _("Заказ уже передан в доставку")})
     return change_status(order, Order.STATUS.canceled, user=user)

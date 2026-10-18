@@ -5,6 +5,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
 from django.http import FileResponse, HttpResponse
 from django.shortcuts import get_object_or_404, render
+from django.utils.translation import gettext as _
 from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError
@@ -57,7 +58,7 @@ def _seller_warehouses(user):
 
 def _ensure_own_warehouse(user, warehouse):
     if not _seller_warehouses(user).filter(pk=warehouse.pk).exists():
-        raise PermissionDenied("Склад не принадлежит вашему магазину")
+        raise PermissionDenied(_("Склад не принадлежит вашему магазину"))
     return warehouse
 
 
@@ -103,7 +104,7 @@ def _create_variant(request, *, name, barcode, sku, price, cost_price, product_i
     if product_id:
         product = get_object_or_404(Product, pk=product_id)
         if not request.user.is_superuser and product.seller_id not in (None, getattr(seller, "pk", None)):
-            raise PermissionDenied("Товар принадлежит другому продавцу")
+            raise PermissionDenied(_("Товар принадлежит другому продавцу"))
     else:
         product = Product.objects.create(name=name, seller=seller)
     variant = ProductVariant.objects.create(
@@ -133,11 +134,12 @@ class ScannerFindByBarcodeOrSkuAPIView(APIView):
     def post(self, request):
         query = request.data.get("query")
         if not query:
-            return Response({"detail": "Параметр query обязателен"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"detail": _("Параметр query обязателен")}, status=status.HTTP_400_BAD_REQUEST)
         variant = find_variant_by_code(query)
         if not variant:
             return Response(
-                {"status": "not_found", "query": query, "detail": "Товар не найден"}, status=status.HTTP_404_NOT_FOUND
+                {"status": "not_found", "query": query, "detail": _("Товар не найден")},
+                status=status.HTTP_404_NOT_FOUND,
             )
         warehouse_id = request.data.get("warehouse")
         warehouse = (
@@ -164,10 +166,15 @@ class ScannerCreateAndAddAPIView(APIView):
         sku = (data.get("sku") or data.get("code") or "").strip()
         barcode = (data.get("barcode") or "").strip() or sku
         if not barcode or not name:
-            return Response({"detail": "Поля barcode (или sku) и name обязательны"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"detail": _("Поля barcode (или sku) и name обязательны")}, status=status.HTTP_400_BAD_REQUEST
+            )
         for code in {barcode, sku} - {""}:
             if find_variant_by_code(code):
-                return Response({"detail": f"Товар с кодом {code} уже существует"}, status=status.HTTP_409_CONFLICT)
+                return Response(
+                    {"detail": _("Товар с кодом {code} уже существует").format(code=code)},
+                    status=status.HTTP_409_CONFLICT,
+                )
 
         variant = _create_variant(
             request,
@@ -184,7 +191,7 @@ class ScannerCreateAndAddAPIView(APIView):
         if document_id:
             document = get_object_or_404(InventoryDocument, pk=document_id)
             if not request.user.is_superuser and document.seller_id != get_active_seller(request.user).pk:
-                raise PermissionDenied("Документ принадлежит другому продавцу")
+                raise PermissionDenied(_("Документ принадлежит другому продавцу"))
             warehouse = _ensure_own_warehouse(request.user, get_object_or_404(Warehouse, pk=data.get("warehouse")))
             stock.receive(
                 variant,
@@ -239,12 +246,12 @@ class WarehouseViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         seller = get_active_seller(self.request.user)
         if seller is None:
-            raise PermissionDenied("Создавать склады может только одобренный продавец")
+            raise PermissionDenied(_("Создавать склады может только одобренный продавец"))
         serializer.save(seller=seller)
 
     def perform_destroy(self, instance):
         if StockMovement.objects.filter(warehouse=instance).exists():
-            raise PermissionDenied("По складу есть движения — удалить нельзя")
+            raise PermissionDenied(_("По складу есть движения — удалить нельзя"))
         instance.delete()
 
     @action(detail=True, methods=["get"])
@@ -363,12 +370,15 @@ class InventoryDocumentViewSet(viewsets.ModelViewSet):
         """Загрузка файла: защита от повторной загрузки по SHA-256 и сразу разбор строк."""
         seller = get_active_seller(self.request.user)
         if seller is None:
-            raise PermissionDenied("Загружать накладные может только одобренный продавец")
+            raise PermissionDenied(_("Загружать накладные может только одобренный продавец"))
         digest = file_sha256(serializer.validated_data["file"])
         duplicate = InventoryDocument.objects.filter(seller=seller, file_hash=digest).first()
         if duplicate:
             raise ValidationError(
-                {"file": f"Этот файл уже загружен (документ #{duplicate.pk})", "document_id": duplicate.pk}
+                {
+                    "file": _("Этот файл уже загружен (документ #{pk})").format(pk=duplicate.pk),
+                    "document_id": duplicate.pk,
+                }
             )
         document = serializer.save(seller=seller, file_hash=digest)
         try:
@@ -379,7 +389,7 @@ class InventoryDocumentViewSet(viewsets.ModelViewSet):
 
     def perform_update(self, serializer):
         if serializer.instance.processed:
-            raise PermissionDenied("Проведённый документ изменять нельзя")
+            raise PermissionDenied(_("Проведённый документ изменять нельзя"))
         serializer.save()
 
     @action(detail=True, methods=["get"])
@@ -442,7 +452,7 @@ class InventoryDocumentViewSet(viewsets.ModelViewSet):
         else:
             warehouse = _default_warehouse(request.user, seller=document.seller)
         if warehouse is None:
-            return Response({"detail": "У продавца нет склада"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"detail": _("У продавца нет склада")}, status=status.HTTP_400_BAD_REQUEST)
         report = process_inventory_document(
             document=document,
             warehouse=warehouse,
@@ -457,14 +467,14 @@ class InventoryDocumentViewSet(viewsets.ModelViewSet):
         """Пик сканера в процессе приёмки: +1 единица товара по документу."""
         document = self.get_object()
         if document.processed:
-            return Response({"detail": "Документ уже проведён"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"detail": _("Документ уже проведён")}, status=status.HTTP_400_BAD_REQUEST)
         barcode = request.data.get("barcode")
         warehouse_id = request.data.get("warehouse")
         if not barcode or not warehouse_id:
-            return Response({"detail": "barcode и warehouse обязательны"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"detail": _("barcode и warehouse обязательны")}, status=status.HTTP_400_BAD_REQUEST)
         warehouse = _seller_warehouses(request.user).filter(pk=warehouse_id).first()
         if warehouse is None:
-            raise NotFound("Склад не найден")
+            raise NotFound(_("Склад не найден"))
         try:
             variant = scan_barcode(document=document, barcode=barcode, warehouse=warehouse, user=request.user)
         except ObjectDoesNotExist:
@@ -472,7 +482,7 @@ class InventoryDocumentViewSet(viewsets.ModelViewSet):
                 {
                     "status": "not_found",
                     "barcode": barcode,
-                    "detail": "Товар не зарегистрирован. Открыть форму создания?",
+                    "detail": _("Товар не зарегистрирован. Открыть форму создания?"),
                 },
                 status=status.HTTP_404_NOT_FOUND,
             )

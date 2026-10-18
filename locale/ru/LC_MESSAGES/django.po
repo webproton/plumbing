@@ -1,0 +1,452 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-17 21:21+0300\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: ru\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=4; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && n%10<=4 && (n%100<12 || n%100>14) ? 1 : n%10==0 || (n%10>=5 && n%10<=9) || (n%100>=11 && n%100<=14)? 2 : 3);\n"
+
+#: apps/accounts/models.py:50
+msgid "email address"
+msgstr "адрес email"
+
+#: apps/accounts/models.py:71 apps/accounts/models.py:123
+#: apps/orders/models.py:120
+msgid "Creation date"
+msgstr "Дата создания"
+
+#: apps/accounts/serializers.py:69
+msgid "Регистрация доступна только с популярных почтовых сервисов."
+msgstr "Регистрация доступна только с популярных почтовых сервисов."
+
+#: apps/accounts/serializers.py:72
+msgid "Пользователь с таким email уже существует."
+msgstr "Пользователь с таким email уже существует."
+
+#: apps/accounts/serializers.py:78
+msgid "Пароль не должен содержать слово «password»"
+msgstr "Пароль не должен содержать слово «password»"
+
+#: apps/callback/views.py:26
+msgid "Сервис временно недоступен"
+msgstr "Сервис временно недоступен"
+
+#: apps/callback/views.py:37
+msgid "Не удалось отправить заявку, попробуйте позже"
+msgstr "Не удалось отправить заявку, попробуйте позже"
+
+#: apps/orders/models.py:122
+msgid "Total price"
+msgstr "Сумма"
+
+#: apps/orders/models.py:125
+msgid "Status order"
+msgstr "Статус заказа"
+
+#: apps/orders/models.py:130
+msgid "Payment status"
+msgstr "Статус оплаты"
+
+#: apps/orders/serializers.py:67
+#, python-brace-format
+msgid "Вариант {pk} не принадлежит товару «{name}»"
+msgstr "Вариант {pk} не принадлежит товару «{name}»"
+
+#: apps/orders/serializers.py:73
+#, python-brace-format
+msgid "Для товара «{name}» нужно выбрать вариант"
+msgstr "Для товара «{name}» нужно выбрать вариант"
+
+#: apps/orders/serializers.py:328
+msgid "Корзина не найдена или заказ по ней уже оформлен"
+msgstr "Корзина не найдена или заказ по ней уже оформлен"
+
+#: apps/orders/serializers.py:337
+msgid "Укажите имя получателя"
+msgstr "Укажите имя получателя"
+
+#: apps/orders/serializers.py:345
+msgid "В комментарии не допускаются ссылки."
+msgstr "В комментарии не допускаются ссылки."
+
+#: apps/orders/services.py:34
+#, python-brace-format
+msgid "Для товара «{name}» не выбран вариант"
+msgstr "Для товара «{name}» не выбран вариант"
+
+#: apps/orders/services.py:49
+msgid "Заказ для этой корзины уже оформлен"
+msgstr "Заказ для этой корзины уже оформлен"
+
+#: apps/orders/services.py:53
+msgid "Корзина пуста, невозможно создать заказ"
+msgstr "Корзина пуста, невозможно создать заказ"
+
+#: apps/orders/services.py:59
+#, python-brace-format
+msgid "У товара «{name}» не указана цена"
+msgstr "У товара «{name}» не указана цена"
+
+#: apps/orders/services.py:100
+msgid "Товар уже списан со склада — оформите возврат"
+msgstr "Товар уже списан со склада — оформите возврат"
+
+#: apps/orders/services.py:108
+msgid "Заказ был отменён — резерв снят"
+msgstr "Заказ был отменён — резерв снят"
+
+#: apps/orders/services.py:119
+msgid "Отменённый заказ нельзя вернуть в работу"
+msgstr "Отменённый заказ нельзя вернуть в работу"
+
+#: apps/orders/services.py:128
+msgid "Вы не можете отменить этот заказ"
+msgstr "Вы не можете отменить этот заказ"
+
+#: apps/orders/services.py:130
+msgid "Отменить можно только заказ, ожидающий оплаты"
+msgstr "Отменить можно только заказ, ожидающий оплаты"
+
+#: apps/orders/services.py:132
+msgid "Заказ уже передан в доставку"
+msgstr "Заказ уже передан в доставку"
+
+#: apps/orders/validators.py:16
+msgid "Номер телефона должен быть в формате +380XXXXXXXXX"
+msgstr "Номер телефона должен быть в формате +380XXXXXXXXX"
+
+#: apps/orders/validators.py:23
+msgid "Имя может содержать только буквы, пробел, дефис и апостроф."
+msgstr "Имя может содержать только буквы, пробел, дефис и апостроф."
+
+#: apps/orders/views.py:98
+msgid "Заказ успешно отменён."
+msgstr "Заказ успешно отменён."
+
+#: apps/products/views.py:169
+#, python-brace-format
+msgid "Удалено {deleted} элементов избранного"
+msgstr "Удалено {deleted} элементов избранного"
+
+#: apps/products/views.py:176
+msgid "Требуется список variant_ids"
+msgstr "Требуется список variant_ids"
+
+#: apps/sellers/models.py:29 apps/warehouse/models.py:109
+#: apps/warehouse/models.py:179
+msgid "Продавец"
+msgstr "Продавец"
+
+#: apps/sellers/models.py:30
+msgid "Продавцы"
+msgstr "Продавцы"
+
+#: apps/sellers/models.py:57
+msgid "Магазин"
+msgstr "Магазин"
+
+#: apps/sellers/models.py:58
+msgid "Магазины"
+msgstr "Магазины"
+
+#: apps/sellers/serializers.py:89
+msgid "Магазин с таким названием уже существует."
+msgstr "Магазин с таким названием уже существует."
+
+#: apps/sellers/views.py:26
+msgid "У вас уже есть профиль продавца"
+msgstr "У вас уже есть профиль продавца"
+
+#: apps/warehouse/models.py:39 apps/warehouse/models.py:118
+msgid "Поставщик"
+msgstr "Поставщик"
+
+#: apps/warehouse/models.py:40
+msgid "Поставщики"
+msgstr "Поставщики"
+
+#: apps/warehouse/models.py:57 apps/warehouse/models.py:110
+msgid "Склад"
+msgstr "Склад"
+
+#: apps/warehouse/models.py:58
+msgid "Склады"
+msgstr "Склады"
+
+#: apps/warehouse/models.py:100
+msgid "Связанный документ"
+msgstr "Связанный документ"
+
+#: apps/warehouse/models.py:107
+msgid "Вариант товара"
+msgstr "Вариант товара"
+
+#: apps/warehouse/models.py:111
+msgid "Тип движения"
+msgstr "Тип движения"
+
+#: apps/warehouse/models.py:112
+msgid "Количество"
+msgstr "Количество"
+
+#: apps/warehouse/models.py:114
+msgid "Цена за единицу"
+msgstr "Цена за единицу"
+
+#: apps/warehouse/models.py:120
+msgid "Комментарий"
+msgstr "Комментарий"
+
+#: apps/warehouse/models.py:121
+msgid "Дата создания"
+msgstr "Дата создания"
+
+#: apps/warehouse/models.py:125
+msgid "Движение по складу"
+msgstr "Движение по складу"
+
+#: apps/warehouse/models.py:126
+msgid "Движения по складу"
+msgstr "Движения по складу"
+
+#: apps/warehouse/models.py:157
+msgid "Остаток на складе"
+msgstr "Остаток на складе"
+
+#: apps/warehouse/models.py:158
+msgid "Остатки на складах"
+msgstr "Остатки на складах"
+
+#: apps/warehouse/models.py:180
+msgid "Тип документа"
+msgstr "Тип документа"
+
+#: apps/warehouse/models.py:189
+msgid "Загружено"
+msgstr "Загружено"
+
+#: apps/warehouse/models.py:195
+msgid "Накладная / документ"
+msgstr "Накладная / документ"
+
+#: apps/warehouse/models.py:196
+msgid "Накладные / документы"
+msgstr "Накладные / документы"
+
+#: apps/warehouse/permissions.py:22
+msgid "Доступ к складу есть только у одобренных продавцов."
+msgstr "Доступ к складу есть только у одобренных продавцов."
+
+#: apps/warehouse/serializers.py:82
+msgid "Для прихода/возврата поставщику нужен поставщик"
+msgstr "Для прихода/возврата поставщику нужен поставщик"
+
+#: apps/warehouse/serializers.py:139
+#, python-brace-format
+msgid "Неподдерживаемый формат {ext}. Допустимы: {allowed}"
+msgstr "Неподдерживаемый формат {ext}. Допустимы: {allowed}"
+
+#: apps/warehouse/serializers.py:140
+msgid "(без расширения)"
+msgstr "(без расширения)"
+
+#: apps/warehouse/serializers.py:144
+msgid "Файл больше 10 МБ"
+msgstr "Файл больше 10 МБ"
+
+#: apps/warehouse/services.py:148
+msgid "нет наименования"
+msgstr "нет наименования"
+
+#: apps/warehouse/services.py:150
+msgid "нет количества ({value!r})"
+msgstr "нет количества ({value!r})"
+
+#: apps/warehouse/services.py:152
+msgid "некорректная цена ({value!r})"
+msgstr "некорректная цена ({value!r})"
+
+#: apps/warehouse/services.py:171 apps/warehouse/services.py:201
+#: apps/warehouse/services.py:282 apps/warehouse/views.py:470
+msgid "Документ уже проведён"
+msgstr "Документ уже проведён"
+
+#: apps/warehouse/services.py:205
+#, python-brace-format
+msgid "Строка {position} не найдена"
+msgstr "Строка {position} не найдена"
+
+#: apps/warehouse/services.py:208
+#, python-brace-format
+msgid "Строка {position} некорректна: {value}"
+msgstr "Строка {position} некорректна: {value}"
+
+#: apps/warehouse/services.py:215
+#, python-brace-format
+msgid "Вариант {variant_id} не найден"
+msgstr "Вариант {variant_id} не найден"
+
+#: apps/warehouse/services.py:284
+msgid "Склад не принадлежит продавцу документа"
+msgstr "Склад не принадлежит продавцу документа"
+
+#: apps/warehouse/services.py:295
+#, python-brace-format
+msgid "Нужно проверить сопоставление строк: {value}"
+msgstr "Нужно проверить сопоставление строк: {value}"
+
+#: apps/warehouse/services.py:312
+#, python-brace-format
+msgid ""
+"Накладная №{document_number} этого поставщика уже проведена (документ #{pk})"
+msgstr ""
+"Накладная №{document_number} этого поставщика уже проведена (документ #{pk})"
+
+#: apps/warehouse/stock.py:54
+msgid "Некорректное количество: {value!r}"
+msgstr "Некорректное количество: {value!r}"
+
+#: apps/warehouse/stock.py:56
+#, python-brace-format
+msgid "Количество должно быть больше нуля, получено {qty}"
+msgstr "Количество должно быть больше нуля, получено {qty}"
+
+#: apps/warehouse/stock.py:108
+#, python-brace-format
+msgid "receive() не поддерживает тип {movement_type}"
+msgstr "receive() не поддерживает тип {movement_type}"
+
+#: apps/warehouse/stock.py:110
+msgid "Для прихода необходимо указать поставщика"
+msgstr "Для прихода необходимо указать поставщика"
+
+#: apps/warehouse/stock.py:147 apps/warehouse/stock.py:227
+#, python-brace-format
+msgid ""
+"На складе «{name}» недостаточно товара: доступно {quantity}, требуется {qty}"
+msgstr ""
+"На складе «{name}» недостаточно товара: доступно {quantity}, требуется {qty}"
+
+#: apps/warehouse/stock.py:159
+#, python-brace-format
+msgid "Товар зарезервирован под заказы: свободно {value}, требуется {qty}"
+msgstr "Товар зарезервирован под заказы: свободно {value}, требуется {qty}"
+
+#: apps/warehouse/stock.py:188
+#, python-brace-format
+msgid "write_off() не поддерживает тип {movement_type}"
+msgstr "write_off() не поддерживает тип {movement_type}"
+
+#: apps/warehouse/stock.py:190
+msgid "Для возврата поставщику необходимо указать поставщика"
+msgstr "Для возврата поставщику необходимо указать поставщика"
+
+#: apps/warehouse/stock.py:196
+msgid "Возврат поставщику"
+msgstr "Возврат поставщику"
+
+#: apps/warehouse/stock.py:217
+msgid "Склад-отправитель и склад-получатель совпадают"
+msgstr "Склад-отправитель и склад-получатель совпадают"
+
+#: apps/warehouse/stock.py:269
+msgid "Некорректное количество: {real_quantity!r}"
+msgstr "Некорректное количество: {real_quantity!r}"
+
+#: apps/warehouse/stock.py:271
+msgid "Фактический остаток не может быть отрицательным"
+msgstr "Фактический остаток не может быть отрицательным"
+
+#: apps/warehouse/stock.py:325
+#, python-brace-format
+msgid ""
+"Недостаточно товара (id {variant_id}): доступно {value}, требуется {qty}"
+msgstr ""
+"Недостаточно товара (id {variant_id}): доступно {value}, требуется {qty}"
+
+#: apps/warehouse/stock.py:390
+#, python-brace-format
+msgid ""
+"Недостаточно товара на складах для списания (id {variant_id}): не хватает "
+"{remaining}"
+msgstr ""
+"Недостаточно товара на складах для списания (id {variant_id}): не хватает "
+"{remaining}"
+
+#: apps/warehouse/views.py:61
+msgid "Склад не принадлежит вашему магазину"
+msgstr "Склад не принадлежит вашему магазину"
+
+#: apps/warehouse/views.py:107
+msgid "Товар принадлежит другому продавцу"
+msgstr "Товар принадлежит другому продавцу"
+
+#: apps/warehouse/views.py:137
+msgid "Параметр query обязателен"
+msgstr "Параметр query обязателен"
+
+#: apps/warehouse/views.py:141
+msgid "Товар не найден"
+msgstr "Товар не найден"
+
+#: apps/warehouse/views.py:170
+msgid "Поля barcode (или sku) и name обязательны"
+msgstr "Поля barcode (или sku) и name обязательны"
+
+#: apps/warehouse/views.py:175
+#, python-brace-format
+msgid "Товар с кодом {code} уже существует"
+msgstr "Товар с кодом {code} уже существует"
+
+#: apps/warehouse/views.py:194
+msgid "Документ принадлежит другому продавцу"
+msgstr "Документ принадлежит другому продавцу"
+
+#: apps/warehouse/views.py:249
+msgid "Создавать склады может только одобренный продавец"
+msgstr "Создавать склады может только одобренный продавец"
+
+#: apps/warehouse/views.py:254
+msgid "По складу есть движения — удалить нельзя"
+msgstr "По складу есть движения — удалить нельзя"
+
+#: apps/warehouse/views.py:373
+msgid "Загружать накладные может только одобренный продавец"
+msgstr "Загружать накладные может только одобренный продавец"
+
+#: apps/warehouse/views.py:379
+#, python-brace-format
+msgid "Этот файл уже загружен (документ #{pk})"
+msgstr "Этот файл уже загружен (документ #{pk})"
+
+#: apps/warehouse/views.py:392
+msgid "Проведённый документ изменять нельзя"
+msgstr "Проведённый документ изменять нельзя"
+
+#: apps/warehouse/views.py:455
+msgid "У продавца нет склада"
+msgstr "У продавца нет склада"
+
+#: apps/warehouse/views.py:474
+msgid "barcode и warehouse обязательны"
+msgstr "barcode и warehouse обязательны"
+
+#: apps/warehouse/views.py:477
+msgid "Склад не найден"
+msgstr "Склад не найден"
+
+#: apps/warehouse/views.py:485
+msgid "Товар не зарегистрирован. Открыть форму создания?"
+msgstr "Товар не зарегистрирован. Открыть форму создания?"

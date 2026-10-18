@@ -101,3 +101,9 @@ def test_cyrillic_category_gets_latin_slug_and_filters(client):
     _product("Kran", category=b)
     names = [p["name"] for p in _results(client.get(reverse("products:product-list"), {"category": "smesiteli"}))]
     assert names == ["Grohe"]
+
+
+def test_ukrainian_letters_transliterated_in_slugs():
+    from app.apps.products.utils.slugs import make_slug
+
+    assert make_slug("Змішувач їжак Євро ґанок") == "zmishuvach-yizhak-yevro-ganok"

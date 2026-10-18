@@ -3,6 +3,9 @@
 from .settings import *  # noqa: F401,F403
 
 DEBUG = False
+# нейтральный язык: проверки текстов в тестах не зависят от переводов
+LANGUAGE_CODE = "en-us"
+LANGUAGES = [("en-us", "English"), ("uk", "Українська"), ("ru", "Русский")]
 CACHES = {"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}}
 EMAIL_BACKEND = "django.core.mail.backends.locmem.EmailBackend"
 PASSWORD_HASHERS = ["django.contrib.auth.hashers.MD5PasswordHasher"]  # ускоряет тесты

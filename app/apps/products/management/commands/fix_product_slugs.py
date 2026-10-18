@@ -1,11 +1,11 @@
 from django.core.management.base import BaseCommand
-from django.utils.text import slugify
-from transliterate import translit
 
 from app.apps.products.models import Product, ProductVariant  # Замените 'app.apps.products' на путь к вашим моделям
+from app.apps.products.utils.slugs import make_slug
 
 
 class Command(BaseCommand):
+    # ⚠️ Пересоздаёт slug ВСЕХ товаров — старые адреса страниц перестанут работать (SEO). Только для пустой/тестовой базы.
     help = "Fix slugs for Product and ProductVariant objects with non-ASCII characters"
 
     def handle(self, *args, **kwargs):
@@ -13,8 +13,7 @@ class Command(BaseCommand):
         products = Product.objects.filter(slug__isnull=False)
         for product in products:
             if product.name:
-                translit_name = translit(product.name, "ru", reversed=True)
-                base_slug = slugify(translit_name)
+                base_slug = make_slug(product.name, fallback="product")
                 slug = base_slug
                 counter = 1
                 while Product.objects.filter(slug=slug).exclude(pk=product.pk).exists():
@@ -32,8 +31,7 @@ class Command(BaseCommand):
             text_to_slug = (
                 f"{variant.product.name}-{variant.variant_name}" if variant.variant_name else variant.product.name
             )
-            translit_text = translit(text_to_slug, "ru", reversed=True)
-            base_slug = slugify(translit_text)
+            base_slug = make_slug(text_to_slug, fallback="variant")
             slug = base_slug
             counter = 1
             while ProductVariant.objects.filter(slug=slug).exclude(pk=variant.pk).exists():

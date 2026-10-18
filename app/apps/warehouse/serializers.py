@@ -1,6 +1,7 @@
 import os
 from decimal import Decimal
 
+from django.utils.translation import gettext as _
 from rest_framework import serializers
 
 from app.apps.products.models import ProductVariant
@@ -78,7 +79,7 @@ class StockMovementCreateSerializer(serializers.Serializer):
 
     def validate(self, data):
         if data["movement_type"] in (StockMovement.IN, StockMovement.RETURN_OUT) and not data.get("supplier"):
-            raise serializers.ValidationError({"supplier": "Для прихода/возврата поставщику нужен поставщик"})
+            raise serializers.ValidationError({"supplier": _("Для прихода/возврата поставщику нужен поставщик")})
         return data
 
 
@@ -135,8 +136,10 @@ class InventoryDocumentSerializer(serializers.ModelSerializer):
         ext = os.path.splitext(f.name)[1].lower()
         if ext not in ALLOWED_INVOICE_EXTENSIONS:
             raise serializers.ValidationError(
-                f"Неподдерживаемый формат {ext or '(без расширения)'}. Допустимы: {', '.join(sorted(ALLOWED_INVOICE_EXTENSIONS))}"
+                _("Неподдерживаемый формат {ext}. Допустимы: {allowed}").format(
+                    ext=ext or _("(без расширения)"), allowed=", ".join(sorted(ALLOWED_INVOICE_EXTENSIONS))
+                )
             )
         if f.size > MAX_INVOICE_SIZE:
-            raise serializers.ValidationError("Файл больше 10 МБ")
+            raise serializers.ValidationError(_("Файл больше 10 МБ"))
         return f

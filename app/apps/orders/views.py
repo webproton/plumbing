@@ -1,6 +1,7 @@
 import logging
 
 from django.db.models import Prefetch, Q
+from django.utils.translation import gettext as _
 from rest_framework import mixins, permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -94,7 +95,7 @@ class OrderListView(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.Retri
     @action(detail=True, methods=["post"])
     def cancel(self, request, pk=None):
         services.cancel_by_customer(self.get_object(), request.user)
-        return Response({"detail": "Заказ успешно отменён."})
+        return Response({"detail": _("Заказ успешно отменён.")})
 
 
 class OrderView(viewsets.GenericViewSet, mixins.CreateModelMixin):

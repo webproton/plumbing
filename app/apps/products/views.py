@@ -1,5 +1,6 @@
 from django.db import transaction
 from django.db.models import Min, Prefetch
+from django.utils.translation import gettext as _
 from rest_framework import mixins, permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.pagination import PageNumberPagination
@@ -164,15 +165,15 @@ class WishlistViewSet(
 
     @action(detail=False, methods=["post"], url_path="clear")
     def clear_wishlist(self, request):
-        deleted, _ = Wishlist.objects.filter(user=request.user).delete()
-        return Response({"detail": f"Удалено {deleted} элементов избранного"})
+        deleted, _details = Wishlist.objects.filter(user=request.user).delete()
+        return Response({"detail": _("Удалено {deleted} элементов избранного").format(deleted=deleted)})
 
     @action(detail=False, methods=["post"], url_path="merge")
     def merge_wishlist(self, request):
         """Добавить к избранному гостевые позиции после входа: {variant_ids: [...]}."""
         ids = self._variant_ids(request.data.get("variant_ids"))
         if not ids:
-            return Response({"detail": "Требуется список variant_ids"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"detail": _("Требуется список variant_ids")}, status=status.HTTP_400_BAD_REQUEST)
         Wishlist.objects.bulk_create(
             [Wishlist(user=request.user, product_variant_id=i) for i in ids], ignore_conflicts=True
         )

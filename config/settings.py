@@ -72,6 +72,8 @@ MIDDLEWARE = [
     "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
+    # язык ответа по Accept-Language (витрина присылает uk-UA / ru-UA)
+    "django.middleware.locale.LocaleMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
@@ -237,7 +239,9 @@ FILE_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024
 # ==============================
 # i18n
 # ==============================
-LANGUAGE_CODE = "en-us"
+LANGUAGE_CODE = "uk"
+LANGUAGES = [("uk", "Українська"), ("ru", "Русский")]
+LOCALE_PATHS = [BASE_DIR / "locale"]
 TIME_ZONE = "Europe/Kyiv"
 USE_I18N = True
 USE_TZ = True

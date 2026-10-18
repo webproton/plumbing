@@ -11,10 +11,8 @@ from django.contrib.auth import get_user_model
 from django.contrib.postgres.fields import ArrayField
 from django.core.files import File
 from django.db import models
-from django.utils.text import slugify
 from model_utils import Choices
 from model_utils.models import TimeStampedModel
-from transliterate import translit
 
 from app.apps.products.utils.slugs import unique_slug
 from app.apps.sellers.models import Seller
@@ -287,15 +285,7 @@ class Product(TimeStampedModel):
 
     def save(self, *args, **kwargs):
         if not self.slug and self.name:
-            # Транслитерируем кириллицу в латиницу
-            translit_name = translit(self.name, "ru", reversed=True)
-            base_slug = slugify(translit_name)
-            slug = base_slug
-            counter = 1
-            while Product.objects.filter(slug=slug).exists():
-                slug = f"{base_slug}-{counter}"
-                counter += 1
-            self.slug = slug
+            self.slug = unique_slug(Product, self.name, fallback="product", exclude_pk=self.pk)
         super().save(*args, **kwargs)
 
 
@@ -730,14 +720,7 @@ class ProductVariant(TimeStampedModel):
         # Генерация slug
         if not self.slug:
             text_to_slug = f"{self.product.name}-{self.variant_name}" if self.variant_name else self.product.name
-            translit_text = translit(text_to_slug, "ru", reversed=True)
-            base_slug = slugify(translit_text)
-            slug = base_slug
-            counter = 1
-            while ProductVariant.objects.filter(slug=slug).exists():
-                slug = f"{base_slug}-{counter}"
-                counter += 1
-            self.slug = slug
+            self.slug = unique_slug(ProductVariant, text_to_slug or "", fallback="variant", exclude_pk=self.pk)
 
         # Генерация кода и штрихкода
         if not self.code:
