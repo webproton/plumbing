@@ -1,3 +1,5 @@
+import { LOCALE, makeT, type Lang } from "~/i18n";
+
 import { config } from "./config.server";
 import type { AppSession } from "./session.server";
 import type { FieldErrors } from "./types";
@@ -6,13 +8,14 @@ export class ApiError extends Error {
   constructor(
     public status: number,
     public body: unknown,
+    public lang: Lang = "uk",
   ) {
     super(`API ${status}`);
   }
 
   /** Ошибки DRF → {поле: "сообщение"}; общие ошибки — в ключе "form" */
   get fieldErrors(): FieldErrors {
-    return toFieldErrors(this.body);
+    return toFieldErrors(this.body, makeT(this.lang)("error.generic"));
   }
 
   get code(): string | undefined {
@@ -24,10 +27,10 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-export function toFieldErrors(body: unknown): FieldErrors {
+export function toFieldErrors(body: unknown, fallback = "Не вдалося виконати запит. Спробуйте ще раз."): FieldErrors {
   if (typeof body === "string") return { form: body };
   if (Array.isArray(body)) return { form: body.map(String).join(" ") };
-  if (!isRecord(body)) return { form: "Не удалось выполнить запрос. Попробуйте ещё раз." };
+  if (!isRecord(body)) return { form: fallback };
   const errors: FieldErrors = {};
   for (const [key, value] of Object.entries(body)) {
     if (key === "code") continue;
@@ -35,7 +38,7 @@ export function toFieldErrors(body: unknown): FieldErrors {
     const field = key === "detail" || key === "non_field_errors" ? "form" : key;
     errors[field] = errors[field] ? `${errors[field]} ${message}` : message;
   }
-  return Object.keys(errors).length ? errors : { form: "Не удалось выполнить запрос." };
+  return Object.keys(errors).length ? errors : { form: fallback };
 }
 
 type Method = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
@@ -54,6 +57,7 @@ export class Api {
   constructor(
     private session: AppSession,
     private clientIp: string | null,
+    private lang: Lang = "uk",
   ) {}
 
   get isAuthenticated(): boolean {
@@ -81,7 +85,8 @@ export class Api {
     for (const [k, v] of Object.entries(opts.query ?? {})) {
       if (v !== undefined && v !== null && v !== "") url.searchParams.set(k, String(v));
     }
-    const headers: Record<string, string> = { Accept: "application/json" };
+    // язык ответов API (тексты ошибок валидации)
+    const headers: Record<string, string> = { Accept: "application/json", "Accept-Language": LOCALE[this.lang] };
     if (opts.body !== undefined) headers["Content-Type"] = "application/json";
     if (this.clientIp) headers["X-Real-IP"] = this.clientIp;
     const token = this.session.get("access");
@@ -96,7 +101,7 @@ export class Api {
         signal: AbortSignal.timeout(15_000),
       });
     } catch {
-      throw new ApiError(503, { detail: "Сервер недоступен. Попробуйте позже." });
+      throw new ApiError(503, { detail: makeT(this.lang)("error.unavailable") }, this.lang);
     }
 
     if (response.status === 401 && token && opts.auth !== false && !retried) {
@@ -113,7 +118,7 @@ export class Api {
     } catch {
       /* не JSON (например, HTML-страница ошибки) — оставляем текст */
     }
-    if (!response.ok) throw new ApiError(response.status, body);
+    if (!response.ok) throw new ApiError(response.status, body, this.lang);
     return body as T;
   }
 

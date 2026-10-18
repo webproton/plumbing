@@ -1,5 +1,7 @@
 import { createContext, type MiddlewareFunction } from "react-router";
 
+import { langFromRequest } from "~/i18n";
+
 import { Api } from "./api.server";
 import { sessionContext, sessionStorage } from "./session.server";
 
@@ -19,7 +21,7 @@ export const sessionMiddleware: MiddlewareFunction<Response> = async ({ request,
   const session = await sessionStorage.getSession(request.headers.get("Cookie"));
   const before = JSON.stringify(session.data);
   context.set(sessionContext, session);
-  context.set(apiContext, new Api(session, clientIp(request)));
+  context.set(apiContext, new Api(session, clientIp(request), langFromRequest(request)));
 
   const response = await next();
 

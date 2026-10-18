@@ -1,38 +1,41 @@
 import { type RouteConfig, index, layout, prefix, route } from "@react-router/dev/routes";
 
 export default [
-  index("routes/home.tsx"),
-  route("catalog", "routes/catalog.tsx"),
-  route("product/:slug", "routes/product.tsx"),
-  route("cart", "routes/cart.tsx"),
-  route("checkout", "routes/checkout.tsx"),
-  route("order/:id/success", "routes/order-success.tsx"),
-  route("wishlist", "routes/wishlist.tsx"),
+  // все страницы доступны без префикса (українська) и с /ru (русский)
+  route(":lang?", "routes/lang-layout.tsx", [
+    index("routes/home.tsx"),
+    route("catalog", "routes/catalog.tsx"),
+    route("product/:slug", "routes/product.tsx"),
+    route("cart", "routes/cart.tsx"),
+    route("checkout", "routes/checkout.tsx"),
+    route("order/:id/success", "routes/order-success.tsx"),
+    route("wishlist", "routes/wishlist.tsx"),
 
-  route("login", "routes/auth/login.tsx"),
-  route("register", "routes/auth/register.tsx"),
-  route("logout", "routes/auth/logout.tsx"),
-  route("confirm-email/:key", "routes/auth/confirm-email.tsx"),
-  route("reset-password", "routes/auth/reset-password.tsx"),
-  route("reset-password/confirm", "routes/auth/reset-password-confirm.tsx"),
+    route("login", "routes/auth/login.tsx"),
+    route("register", "routes/auth/register.tsx"),
+    route("logout", "routes/auth/logout.tsx"),
+    route("confirm-email/:key", "routes/auth/confirm-email.tsx"),
+    route("reset-password", "routes/auth/reset-password.tsx"),
+    route("reset-password/confirm", "routes/auth/reset-password-confirm.tsx"),
 
-  ...prefix("account", [
-    layout("routes/account/layout.tsx", [
-      index("routes/account/profile.tsx"),
-      route("orders", "routes/account/orders.tsx"),
-      route("orders/:id", "routes/account/order.tsx"),
+    ...prefix("account", [
+      layout("routes/account/layout.tsx", [
+        index("routes/account/profile.tsx"),
+        route("orders", "routes/account/orders.tsx"),
+        route("orders/:id", "routes/account/order.tsx"),
+      ]),
     ]),
+
+    route("delivery", "routes/pages/delivery.tsx"),
+    route("contacts", "routes/pages/contacts.tsx"),
+    route("callback", "routes/callback.tsx"),
+
+    // старые адреса SPA → новые (сохраняем ссылки и SEO)
+    route("products", "routes/legacy/products.tsx"),
+    route("products/:slug", "routes/legacy/product.tsx", { id: "legacy-product" }),
+    route("products/:slug/variant/:variant", "routes/legacy/product.tsx", { id: "legacy-product-variant" }),
+    route("category", "routes/legacy/category.tsx"),
+
+    route("*", "routes/not-found.tsx"),
   ]),
-
-  route("delivery", "routes/pages/delivery.tsx"),
-  route("contacts", "routes/pages/contacts.tsx"),
-  route("callback", "routes/callback.tsx"),
-
-  // старые адреса SPA → новые (сохраняем ссылки и SEO)
-  route("products", "routes/legacy/products.tsx"),
-  route("products/:slug", "routes/legacy/product.tsx", { id: "legacy-product" }),
-  route("products/:slug/variant/:variant", "routes/legacy/product.tsx", { id: "legacy-product-variant" }),
-  route("category", "routes/legacy/category.tsx"),
-
-  route("*", "routes/not-found.tsx"),
 ] satisfies RouteConfig;

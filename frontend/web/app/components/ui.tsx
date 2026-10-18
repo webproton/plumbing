@@ -1,7 +1,9 @@
 import { clsx } from "clsx";
 import { AlertCircle, CheckCircle2, Info, Loader2 } from "lucide-react";
 import { useId, type ComponentProps, type ReactNode } from "react";
-import { Link, type LinkProps } from "react-router";
+import { type LinkProps } from "react-router";
+
+import { Link } from "~/i18n/react";
 
 // ---------- Button ----------
 
