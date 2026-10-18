@@ -250,7 +250,25 @@ class WarehouseViewSet(viewsets.ModelViewSet):
         seller = get_active_seller(self.request.user)
         if seller is None:
             raise PermissionDenied(_("Создавать склады может только одобренный продавец"))
-        serializer.save(seller=seller)
+        with transaction.atomic():
+            warehouse = serializer.save(seller=seller)
+            self._ensure_single_default(warehouse)
+        warehouse.refresh_from_db()  # в ответе — актуальный is_default
+
+    def perform_update(self, serializer):
+        with transaction.atomic():
+            warehouse = serializer.save()
+            self._ensure_single_default(warehouse)
+        warehouse.refresh_from_db()
+
+    @staticmethod
+    def _ensure_single_default(warehouse):
+        """Основной склад у продавца один; первый созданный склад становится основным."""
+        siblings = Warehouse.objects.filter(seller=warehouse.seller).exclude(pk=warehouse.pk)
+        if warehouse.is_default:
+            siblings.filter(is_default=True).update(is_default=False)
+        elif not siblings.filter(is_default=True).exists():
+            Warehouse.objects.filter(pk=warehouse.pk).update(is_default=True)
 
     def perform_destroy(self, instance):
         if StockMovement.objects.filter(warehouse=instance).exists():

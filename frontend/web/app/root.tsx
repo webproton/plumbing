@@ -1,4 +1,4 @@
-import { SearchX, ServerCrash } from "lucide-react";
+import { Lock, SearchX, ServerCrash } from "lucide-react";
 import {
   isRouteErrorResponse,
   Links,
@@ -130,6 +130,15 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
       <EmptyState icon={SearchX} title={t("error.notFound.title")}>
         <p className="mb-4">{t("error.notFound.text")}</p>
         <ButtonLink to="/catalog">{t("common.toCatalog")}</ButtonLink>
+      </EmptyState>
+    );
+  }
+  if (isRouteErrorResponse(error) && error.status === 403) {
+    // кабинет склада: нет роли продавца (или заявка ещё на одобрении)
+    const pending = Boolean((error.data as { pending?: boolean } | null)?.pending);
+    return (
+      <EmptyState icon={Lock} title={t(pending ? "wh.pending.title" : "wh.noAccess.title")}>
+        {t(pending ? "wh.pending.text" : "wh.noAccess.text")}
       </EmptyState>
     );
   }

@@ -1,11 +1,20 @@
 import { forwardRef } from "react";
-import { Link as RRLink, NavLink as RRNavLink, useRouteLoaderData, type LinkProps, type NavLinkProps } from "react-router";
+import {
+  Link as RRLink,
+  NavLink as RRNavLink,
+  useLocation,
+  useRouteLoaderData,
+  type LinkProps,
+  type NavLinkProps,
+} from "react-router";
 
-import { DEFAULT_LANG, localizePath, makeT, type Lang } from "./index";
+import { localizePath, makeT, langFromPath, type Lang } from "./index";
 
 export function useLang(): Lang {
   const data = useRouteLoaderData("root") as { lang?: Lang } | undefined;
-  return data?.lang ?? DEFAULT_LANG;
+  const { pathname } = useLocation();
+  // если корневой загрузчик не отработал (ошибка в middleware) — язык берём из адреса
+  return data?.lang ?? langFromPath(pathname);
 }
 
 export function useT() {
