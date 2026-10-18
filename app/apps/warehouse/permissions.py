@@ -1,3 +1,5 @@
+from django.utils.translation import gettext_lazy
+
 # warehouse/permissions.py
 from rest_framework import permissions
 
@@ -17,7 +19,7 @@ def get_active_seller(user):
 class IsWarehouseStaff(permissions.BasePermission):
     """Доступ к складу: суперпользователь или одобренный активный продавец (только свои объекты)."""
 
-    message = "Доступ к складу есть только у одобренных продавцов."
+    message = gettext_lazy("Доступ к складу есть только у одобренных продавцов.")
 
     def has_permission(self, request, view):
         user = request.user

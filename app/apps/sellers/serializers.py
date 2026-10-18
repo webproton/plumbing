@@ -1,3 +1,4 @@
+from django.utils.translation import gettext as _
 from rest_framework import serializers
 
 from app.apps.accounts.serializers import UserSerializer  # если есть
@@ -85,5 +86,5 @@ class SellerCreateUpdateSerializer(serializers.ModelSerializer):
             .exclude(pk=self.instance.pk if self.instance else None)
             .exists()
         ):
-            raise serializers.ValidationError("Магазин с таким названием уже существует.")
+            raise serializers.ValidationError(_("Магазин с таким названием уже существует."))
         return value

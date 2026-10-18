@@ -1,4 +1,5 @@
 from django.shortcuts import get_object_or_404
+from django.utils.translation import gettext as _
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
@@ -22,7 +23,7 @@ class SellerViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         if Seller.objects.filter(user=self.request.user).exists():
-            raise ValidationError({"detail": "У вас уже есть профиль продавца"})
+            raise ValidationError({"detail": _("У вас уже есть профиль продавца")})
         serializer.save(user=self.request.user, is_approved=False)
 
     def get_serializer_class(self):

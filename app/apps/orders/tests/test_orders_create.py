@@ -47,8 +47,8 @@ def test_create_order_authenticated(api_client, user):
         "phone_number": "+380505555555",
         "address": "ул. Тестовая, 1",
         "email": "ivan@test.com",
-        "city": "Омск",
-        "region": "Омская",
+        "city": "Київ",
+        "region": "Київська",
         "department_number": "1",
     }
     response = api_client.post(url, payload, format="json")
@@ -233,8 +233,8 @@ def test_user_cannot_use_another_users_cart(api_client, user, another_user):
         "phone_number": "+380505555555",
         "address": "ул. Подмена, 1",
         "email": "test@test.com",
-        "city": "Омск",
-        "region": "Омская",
+        "city": "Київ",
+        "region": "Київська",
         "department_number": "1",
     }
 

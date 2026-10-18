@@ -3,6 +3,7 @@ import uuid
 
 from django.db import transaction
 from django.db.models import Q
+from django.utils.translation import gettext as _
 from rest_framework import serializers
 
 from app.apps.products.models import ProductVariant
@@ -62,11 +63,15 @@ def _validate_items(items):
     for item in items:
         product, variant = item.get("product"), item.get("variant")
         if variant is not None and variant.product_id != product.pk:
-            raise serializers.ValidationError(f"Вариант {variant.pk} не принадлежит товару «{product.name}»")
+            raise serializers.ValidationError(
+                _("Вариант {pk} не принадлежит товару «{name}»").format(pk=variant.pk, name=product.name)
+            )
         if variant is None:
             variants = list(product.variants.all()[:2])
             if len(variants) != 1:
-                raise serializers.ValidationError(f"Для товара «{product.name}» нужно выбрать вариант")
+                raise serializers.ValidationError(
+                    _("Для товара «{name}» нужно выбрать вариант").format(name=product.name)
+                )
             item["variant"] = variants[0]
     return items
 
@@ -289,6 +294,8 @@ class OrderCreateSerializer(serializers.ModelSerializer):
     """
 
     cart_uuid = serializers.UUIDField(write_only=True)
+    # ввод в любом формате (+38 (050) 123-45-67); сохраняется нормализованным +380XXXXXXXXX
+    phone_number = serializers.CharField(max_length=32)
     customer_name = serializers.CharField(required=False, allow_blank=True)
     telegram = serializers.CharField(required=False, allow_blank=True, write_only=True)
     whatsapp = serializers.CharField(required=False, allow_blank=True, write_only=True)
@@ -320,7 +327,7 @@ class OrderCreateSerializer(serializers.ModelSerializer):
         owner = Q(customer=None) | Q(customer=user) if user.is_authenticated else Q(customer=None)
         cart = Cart.objects.filter(owner, cart_uuid=cart_uuid, orders=None).first()
         if not cart:
-            raise serializers.ValidationError("Корзина не найдена или заказ по ней уже оформлен")
+            raise serializers.ValidationError(_("Корзина не найдена или заказ по ней уже оформлен"))
         return cart
 
     def validate_customer_name(self, value):
@@ -329,7 +336,7 @@ class OrderCreateSerializer(serializers.ModelSerializer):
         if not value and user.is_authenticated:
             value = f"{user.first_name} {user.last_name}".strip()
         if not value:
-            raise serializers.ValidationError("Укажите имя получателя")
+            raise serializers.ValidationError(_("Укажите имя получателя"))
         return validate_person_name(value)
 
     def validate_phone_number(self, value):
@@ -337,7 +344,7 @@ class OrderCreateSerializer(serializers.ModelSerializer):
 
     def validate_comment(self, value):
         if value and re.search(r"https?://", value):
-            raise serializers.ValidationError("В комментарии не допускаются ссылки.")
+            raise serializers.ValidationError(_("В комментарии не допускаются ссылки."))
         return value
 
     def validate(self, data):

@@ -22,6 +22,7 @@ from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
+from django.utils.translation import gettext as _
 from rapidfuzz import fuzz, process
 
 from app.apps.products.models import Product, ProductVariant
@@ -144,11 +145,11 @@ def _build_line(position, item, matcher):
     qty = _decimal(item.get("qty"), "0.001")
     price = _decimal(item.get("price") or 0, "0.0001")
     if not line["name"]:
-        line["error"] = "нет наименования"
+        line["error"] = _("нет наименования")
     elif qty is None or qty <= 0:
-        line["error"] = f"нет количества ({item.get('qty')!r})"
+        line["error"] = _("нет количества ({value!r})").format(value=item.get("qty"))
     elif price is None or price < 0:
-        line["error"] = f"некорректная цена ({item.get('price')!r})"
+        line["error"] = _("некорректная цена ({value!r})").format(value=item.get("price"))
     if line["error"]:
         return line
 
@@ -167,7 +168,7 @@ def _build_line(position, item, matcher):
 def parse_document(document: InventoryDocument) -> dict:
     document = InventoryDocument.objects.select_for_update().get(pk=document.pk)
     if document.processed:
-        raise stock.StockError("Документ уже проведён")
+        raise stock.StockError(_("Документ уже проведён"))
 
     parsed = run_invoice_parser(load_rows(document.file.path))
     meta = parsed.get("meta") or {}
@@ -197,19 +198,21 @@ def parse_document(document: InventoryDocument) -> dict:
 def set_line_variant(document: InventoryDocument, position: int, variant_id=None, create_new=False) -> dict:
     document = InventoryDocument.objects.select_for_update().get(pk=document.pk)
     if document.processed:
-        raise stock.StockError("Документ уже проведён")
+        raise stock.StockError(_("Документ уже проведён"))
     lines = (document.extracted_data or {}).get("lines") or []
     line = next((ln for ln in lines if ln["position"] == position), None)
     if line is None:
-        raise stock.StockError(f"Строка {position} не найдена")
+        raise stock.StockError(_("Строка {position} не найдена").format(position=position))
     if line["status"] == INVALID:
-        raise stock.StockError(f"Строка {position} некорректна: {line['error']}")
+        raise stock.StockError(
+            _("Строка {position} некорректна: {value}").format(position=position, value=line["error"])
+        )
 
     if create_new:
         line.update(status=NEW, variant_id=None, method="manual", confidence=1.0)
     else:
         if not ProductVariant.objects.filter(pk=variant_id).exists():
-            raise stock.StockError(f"Вариант {variant_id} не найден")
+            raise stock.StockError(_("Вариант {variant_id} не найден").format(variant_id=variant_id))
         line.update(status=MATCHED, variant_id=int(variant_id), method="manual", confidence=1.0)
     document.extracted_data["summary"] = {
         s: sum(1 for ln in lines if ln["status"] == s) for s in (MATCHED, NEEDS_REVIEW, NEW, INVALID)
@@ -276,9 +279,9 @@ def process_inventory_document(
     """Проводит документ. Возвращает отчёт {"received": n, "created": n, "skipped": [...]}."""
     document = InventoryDocument.objects.select_for_update().get(pk=document.pk)
     if document.processed:
-        raise stock.StockError("Документ уже проведён")
+        raise stock.StockError(_("Документ уже проведён"))
     if warehouse.seller_id != document.seller_id:
-        raise stock.StockError("Склад не принадлежит продавцу документа")
+        raise stock.StockError(_("Склад не принадлежит продавцу документа"))
 
     if not (document.extracted_data or {}).get("lines"):
         parse_document(document)
@@ -289,7 +292,7 @@ def process_inventory_document(
     review = [ln["position"] for ln in lines if ln["status"] == NEEDS_REVIEW]
     if review and not accept_suggestions:
         raise ReviewRequiredError(
-            f"Нужно проверить сопоставление строк: {', '.join(map(str, review))}",
+            _("Нужно проверить сопоставление строк: {value}").format(value=", ".join(map(str, review))),
             positions=review,
         )
 
@@ -306,7 +309,9 @@ def process_inventory_document(
         )
         if dup:
             raise DuplicateDocumentError(
-                f"Накладная №{document.document_number} этого поставщика уже проведена (документ #{dup.pk})",
+                _("Накладная №{document_number} этого поставщика уже проведена (документ #{pk})").format(
+                    document_number=document.document_number, pk=dup.pk
+                ),
                 document_id=dup.pk,
             )
 

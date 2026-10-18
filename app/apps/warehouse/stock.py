@@ -20,6 +20,7 @@ from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 
 from django.db import transaction
 from django.db.models import F, Q, Sum
+from django.utils.translation import gettext as _
 
 from app.apps.products.models import ProductVariant
 from app.apps.warehouse.models import StockBalance, StockMovement, Warehouse
@@ -50,9 +51,9 @@ def to_quantity(value) -> Decimal:
     try:
         qty = Decimal(str(value)).quantize(QTY_PRECISION, rounding=ROUND_HALF_UP)
     except (InvalidOperation, TypeError, ValueError):
-        raise StockError(f"Некорректное количество: {value!r}")
+        raise StockError(_("Некорректное количество: {value!r}").format(value=value))
     if qty <= ZERO:
-        raise StockError(f"Количество должно быть больше нуля, получено {qty}")
+        raise StockError(_("Количество должно быть больше нуля, получено {qty}").format(qty=qty))
     return qty
 
 
@@ -104,9 +105,9 @@ def receive(
 ) -> StockMovement:
     """Поступление на склад: приход от поставщика (in) или возврат от клиента (return_in)."""
     if movement_type not in (StockMovement.IN, StockMovement.RETURN_IN):
-        raise StockError(f"receive() не поддерживает тип {movement_type}")
+        raise StockError(_("receive() не поддерживает тип {movement_type}").format(movement_type=movement_type))
     if movement_type == StockMovement.IN and not fields.get("supplier"):
-        raise StockError("Для прихода необходимо указать поставщика")
+        raise StockError(_("Для прихода необходимо указать поставщика"))
 
     qty = to_quantity(quantity)
     locked = _lock_variant(variant)
@@ -143,7 +144,9 @@ def _write_off_locked(
     balance = _lock_balance(locked.pk, warehouse.pk)
     if balance.quantity < qty:
         raise InsufficientStockError(
-            f"На складе «{warehouse.name}» недостаточно товара: доступно {balance.quantity}, требуется {qty}",
+            _("На складе «{name}» недостаточно товара: доступно {quantity}, требуется {qty}").format(
+                name=warehouse.name, quantity=balance.quantity, qty=qty
+            ),
             variant_id=locked.pk,
             warehouse_id=warehouse.pk,
             available=balance.quantity,
@@ -153,7 +156,9 @@ def _write_off_locked(
     free_after = (locked.stock - qty) - (locked.reserved - consume_reserved)
     if free_after < ZERO:
         raise InsufficientStockError(
-            f"Товар зарезервирован под заказы: свободно {locked.stock - locked.reserved}, требуется {qty}",
+            _("Товар зарезервирован под заказы: свободно {value}, требуется {qty}").format(
+                value=locked.stock - locked.reserved, qty=qty
+            ),
             variant_id=locked.pk,
             available=locked.stock - locked.reserved,
             requested=qty,
@@ -180,15 +185,15 @@ def write_off(
 ) -> StockMovement:
     """Ручной расход (продажа вне сайта, списание брака) или возврат поставщику."""
     if movement_type not in (StockMovement.OUT, StockMovement.RETURN_OUT):
-        raise StockError(f"write_off() не поддерживает тип {movement_type}")
+        raise StockError(_("write_off() не поддерживает тип {movement_type}").format(movement_type=movement_type))
     if movement_type == StockMovement.RETURN_OUT and not fields.get("supplier"):
-        raise StockError("Для возврата поставщику необходимо указать поставщика")
+        raise StockError(_("Для возврата поставщику необходимо указать поставщика"))
     qty = to_quantity(quantity)
     locked = _lock_variant(variant)
     return _write_off_locked(locked, warehouse, qty, movement_type=movement_type, user=user, **fields)
 
 
-def return_to_supplier(variant, warehouse, supplier, quantity, user=None, comment="Возврат поставщику"):
+def return_to_supplier(variant, warehouse, supplier, quantity, user=None, comment=_("Возврат поставщику")):
     return write_off(
         variant,
         warehouse,
@@ -209,7 +214,7 @@ def return_to_supplier(variant, warehouse, supplier, quantity, user=None, commen
 def transfer(variant, from_warehouse: Warehouse, to_warehouse: Warehouse, quantity, *, user=None):
     """Перемещение между складами. Общий остаток не меняется."""
     if from_warehouse.pk == to_warehouse.pk:
-        raise StockError("Склад-отправитель и склад-получатель совпадают")
+        raise StockError(_("Склад-отправитель и склад-получатель совпадают"))
     qty = to_quantity(quantity)
     locked = _lock_variant(variant)
 
@@ -219,7 +224,9 @@ def transfer(variant, from_warehouse: Warehouse, to_warehouse: Warehouse, quanti
     source = StockBalance.objects.get(variant_id=locked.pk, warehouse_id=from_warehouse.pk)
     if source.quantity < qty:
         raise InsufficientStockError(
-            f"На складе «{from_warehouse.name}» недостаточно товара: доступно {source.quantity}, требуется {qty}",
+            _("На складе «{name}» недостаточно товара: доступно {quantity}, требуется {qty}").format(
+                name=from_warehouse.name, quantity=source.quantity, qty=qty
+            ),
             variant_id=locked.pk,
             warehouse_id=from_warehouse.pk,
             available=source.quantity,
@@ -259,9 +266,9 @@ def adjust(variant, warehouse: Warehouse, real_quantity, *, user=None, comment="
     try:
         real = Decimal(str(real_quantity)).quantize(QTY_PRECISION, rounding=ROUND_HALF_UP)
     except (InvalidOperation, TypeError, ValueError):
-        raise StockError(f"Некорректное количество: {real_quantity!r}")
+        raise StockError(_("Некорректное количество: {real_quantity!r}").format(real_quantity=real_quantity))
     if real < ZERO:
-        raise StockError("Фактический остаток не может быть отрицательным")
+        raise StockError(_("Фактический остаток не может быть отрицательным"))
 
     locked = _lock_variant(variant)
     balance = _lock_balance(locked.pk, warehouse.pk)
@@ -315,7 +322,9 @@ def reserve(lines):
         available = locked.stock - locked.reserved
         if available < qty:
             raise InsufficientStockError(
-                f"Недостаточно товара (id {variant_id}): доступно {max(available, ZERO)}, требуется {qty}",
+                _("Недостаточно товара (id {variant_id}): доступно {value}, требуется {qty}").format(
+                    variant_id=variant_id, value=max(available, ZERO), qty=qty
+                ),
                 variant_id=variant_id,
                 available=max(available, ZERO),
                 requested=qty,
@@ -378,7 +387,9 @@ def write_off_reserved(lines, *, user=None, comment="", from_reserve=True, **fie
             remaining -= take
         if remaining > ZERO:
             raise InsufficientStockError(
-                f"Недостаточно товара на складах для списания (id {variant_id}): не хватает {remaining}",
+                _("Недостаточно товара на складах для списания (id {variant_id}): не хватает {remaining}").format(
+                    variant_id=variant_id, remaining=remaining
+                ),
                 variant_id=variant_id,
                 requested=qty,
                 missing=remaining,

@@ -3,6 +3,7 @@ import logging
 from dj_rest_auth.registration.serializers import RegisterSerializer
 from dj_rest_auth.serializers import LoginSerializer, UserDetailsSerializer
 from django.contrib.auth import get_user_model
+from django.utils.translation import gettext as _
 from rest_framework import serializers
 
 from app.apps.accounts.models import Profile
@@ -65,16 +66,16 @@ class CustomRegisterSerializer(RegisterSerializer):
         domain = value.split("@")[-1].lower()
         if domain not in ALLOWED_DOMAINS:
             logger.warning(f"[EMAIL] Недопустимый домен: {domain}")
-            raise serializers.ValidationError("Регистрация доступна только с популярных почтовых сервисов.")
+            raise serializers.ValidationError(_("Регистрация доступна только с популярных почтовых сервисов."))
 
         if User.objects.filter(email=value).exists():
-            raise serializers.ValidationError("Пользователь с таким email уже существует.")
+            raise serializers.ValidationError(_("Пользователь с таким email уже существует."))
 
         return value
 
     def validate_password1(self, value):
         if "password" in value:
-            raise serializers.ValidationError("Пароль не должен содержать слово «password»")
+            raise serializers.ValidationError(_("Пароль не должен содержать слово «password»"))
         return value
 
 

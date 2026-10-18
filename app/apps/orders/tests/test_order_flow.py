@@ -253,3 +253,27 @@ def test_current_cart_for_guest_and_claim_after_login(client):
     client.force_authenticate(user)
     claimed = client.get(url, {"cart_uuid": created["cart_uuid"]})
     assert claimed.status_code == 200 and claimed.json()["customer"] == user.pk
+
+
+@pytest.mark.django_db
+def test_api_messages_follow_accept_language(client, settings):
+    settings.LANGUAGE_CODE = "uk"
+    cart = CartFactory(customer=None)  # пустая корзина
+    url = reverse(ORDER_URL)
+    uk = client.post(url, _payload(cart), format="json", HTTP_ACCEPT_LANGUAGE="uk-UA")
+    ru = client.post(url, _payload(cart), format="json", HTTP_ACCEPT_LANGUAGE="ru-UA")
+    assert "Кошик порожній" in str(uk.json())
+    assert "Корзина пуста" in str(ru.json())
+    bad_phone = client.post(
+        url, _payload(cart, phone_number="+7 (999) 123 45 67"), format="json", HTTP_ACCEPT_LANGUAGE="uk"
+    )
+    assert "+380" in str(bad_phone.json()["phone_number"])
+
+
+@pytest.mark.django_db
+def test_formatted_ukrainian_phone_is_accepted_and_normalized(client):
+    variant = _variant()
+    cart = _cart(items=[(variant, 1)])
+    resp = client.post(reverse(ORDER_URL), _payload(cart, phone_number="+38 (050) 123-45-67"), format="json")
+    assert resp.status_code == 201, resp.json()
+    assert Order.objects.get().phone_number == "+380501234567"
