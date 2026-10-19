@@ -30,6 +30,21 @@ def normalize_text(s):
     return re.sub(r"\s+", " ", str(s)).strip()
 
 
+# Латинские буквы, которые в выгрузках 1С и старых шаблонах стоят вместо кириллических
+# («Кiлькiсть», «Цiна» с латинской i) — визуально одинаковы, но ключевые слова не находятся.
+_LOOKALIKES = str.maketrans("iaeocpxykmthb", "іаеосрхукмтнв")
+_CYRILLIC = re.compile(r"[а-яіїєґё]", re.IGNORECASE)
+
+
+def fold_lookalikes(text):
+    """
+    Нормализация текста заголовков колонок: нижний регистр, пробелы, латинские двойники кириллицы
+    заменяются в словах, где уже есть кириллица («кiлькiсть» → «кількість»). Английские слова не трогаются.
+    """
+    words = normalize_text(text).lower().split(" ")
+    return " ".join(w.translate(_LOOKALIKES) if _CYRILLIC.search(w) else w for w in words)
+
+
 def clean(v):
     """
     Базовая очистка значения

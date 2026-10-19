@@ -10,6 +10,7 @@ import json
 from pathlib import Path
 
 import pytest
+
 from parsers.regress import case_rows, run_rows
 
 CASES = sorted((Path(__file__).parent / "parser_cases").glob("*.json"))

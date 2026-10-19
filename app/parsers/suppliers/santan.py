@@ -3,7 +3,7 @@
 import re
 
 from parsers.core.table_engine import TableEngine
-from parsers.core.text_utils import normalize_text, row_text
+from parsers.core.text_utils import fold_lookalikes, normalize_text, row_text
 
 from ..base import BaseInvoiceParser
 
@@ -110,15 +110,13 @@ class SantanParser(BaseInvoiceParser):
         сопоставляет индексы и фиксирует header_index на второй строке.
         """
         for idx, row in enumerate(rows[:20]):
-            row_clean = [normalize_text(str(cell).strip().lower()) for cell in row]
+            row_clean = [fold_lookalikes(str(cell)) for cell in row]
             joined = " ".join(row_clean)
 
             if "номенклатура" in joined:
                 # Нашли первую строку шапки. Заглядываем во вторую (где Цена и Од.)
                 next_idx = idx + 1
-                next_row = (
-                    [normalize_text(str(c).strip().lower()) for c in rows[next_idx]] if next_idx < len(rows) else []
-                )
+                next_row = [fold_lookalikes(str(c)) for c in rows[next_idx]] if next_idx < len(rows) else []
 
                 col_map = {}
 
@@ -126,13 +124,13 @@ class SantanParser(BaseInvoiceParser):
                 for i, cell in enumerate(row_clean):
                     if any(x in cell for x in ["номенклатура", "назва", "товар"]):
                         col_map["name"] = i
+                    # «штрихкод» содержит «код» — проверяем раньше артикула, иначе штрихкод попадал в SKU
+                    elif any(x in cell for x in ["штрих", "barcode", "ean"]):
+                        col_map["barcode"] = i
                     elif any(x in cell for x in ["код", "артикул"]):
                         col_map["sku"] = i
                     elif any(x in cell for x in ["кількість", "кол-во", "кол"]):
                         col_map["qty"] = i
-
-                    elif any(x in cell for x in ["штрих", "barcode", "ean"]):
-                        col_map["barcode"] = i
 
                 # 2. Теперь ищем по второй строке (Ціна, Од.)
                 for i, cell in enumerate(next_row):

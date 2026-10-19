@@ -4,7 +4,7 @@ import re
 
 from parsers.core.numbers import extract_numbers, safe_float
 from parsers.core.sku import extract_sku_from_row
-from parsers.core.text_utils import normalize_text, row_text
+from parsers.core.text_utils import fold_lookalikes, normalize_text, row_text
 
 logger = logging.getLogger(__name__)
 
@@ -116,7 +116,7 @@ class TableEngine:
                 for col_idx, cell in enumerate(row):
                     if col_idx in found.values():
                         continue  # колонка уже распознана под другое поле
-                    cell_str = normalize_text(str(cell).strip().lower()) if cell is not None else ""
+                    cell_str = fold_lookalikes(str(cell)) if cell is not None else ""
 
                     tokens = re.split(r"[\s._\-]+", cell_str)
 
