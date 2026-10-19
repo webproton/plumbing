@@ -1,14 +1,15 @@
-import { Check, ChevronDown, Download, FileDown, PackagePlus, RefreshCw } from "lucide-react";
+import { Check, ChevronDown, Columns3, Download, FileDown, Loader2, PackagePlus, RefreshCw, Sparkles } from "lucide-react";
 import { useState } from "react";
 import { data, Form, useFetcher, useNavigation } from "react-router";
 
+import { usePolling } from "~/components/seller/imports";
 import { Table, TableWrap, Td, Th } from "~/components/seller/Table";
 import { VariantPicker } from "~/components/seller/VariantPicker";
-import { Alert, Badge, Button, Card, Field, PageTitle, Select } from "~/components/ui";
+import { Alert, Badge, Button, buttonClass, Card, Field, PageTitle, Select } from "~/components/ui";
 import { langFromRequest, makeT, tFromMatches, type TFunction } from "~/i18n";
 import { Link, useLang, useLocalPath, useT } from "~/i18n/react";
 import { ApiError } from "~/lib/api.server";
-import { formatDate, formatQty } from "~/lib/format";
+import { formatDate, formatPrice, formatQty } from "~/lib/format";
 import { requireSeller } from "~/lib/seller.server";
 import type { InvoiceDoc, InvoiceLine, LineStatus, ProcessingReport, Supplier } from "~/lib/types";
 
@@ -48,6 +49,10 @@ export async function action({ request, params, context }: Route.ActionArgs) {
       await api.post(`${base}/lines/${Number(form.get("position"))}/`, create ? { create_new: true } : { variant: Number(form.get("variant")) });
       return { ok: true as const, intent };
     }
+    if (intent === "ai") {
+      await api.post(`${base}/ai/`);
+      return { ok: true as const, intent };
+    }
     if (intent === "reparse") {
       await api.post(`${base}/parse/`);
       return { ok: true as const, intent };
@@ -82,6 +87,67 @@ const STATUS_TONE: Record<LineStatus, "success" | "info" | "danger" | "muted"> =
   invalid: "muted",
 };
 
+const VERDICT_TONE = { ok: "success", warning: "danger", bad: "danger", empty: "danger" } as const;
+
+/** Насколько можно доверять разбору: арифметика строк и итога, каким способом разобрано, что сделать дальше. */
+function ParseCheck({ doc, busy }: { doc: InvoiceDoc; busy: boolean }) {
+  const t = useT();
+  const data = doc.extracted_data;
+  const q = data?.quality;
+  const aiRunning = doc.ai.status === "queued" || doc.ai.status === "running";
+  const needsAi = data?.code === "needs_ai";
+  if (doc.processed || (!q && !needsAi && !data?.error)) return null;
+
+  return (
+    <Card className="space-y-3 p-4">
+      <div className="flex flex-wrap items-center gap-2">
+        <h2 className="font-semibold">{t("wh.parse.title")}</h2>
+        {q && <Badge tone={VERDICT_TONE[q.verdict]}>{t(`wh.parse.verdict.${q.verdict}` as const)}</Badge>}
+        {data?.engine && <span className="text-sm text-muted">{t(`wh.parse.engine.${data.engine}` as const)}</span>}
+      </div>
+      {q && q.lines > 0 && (
+        <ul className="space-y-0.5 text-sm">
+          <li>{t("wh.parse.lines", { ok: q.consistent, n: q.lines })}</li>
+          {q.inconsistent_positions.length > 0 && q.consistent > 0 && (
+            <li className="text-danger">{t("wh.parse.badLines", { positions: q.inconsistent_positions.slice(0, 15).join(", ") })}</li>
+          )}
+          {q.sum_match === true && <li>{t("wh.parse.sumOk", { sum: formatPrice(q.sum_items) })}</li>}
+          {q.sum_match === false && (
+            <li className="text-danger">{t("wh.parse.sumBad", { sum: formatPrice(q.sum_items), total: formatPrice(q.doc_total) })}</li>
+          )}
+        </ul>
+      )}
+      {needsAi && <p className="text-sm">{t("wh.parse.needsAi")}</p>}
+      {aiRunning && (
+        <Alert>
+          <span className="inline-flex items-center gap-2">
+            <Loader2 className="size-4 animate-spin" aria-hidden /> {t("wh.parse.aiQueued")}
+          </span>
+        </Alert>
+      )}
+      {doc.ai.status === "failed" && <Alert tone="danger">{t("wh.parse.aiFailed", { error: doc.ai.error })}</Alert>}
+      {q?.verdict !== "ok" && !needsAi && <p className="text-sm text-muted">{t("wh.parse.hint")}</p>}
+      <div className="flex flex-wrap items-center gap-2">
+        {!needsAi && (
+          <Link to={`/seller/documents/${doc.id}/columns`} className={buttonClass("secondary", "sm")}>
+            <Columns3 className="size-4" aria-hidden /> {t("wh.parse.columns")}
+          </Link>
+        )}
+        {doc.ai.enabled ? (
+          <Form method="post">
+            <input type="hidden" name="intent" value="ai" />
+            <Button type="submit" size="sm" variant={needsAi ? "primary" : "ghost"} loading={busy} disabled={aiRunning}>
+              <Sparkles className="size-4" aria-hidden /> {t("wh.parse.ai")}
+            </Button>
+          </Form>
+        ) : (
+          needsAi && <p className="text-sm text-muted">{t("wh.parse.aiOff")}</p>
+        )}
+      </div>
+    </Card>
+  );
+}
+
 export default function Document({ loaderData, actionData }: Route.ComponentProps) {
   const { doc, suppliers } = loaderData;
   const me = useSellerMe();
@@ -98,6 +164,7 @@ export default function Document({ loaderData, actionData }: Route.ComponentProp
   const report = doc.extracted_data?.processing_report ?? (actionData?.ok && "report" in actionData ? actionData.report : null);
   const defaultWh = me.warehouses.find((w) => w.is_default)?.id ?? me.warehouses[0]?.id;
   const failed = actionData && !actionData.ok ? actionData : null;
+  usePolling(doc.ai.status === "queued" || doc.ai.status === "running");
 
   return (
     <div className="space-y-5">
@@ -129,7 +196,10 @@ export default function Document({ loaderData, actionData }: Route.ComponentProp
         </a>
       </div>
 
-      {doc.extracted_data?.error && <Alert tone="danger">{t("wh.doc.parseError", { error: doc.extracted_data.error })}</Alert>}
+      {doc.extracted_data?.error && doc.extracted_data.code !== "needs_ai" && (
+        <Alert tone="danger">{t("wh.doc.parseError", { error: doc.extracted_data.error })}</Alert>
+      )}
+      <ParseCheck doc={doc} busy={busy} />
       {!doc.processed && !doc.supplier && (
         <Alert tone="info">
           <Form method="post" className="flex flex-wrap items-center gap-3">

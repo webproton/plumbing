@@ -83,11 +83,12 @@ API: `/api/orders/cart/` (+`by-uuid/`), `/api/orders/order-create/`, `/api/order
 
 | Файл | Что внутри |
 |---|---|
-| `models.py` | `Warehouse`, `Supplier` (+`code` для автоопределения), `StockMovement` (неизменяемый журнал), `StockBalance` (остаток по складу), `InventoryDocument` (накладная, приватный файл, SHA-256), `ProductBarcode`, `VariantMatchMemory`, `CurrencyRate` |
+| `models.py` | `Warehouse`, `Supplier` (+`code` для автоопределения), `StockMovement` (неизменяемый журнал), `StockBalance` (остаток по складу), `InventoryDocument` (накладная, приватный файл, SHA-256, ручные колонки `column_map`, ИИ-разбор `ai_status/ai_result`), `InvoiceColumnProfile` (запомненные раскладки колонок поставщика), `ProductBarcode`, `VariantMatchMemory`, `CurrencyRate` |
 | `stock.py` | **Единственное место изменения остатков**: `receive`, `write_off`, `return_to_supplier`, `transfer`, `adjust`, `reserve`, `release`, `write_off_reserved`, `rebuild_from_journal`, `get_balance`, `journal_balance` |
-| `services.py` | Приёмка накладной: `parse_document` → `set_line_variant` → `process_inventory_document`; `VariantMatcher` (память → штрихкод → артикул → fuzzy-подсказка); `suggest_variants` |
+| `services.py` | Приёмка накладной: `parse_document` (через `parsers.pipeline`) → `set_line_variant` → `process_inventory_document`; `set_document_columns` / `reset_document_columns` (ручные колонки, профили), `request_ai_parse`; `VariantMatcher` (память → штрихкод → артикул → fuzzy; устойчив к «двойникам» букв); `suggest_variants` |
 | `inventory/barcode_scanner.py` | `find_variant_by_code`, `scan_barcode` (пик = +1 шт. по документу) |
 | `pdf.py` | PDF накладной в памяти |
+| `tasks.py` | `parse_document_ai_task` — разбор накладной через ИИ в фоне |
 | `permissions.py` | `get_active_seller`, `IsWarehouseStaff` (одобренный продавец / суперпользователь, только свои объекты) |
 | `views.py`, `serializers.py`, `admin.py` | API склада, сканер, админка (журнал — только чтение, «Провести», «Сверить остатки») |
 | `templates/warehouse/scanner_mock.html` | Тестовая страница сканера (только staff) |
@@ -98,11 +99,17 @@ API (`/api/warehouse/`): `me/`, `dashboard/`, `balances/`, `variants/search/`, `
 
 | Файл | Что внутри |
 |---|---|
-| `core/loader.py` | `load_rows`: xlsx/xls (openpyxl → pandas/calamine), XML Spreadsheet, YML-прайс (без количеств); XML через `defusedxml` |
+| `core/loader.py` | `load_rows`: xlsx/xls (openpyxl → pandas/calamine), XML Spreadsheet, YML-прайс (без количеств), PDF (pdfplumber: таблицы с линиями и по выравниванию текста); фото/скан → `NeedsAI`; XML через `defusedxml` |
+| `core/text_utils.py` | `row_text`, `normalize_text`, `fold_lookalikes` (латинская i → і в словах с кириллицей), `code_key` (кириллические С/Т/Н → латиница в артикулах) |
+| `pipeline.py` | **Точка входа склада**: ручные колонки → основной парсер → проверка → профили / разбор по содержимому / ИИ, выбор лучшего |
+| `quality.py` | `assess`: кол-во × цена = сумма, сумма строк = итог (± ПДВ) → `ok / warning / bad / empty` |
+| `universal.py` | Разбор по содержимому колонок (`detect_columns`, `extract_items`) — без доверия к заголовкам |
+| `ai.py` | Разбор через Claude: таблица текстом или PDF/фото, ответ по схеме `record_invoice` |
+| `regress.py` | Эталон: `snapshot` / `compare` реальных файлов, `record` обезличенных кейсов тестов |
 | `core/numbers.py` | `safe_float` (1 234,50 · 1.234,50 · NBSP · валюта; текст — не число) |
 | `core/table_engine.py` | `TableEngine`: поиск заголовка, разбор строк по колонкам (позиция/артикул/штрихкод/название/кол-во/цена/сумма) |
 | `detect.py` | `detect_supplier` — код поставщика по ключевым словам шапки |
-| `registry.py` | `parse(rows)` — выбор парсера и нормализация |
+| `registry.py` | `parse(rows)` — выбор парсера поставщика и нормализация (основной парсер внутри `pipeline`) |
 | `normalizer.py` | Приведение строки к единому виду (регистр названия сохраняется) |
 | `suppliers/` | `default`, `aquadom`, `presto`, `santan` (`ber` — не подключён) |
 | `run.py` | Отладка из консоли: `python -m parsers.run файл.xlsx` |
@@ -150,7 +157,7 @@ React Router 8 (SSR) · React 19 · TypeScript strict · Tailwind CSS 4 · zod �
 | `app/lib/types.ts` | Типы ответов API |
 | `app/components/` | UI-кит (`ui.tsx`), шапка, подвал, карточка товара, цена, пагинация, количество, «в корзину», заявка на звонок |
 | `app/routes/` | Страницы: главная, каталог, товар, корзина, оформление, вход/регистрация/пароль, кабинет, избранное, доставка, контакты |
-| `app/routes/seller/` | Кабинет склада/продавца: `layout` (роль, навигация), `index` (обзор), `stock`, `documents` + `document` (накладные), `operations`, `scanner`, `movements`, `warehouses`, `suppliers`, импорт — `import` (шаблон, загрузка, история), `import-run` (предпросмотр/применение), `sources` (источники), `source` (позиции поставщика), `source-edit` (создание/настройки); ресурсные маршруты `variants` (поиск товара), `document-file`, `import-template` (скачивание) |
+| `app/routes/seller/` | Кабинет склада/продавца: `layout` (роль, навигация), `index` (обзор), `stock`, `documents` + `document` (накладные, «Перевірка розбору», ИИ) + `document-columns` (ручной выбор колонок), `operations`, `scanner`, `movements`, `warehouses`, `suppliers`, импорт — `import` (шаблон, загрузка, история), `import-run` (предпросмотр/применение), `sources` (источники), `source` (позиции поставщика), `source-edit` (создание/настройки); ресурсные маршруты `variants` (поиск товара), `document-file`, `import-template` (скачивание) |
 | `app/components/seller/` | `Table` (таблицы, карточки-метрики), `VariantPicker` (поиск товара), `CameraScanner` (камера телефона), `imports.tsx` (статусы запусков/источников, `usePolling` — автообновление во время фоновой задачи) |
 | `app/i18n/` | Словари: `uk.ts` (еталон), `ru.ts`, кабинет — `seller.uk.ts`/`seller.ru.ts`, импорт — `import.uk.ts`/`import.ru.ts`; `react.tsx` (useT, Link с языком), `server.ts` |
 | `tests/` | Vitest: форматирование, валидация, API-клиент, компоненты |
