@@ -285,6 +285,11 @@ TELEGRAM_MANAGERS = [m.strip() for m in env.list("MANAGERS", default=[]) if m.st
 # Ключ шифрования доступов к сайтам поставщиков. Пусто — выводится из SECRET_KEY
 # (тогда при смене SECRET_KEY пароли поставщиков придётся ввести заново).
 CREDENTIALS_KEY = env("CREDENTIALS_KEY", default="")
+# Разбор накладных через Claude (запасной вариант): off — выключен; manual — по кнопке;
+# auto — ещё и автоматически, если накладная не разобралась (скан, фото, не сходится арифметика)
+INVOICE_AI_MODE = env("INVOICE_AI_MODE", default="off")
+ANTHROPIC_API_KEY = env("ANTHROPIC_API_KEY", default="")
+INVOICE_AI_MODEL = env("INVOICE_AI_MODEL", default="claude-opus-5-5")
 
 
 # ==============================

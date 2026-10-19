@@ -17,7 +17,7 @@ import sys
 from pathlib import Path
 
 from parsers.core.loader import load_rows
-from parsers.registry import parse
+from parsers.pipeline import parse_rows as parse
 
 EXTENSIONS = {".xlsx", ".xls", ".xml", ".yml", ".pdf"}
 SNAPSHOT_DIR = ".parser-snapshots"
@@ -64,6 +64,8 @@ def summarize(result: dict) -> dict:
         "number": meta.get("number"),
         "date": str(meta["date"]) if meta.get("date") else None,
         "total": _round(totals.get("total")),
+        "engine": result.get("engine", "parser"),
+        "quality": (result.get("quality") or {}).get("verdict"),
         "items": [{k: _round(item.get(k)) for k in ITEM_FIELDS} for item in result.get("items") or []],
     }
 

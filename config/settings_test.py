@@ -15,6 +15,8 @@ TELEGRAM_MANAGERS = []
 CELERY_TASK_ALWAYS_EAGER = True
 CELERY_TASK_EAGER_PROPAGATES = True
 CREDENTIALS_KEY = ""
+INVOICE_AI_MODE = "off"
+ANTHROPIC_API_KEY = ""
 
 # Загрузки в тестах — во временную папку, а не в реальный MEDIA_ROOT
 import tempfile  # noqa: E402

@@ -2,7 +2,7 @@ from django.contrib import admin, messages
 from django.db.models import F, Sum
 
 from . import stock
-from .models import InventoryDocument, StockBalance, StockMovement, Supplier, Warehouse
+from .models import InventoryDocument, InvoiceColumnProfile, StockBalance, StockMovement, Supplier, Warehouse
 from .services import ReviewRequiredError, process_inventory_document
 
 
@@ -148,3 +148,10 @@ class InventoryDocumentAdmin(admin.ModelAdmin):
     @admin.display(description="Сумма")
     def total_sum(self, obj):
         return obj.stock_movements.aggregate(total=Sum(F("quantity") * F("price_per_unit")))["total"] or 0
+
+
+@admin.register(InvoiceColumnProfile)
+class InvoiceColumnProfileAdmin(admin.ModelAdmin):
+    list_display = ("supplier", "header", "used_count", "last_used_at", "created_at")
+    list_filter = ("supplier",)
+    readonly_fields = ("used_count", "last_used_at", "created_by")

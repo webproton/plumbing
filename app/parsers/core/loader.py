@@ -3,6 +3,7 @@
 
 import logging
 import os
+import re
 
 import pandas as pd
 from defusedxml import ElementTree as ET  # защита от XXE / «billion laughs» в загружаемых XML
@@ -13,11 +14,23 @@ logger = logging.getLogger(__name__)
 YML_PRICE_LIST_MARK = "XML розвантаження B2B"
 
 
+IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp"}
+
+
+class NeedsAI(ValueError):
+    """В файле нет текста (скан, фото) — разобрать можно только распознаванием (ИИ)."""
+
+
 def load_rows(file_path):
     if not os.path.exists(file_path):
         raise FileNotFoundError(f"Файл не найден: {file_path}")
 
     ext = os.path.splitext(file_path)[1].lower()
+
+    if ext in IMAGE_EXTENSIONS:
+        raise NeedsAI("Фото накладной: нужен разбор через ИИ")
+    if ext == ".pdf":
+        return _pdf_rows(file_path)
 
     if ext in (".xml", ".yml"):
         try:
@@ -104,4 +117,37 @@ def _yml_catalog_rows(root):
             )
 
     logger.debug("YML: %s строк", len(rows))
+    return rows
+
+
+_SPLIT = re.compile(r"\s{2,}|\t")
+TEXT_TABLE = {"vertical_strategy": "text", "horizontal_strategy": "text", "snap_tolerance": 3, "join_tolerance": 3}
+
+
+def _pdf_rows(file_path, max_pages=50):
+    """
+    Текстовый PDF → строки таблицы: таблицы страниц (pdfplumber), а без таблиц — строки текста,
+    разрезанные по широким пробелам. Скан без текстового слоя → NeedsAI.
+    """
+    import pdfplumber
+
+    rows, text_found = [], False
+    try:
+        with pdfplumber.open(file_path) as pdf:
+            for page in pdf.pages[:max_pages]:
+                text = page.extract_text() or ""
+                text_found = text_found or bool(text.strip())
+                # таблица с линиями; без линий — колонки по выравниванию текста на странице
+                tables = page.extract_tables() or page.extract_tables(TEXT_TABLE)
+                if tables:
+                    lines_before = [ln for ln in text.splitlines()[:15] if ln.strip()]
+                    rows.extend([ln] for ln in lines_before)  # шапка документа (номер, дата, поставщик)
+                    for table in tables:
+                        rows.extend([(c or "").replace("\n", " ").strip() for c in r] for r in table)
+                else:
+                    rows.extend(_SPLIT.split(ln.strip()) for ln in text.splitlines() if ln.strip())
+    except Exception as exc:  # noqa: BLE001 — повреждённый PDF
+        raise ValueError(f"Не удалось прочитать PDF: {exc.__class__.__name__}") from exc
+    if not text_found:
+        raise NeedsAI("PDF без текста (скан): нужен разбор через ИИ")
     return rows

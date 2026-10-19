@@ -45,6 +45,15 @@ def fold_lookalikes(text):
     return " ".join(w.translate(_LOOKALIKES) if _CYRILLIC.search(w) else w for w in words)
 
 
+# Обратное направление — для артикулов: коды латинские, а в них печатают кириллические «С», «Т», «Н»…
+_CODE_LOOKALIKES = str.maketrans("АВЕКМНОРСТХУІЅЈ", "ABEKMHOPCTXYISJ")
+
+
+def code_key(value) -> str:
+    """Ключ сравнения артикула/штрихкода: верхний регистр, без пробелов, кириллические двойники → латиница."""
+    return re.sub(r"\s+", "", normalize_text(value).upper()).translate(_CODE_LOOKALIKES)
+
+
 def clean(v):
     """
     Базовая очистка значения

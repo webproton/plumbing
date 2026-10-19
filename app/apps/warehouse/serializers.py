@@ -8,7 +8,7 @@ from app.apps.products.models import ProductVariant
 
 from .models import InventoryDocument, StockBalance, StockMovement, Supplier, Warehouse
 
-ALLOWED_INVOICE_EXTENSIONS = {".xlsx", ".xls", ".xml", ".yml"}
+ALLOWED_INVOICE_EXTENSIONS = {".xlsx", ".xls", ".xml", ".yml", ".pdf", ".jpg", ".jpeg", ".png", ".webp"}
 MAX_INVOICE_SIZE = 10 * 1024 * 1024  # 10 МБ
 
 
@@ -146,6 +146,7 @@ class InventoryDocumentSerializer(serializers.ModelSerializer):
     variants = serializers.SerializerMethodField(
         help_text="Названия товаров из строк: {id: {name, sku}} (только в карточке)"
     )
+    ai = serializers.SerializerMethodField(help_text="Разбор через ИИ: включён ли, статус, ошибка")
 
     class Meta:
         model = InventoryDocument
@@ -164,9 +165,21 @@ class InventoryDocumentSerializer(serializers.ModelSerializer):
             "processed_at",
             "movements_count",
             "seller_name",
+            "column_map",
+            "ai",
         ]
-        read_only_fields = ["uploaded_at", "extracted_data", "processed", "processed_at"]
+        read_only_fields = ["uploaded_at", "extracted_data", "processed", "processed_at", "column_map"]
         extra_kwargs = {"file": {"write_only": True}}
+
+    def get_ai(self, obj):
+        from .services import ai_enabled
+
+        return {
+            "enabled": ai_enabled(),
+            "status": obj.ai_status,
+            "error": obj.ai_error,
+            "has_result": bool(obj.ai_result),
+        }
 
     def get_summary(self, obj):
         return (obj.extracted_data or {}).get("summary")

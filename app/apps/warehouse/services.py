@@ -19,8 +19,9 @@ import hashlib
 import logging
 from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 
+from django.conf import settings
 from django.db import transaction
-from django.db.models import Q
+from django.db.models import F, Q
 from django.utils import timezone
 from django.utils.translation import gettext as _
 from rapidfuzz import fuzz, process
@@ -29,13 +30,17 @@ from app.apps.products.models import Product, ProductVariant
 from app.apps.warehouse import stock
 from app.apps.warehouse.models import (
     InventoryDocument,
+    InvoiceColumnProfile,
     ProductBarcode,
     Supplier,
     VariantMatchMemory,
     Warehouse,
 )
-from parsers.core.loader import load_rows
-from parsers.registry import parse as run_invoice_parser
+from parsers.core.loader import NeedsAI, load_rows
+from parsers.core.text_utils import code_key, fold_lookalikes
+from parsers.detect import detect_supplier
+from parsers.pipeline import header_signature
+from parsers.pipeline import parse_rows as parse_invoice_rows
 
 logger = logging.getLogger(__name__)
 
@@ -51,6 +56,14 @@ class ReviewRequiredError(stock.StockError):
 
 class DuplicateDocumentError(stock.StockError):
     code = "duplicate_document"
+
+
+class NeedsAIError(stock.StockError):
+    code = "needs_ai"
+
+
+def ai_enabled() -> bool:
+    return settings.INVOICE_AI_MODE in ("manual", "auto") and bool(settings.ANTHROPIC_API_KEY)
 
 
 def file_sha256(django_file) -> str:
@@ -76,16 +89,17 @@ class VariantMatcher:
     def __init__(self, supplier=None):
         self.supplier = supplier
         rows = ProductVariant.objects.values_list("id", "variant_name", "code", "barcode")
+        # ключи устойчивы к «двойникам»: латинская i в «Змiшувач», кириллическая «С» в артикуле «СN-20»
         self.by_code, self.by_barcode, self.names = {}, {}, {}
         for vid, name, code, barcode in rows:
             if code:
-                self.by_code[_norm(code)] = vid
+                self.by_code[code_key(code)] = vid
             if barcode:
-                self.by_barcode[_norm(barcode)] = vid
+                self.by_barcode[code_key(barcode)] = vid
             if name:
-                self.names[vid] = _norm(name)
+                self.names[vid] = fold_lookalikes(name)
         for vid, code in ProductBarcode.objects.values_list("variant_id", "code"):
-            self.by_barcode.setdefault(_norm(code), vid)
+            self.by_barcode.setdefault(code_key(code), vid)
 
     def _memory(self, sku, name):
         qs = VariantMatchMemory.objects.filter(supplier=self.supplier).order_by("-hit_count", "-last_used")
@@ -104,12 +118,12 @@ class VariantMatcher:
         vid = self._memory(sku, name)
         if vid:
             return MATCHED, vid, "memory", 1.0, []
-        if barcode and barcode in self.by_barcode:
-            return MATCHED, self.by_barcode[barcode], "barcode", 1.0, []
-        if sku and sku in self.by_code:
-            return MATCHED, self.by_code[sku], "sku", 0.95, []
+        if barcode and code_key(barcode) in self.by_barcode:
+            return MATCHED, self.by_barcode[code_key(barcode)], "barcode", 1.0, []
+        if sku and code_key(sku) in self.by_code:
+            return MATCHED, self.by_code[code_key(sku)], "sku", 0.95, []
         if name and self.names:
-            found = process.extract(name, self.names, scorer=fuzz.token_sort_ratio, limit=3)
+            found = process.extract(fold_lookalikes(name), self.names, scorer=fuzz.token_sort_ratio, limit=3)
             candidates = [
                 {"variant_id": vid, "score": round(score)} for _, score, vid in found if score >= FUZZY_THRESHOLD
             ]
@@ -170,7 +184,23 @@ def parse_document(document: InventoryDocument) -> dict:
     if document.processed:
         raise stock.StockError(_("Документ уже проведён"))
 
-    parsed = run_invoice_parser(load_rows(document.file.path))
+    try:
+        rows = load_rows(document.file.path)
+    except NeedsAI as exc:
+        rows = []
+        if not document.ai_result:
+            raise NeedsAIError(_("Это скан или фото без текста: разберите накладную через ИИ")) from exc
+
+    parsed = parse_invoice_rows(
+        rows,
+        columns=document.column_map,
+        profiles=_column_profiles(document, rows),
+        ai_result=document.ai_result,
+    )
+    if parsed.get("profile_id"):
+        InvoiceColumnProfile.objects.filter(pk=parsed["profile_id"]).update(
+            used_count=F("used_count") + 1, last_used_at=timezone.now()
+        )
     meta = parsed.get("meta") or {}
     if meta.get("number") and not document.document_number:
         document.document_number = str(meta["number"])[:100]
@@ -187,6 +217,77 @@ def parse_document(document: InventoryDocument) -> dict:
     document.extracted_data = parsed
     document.save(update_fields=["extracted_data", "document_number", "supplier"])
     return parsed
+
+
+def _column_profiles(document, rows):
+    """Сохранённые раскладки колонок поставщика (указанного или определённого по шапке)."""
+    supplier = document.supplier
+    if supplier is None and rows:
+        code = detect_supplier(rows)
+        if code != "default":
+            supplier = Supplier.objects.filter(code=code, is_active=True).first()
+    if supplier is None:
+        return []
+    return [{"id": p.pk, "header": p.header, "columns": p.columns} for p in supplier.column_profiles.all()[:50]]
+
+
+COLUMN_ROLES = ("name", "qty", "price", "total", "sku", "barcode", "unit")
+
+
+def set_document_columns(document, header_row, columns: dict, *, remember=False, user=None) -> InventoryDocument:
+    """Колонки, указанные оператором для этой накладной (+ запомнить как профиль поставщика)."""
+    if document.processed:
+        raise stock.StockError(_("Документ уже проведён"))
+    columns = {k: int(v) for k, v in columns.items() if k in COLUMN_ROLES and v is not None and str(v) != ""}
+    missing = [k for k in ("name", "qty", "price") if k not in columns]
+    if missing:
+        raise stock.StockError(_("Укажите колонки: название, количество и цена"))
+    if len(set(columns.values())) != len(columns):
+        raise stock.StockError(_("Одна колонка выбрана для двух полей"))
+    if remember:
+        if document.supplier is None:
+            raise stock.StockError(_("Чтобы запомнить колонки, укажите поставщика накладной"))
+        signature = header_signature(load_rows(document.file.path), header_row, columns)
+        if len(signature) < 2:
+            raise stock.StockError(_("Укажите строку заголовков — по ней колонки узнаются в следующих накладных"))
+        InvoiceColumnProfile.objects.create(
+            supplier=document.supplier, header=signature, columns=columns, created_by=user
+        )
+    InventoryDocument.objects.filter(pk=document.pk).update(column_map={"header_row": header_row, "columns": columns})
+    document.refresh_from_db()
+    parse_document(document)
+    return document
+
+
+def request_ai_parse(document) -> InventoryDocument:
+    """Поставить разбор накладной через ИИ в очередь (Celery)."""
+    from app.core.tasks import QueueUnavailable, enqueue
+
+    from .tasks import parse_document_ai_task
+
+    if not ai_enabled():
+        raise stock.StockError(_("Разбор через ИИ выключен в настройках"))
+    if document.processed:
+        raise stock.StockError(_("Документ уже проведён"))
+    if document.ai_status in ("queued", "running"):
+        raise stock.StockError(_("Разбор через ИИ уже выполняется"))
+    InventoryDocument.objects.filter(pk=document.pk).update(ai_status="queued", ai_error="")
+    try:
+        enqueue(parse_document_ai_task, document.pk)
+    except QueueUnavailable:
+        InventoryDocument.objects.filter(pk=document.pk).update(ai_status="")
+        raise stock.StockError(_("Фоновые задачи временно недоступны, попробуйте через минуту")) from None
+    document.refresh_from_db()
+    return document
+
+
+def reset_document_columns(document) -> InventoryDocument:
+    if document.processed:
+        raise stock.StockError(_("Документ уже проведён"))
+    InventoryDocument.objects.filter(pk=document.pk).update(column_map=None)
+    document.refresh_from_db()
+    parse_document(document)
+    return document
 
 
 # ---------------------------------------------------------------------------

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-19 14:57+0300\n"
+"POT-Creation-Date: 2026-10-19 15:34+0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -337,6 +337,7 @@ msgid "Источник не вернул ни одного товара"
 msgstr "Источник не вернул ни одного товара"
 
 #: apps/imports/services.py:285 apps/imports/tasks.py:53
+#: apps/warehouse/tasks.py:40
 #, python-brace-format
 msgid "Внутренняя ошибка: {error}"
 msgstr "Внутренняя ошибка: {error}"
@@ -586,7 +587,7 @@ msgstr "Импорт товаров #{run}, строка {row}"
 msgid "Артикул или штрихкод уже занят"
 msgstr "Артикул или штрихкод уже занят"
 
-#: apps/imports/views.py:35
+#: apps/imports/views.py:35 apps/warehouse/services.py:279
 msgid "Фоновые задачи временно недоступны, попробуйте через минуту"
 msgstr "Фоновые задачи временно недоступны, попробуйте через минуту"
 
@@ -594,7 +595,7 @@ msgstr "Фоновые задачи временно недоступны, по�
 msgid "Импорт товаров доступен одобренным продавцам"
 msgstr "Импорт товаров доступен одобренным продавцам"
 
-#: apps/imports/views.py:50 apps/warehouse/views.py:510
+#: apps/imports/views.py:50 apps/warehouse/views.py:602
 msgid "Склад не найден"
 msgstr "Склад не найден"
 
@@ -816,13 +817,21 @@ msgstr "Тип документа"
 msgid "Загружено"
 msgstr "Загружено"
 
-#: apps/warehouse/models.py:195
+#: apps/warehouse/models.py:208
 msgid "Накладная / документ"
 msgstr "Накладная / документ"
 
-#: apps/warehouse/models.py:196
+#: apps/warehouse/models.py:209
 msgid "Накладные / документы"
 msgstr "Накладные / документы"
+
+#: apps/warehouse/models.py:269
+msgid "Профиль колонок накладной"
+msgstr "Профиль колонок накладной"
+
+#: apps/warehouse/models.py:270
+msgid "Профили колонок накладных"
+msgstr "Профили колонок накладных"
 
 #: apps/warehouse/permissions.py:22
 msgid "Доступ к складу есть только у одобренных продавцов."
@@ -832,61 +841,93 @@ msgstr "Доступ к складу есть только у одобренны
 msgid "Для прихода/возврата поставщику нужен поставщик"
 msgstr "Для прихода/возврата поставщику нужен поставщик"
 
-#: apps/warehouse/serializers.py:194
+#: apps/warehouse/serializers.py:207
 #, python-brace-format
 msgid "Неподдерживаемый формат {ext}. Допустимы: {allowed}"
 msgstr "Неподдерживаемый формат {ext}. Допустимы: {allowed}"
 
-#: apps/warehouse/serializers.py:195
+#: apps/warehouse/serializers.py:208
 msgid "(без расширения)"
 msgstr "(без расширения)"
 
-#: apps/warehouse/serializers.py:199
+#: apps/warehouse/serializers.py:212
 msgid "Файл больше 10 МБ"
 msgstr "Файл больше 10 МБ"
 
-#: apps/warehouse/services.py:148
+#: apps/warehouse/services.py:162
 msgid "нет наименования"
 msgstr "нет наименования"
 
-#: apps/warehouse/services.py:150
+#: apps/warehouse/services.py:164
 msgid "нет количества ({value!r})"
 msgstr "нет количества ({value!r})"
 
-#: apps/warehouse/services.py:152
+#: apps/warehouse/services.py:166
 msgid "некорректная цена ({value!r})"
 msgstr "некорректная цена ({value!r})"
 
-#: apps/warehouse/services.py:171 apps/warehouse/services.py:201
-#: apps/warehouse/services.py:282 apps/warehouse/views.py:503
+#: apps/warehouse/services.py:185 apps/warehouse/services.py:240
+#: apps/warehouse/services.py:271 apps/warehouse/services.py:286
+#: apps/warehouse/services.py:302 apps/warehouse/services.py:383
+#: apps/warehouse/views.py:595
 msgid "Документ уже проведён"
 msgstr "Документ уже проведён"
 
-#: apps/warehouse/services.py:205
+#: apps/warehouse/services.py:192
+msgid "Это скан или фото без текста: разберите накладную через ИИ"
+msgstr "Это скан или фото без текста: разберите накладную через ИИ"
+
+#: apps/warehouse/services.py:244
+msgid "Укажите колонки: название, количество и цена"
+msgstr "Укажите колонки: название, количество и цена"
+
+#: apps/warehouse/services.py:246
+msgid "Одна колонка выбрана для двух полей"
+msgstr "Одна колонка выбрана для двух полей"
+
+#: apps/warehouse/services.py:249
+msgid "Чтобы запомнить колонки, укажите поставщика накладной"
+msgstr "Чтобы запомнить колонки, укажите поставщика накладной"
+
+#: apps/warehouse/services.py:252
+msgid ""
+"Укажите строку заголовков — по ней колонки узнаются в следующих накладных"
+msgstr ""
+"Укажите строку заголовков — по ней колонки узнаются в следующих накладных"
+
+#: apps/warehouse/services.py:269
+msgid "Разбор через ИИ выключен в настройках"
+msgstr "Разбор через ИИ выключен в настройках"
+
+#: apps/warehouse/services.py:273
+msgid "Разбор через ИИ уже выполняется"
+msgstr "Разбор через ИИ уже выполняется"
+
+#: apps/warehouse/services.py:306
 #, python-brace-format
 msgid "Строка {position} не найдена"
 msgstr "Строка {position} не найдена"
 
-#: apps/warehouse/services.py:208
+#: apps/warehouse/services.py:309
 #, python-brace-format
 msgid "Строка {position} некорректна: {value}"
 msgstr "Строка {position} некорректна: {value}"
 
-#: apps/warehouse/services.py:215
+#: apps/warehouse/services.py:316
 #, python-brace-format
 msgid "Вариант {variant_id} не найден"
 msgstr "Вариант {variant_id} не найден"
 
-#: apps/warehouse/services.py:284
+#: apps/warehouse/services.py:385
 msgid "Склад не принадлежит продавцу документа"
 msgstr "Склад не принадлежит продавцу документа"
 
-#: apps/warehouse/services.py:295
+#: apps/warehouse/services.py:396
 #, python-brace-format
 msgid "Нужно проверить сопоставление строк: {value}"
 msgstr "Нужно проверить сопоставление строк: {value}"
 
-#: apps/warehouse/services.py:312
+#: apps/warehouse/services.py:413
 #, python-brace-format
 msgid ""
 "Накладная №{document_number} этого поставщика уже проведена (документ #{pk})"
@@ -964,65 +1005,69 @@ msgstr ""
 "Недостаточно товара на складах для списания (id {variant_id}): не хватает "
 "{remaining}"
 
-#: apps/warehouse/views.py:64
+#: apps/warehouse/views.py:87
 msgid "Склад не принадлежит вашему магазину"
 msgstr "Склад не принадлежит вашему магазину"
 
-#: apps/warehouse/views.py:110
+#: apps/warehouse/views.py:133
 msgid "Товар принадлежит другому продавцу"
 msgstr "Товар принадлежит другому продавцу"
 
-#: apps/warehouse/views.py:140
+#: apps/warehouse/views.py:163
 msgid "Параметр query обязателен"
 msgstr "Параметр query обязателен"
 
-#: apps/warehouse/views.py:144
+#: apps/warehouse/views.py:167
 msgid "Товар не найден"
 msgstr "Товар не найден"
 
-#: apps/warehouse/views.py:173
+#: apps/warehouse/views.py:196
 msgid "Поля barcode (или sku) и name обязательны"
 msgstr "Поля barcode (или sku) и name обязательны"
 
-#: apps/warehouse/views.py:178
+#: apps/warehouse/views.py:201
 #, python-brace-format
 msgid "Товар с кодом {code} уже существует"
 msgstr "Товар с кодом {code} уже существует"
 
-#: apps/warehouse/views.py:197
+#: apps/warehouse/views.py:220
 msgid "Документ принадлежит другому продавцу"
 msgstr "Документ принадлежит другому продавцу"
 
-#: apps/warehouse/views.py:252
+#: apps/warehouse/views.py:275
 msgid "Создавать склады может только одобренный продавец"
 msgstr "Создавать склады может только одобренный продавец"
 
-#: apps/warehouse/views.py:275
+#: apps/warehouse/views.py:298
 msgid "По складу есть движения — удалить нельзя"
 msgstr "По складу есть движения — удалить нельзя"
 
-#: apps/warehouse/views.py:406
+#: apps/warehouse/views.py:429
 msgid "Загружать накладные может только одобренный продавец"
 msgstr "Загружать накладные может только одобренный продавец"
 
-#: apps/warehouse/views.py:412
+#: apps/warehouse/views.py:435
 #, python-brace-format
 msgid "Этот файл уже загружен (документ #{pk})"
 msgstr "Этот файл уже загружен (документ #{pk})"
 
-#: apps/warehouse/views.py:425
+#: apps/warehouse/views.py:458
 msgid "Проведённый документ изменять нельзя"
 msgstr "Проведённый документ изменять нельзя"
 
-#: apps/warehouse/views.py:488
+#: apps/warehouse/views.py:525
+msgid "Укажите колонки"
+msgstr "Укажите колонки"
+
+#: apps/warehouse/views.py:580
 msgid "У продавца нет склада"
 msgstr "У продавца нет склада"
 
-#: apps/warehouse/views.py:507
+#: apps/warehouse/views.py:599
 msgid "barcode и warehouse обязательны"
 msgstr "barcode и warehouse обязательны"
 
-#: apps/warehouse/views.py:518
+#: apps/warehouse/views.py:610
 msgid "Товар не зарегистрирован. Открыть форму создания?"
 msgstr "Товар не зарегистрирован. Открыть форму создания?"
 

@@ -39,6 +39,8 @@
   "number": null,
   "date": null,
   "total": null,
+  "engine": "parser",
+  "quality": "ok",
   "items": [
    {
     "position": 1,
