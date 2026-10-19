@@ -501,3 +501,57 @@ export interface SupplierCategory {
   total: number;
   new: number;
 }
+
+// ---------- редактор товаров (кабинет) ----------
+
+export interface ManageProductRow {
+  id: number;
+  name: string;
+  slug: string | null;
+  category: number | null;
+  category_name: string | null;
+  photo: string | null;
+  variants_count: number;
+  price_min: Money | null;
+  stock: Money;
+  visible: boolean;
+  sku: string | null;
+  modified: string;
+}
+
+export interface ManageVariant {
+  id: number;
+  variant_name: string | null;
+  code: string | null;
+  barcode: string | null;
+  price: Money | null;
+  original_price_value: Money | null;
+  discount: number;
+  cost_price: Money | null;
+  available: boolean | null;
+  brand: string | null;
+  description: string | null;
+  stock: Money;
+  reserved: Money;
+  available_stock: Money;
+  dimensions_width: Money | null;
+  dimensions_height: Money | null;
+  dimensions_depth: Money | null;
+  dimensions_weight: Money | null;
+  photo: string | null;
+}
+
+export interface ManageProduct {
+  id: number;
+  name: string;
+  slug: string | null;
+  category: number | null;
+  category_name: string | null;
+  description: string | null;
+  seller_name: string | null;
+  photo: string | null;
+  photos: { id: number; url: string | null; product_var: number | null }[];
+  variants: ManageVariant[];
+  created: string;
+  modified: string;
+}
