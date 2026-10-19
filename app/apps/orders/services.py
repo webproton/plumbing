@@ -15,9 +15,10 @@ from django.utils.translation import gettext as _
 from rest_framework.exceptions import ValidationError
 
 from app.apps.warehouse import stock
+from app.core.tasks import enqueue
 
 from .models import Cart, Order, OrderItem
-from .notifications import notify_order_created
+from .tasks import notify_order_created_task
 
 logger = logging.getLogger(__name__)
 
@@ -84,7 +85,8 @@ def create_order_from_cart(cart: Cart, *, user=None, **order_fields) -> Order:
     order.total_price = sum((i.line_total for i in items), Decimal("0"))
     order.save(update_fields=["total_price"])
 
-    transaction.on_commit(lambda: notify_order_created(order.pk))
+    # письмо и Telegram — в фоне, чтобы не задерживать ответ покупателю
+    transaction.on_commit(lambda: enqueue(notify_order_created_task, order.pk, run_inline_on_failure=True))
     return order
 
 
