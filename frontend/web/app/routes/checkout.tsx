@@ -1,16 +1,17 @@
 import { useState } from "react";
-import { data, Form, useNavigation } from "react-router";
+import { data, Form, useFetcher, useNavigation } from "react-router";
 
+import { NpPicker } from "~/components/NpPicker";
 import { Alert, Button, Card, Field, Input, PageTitle, Textarea } from "~/components/ui";
 import { langFromRequest, makeT } from "~/i18n";
-import { useT } from "~/i18n/react";
+import { useLang, useLocalPath, useT } from "~/i18n/react";
 import { localRedirect } from "~/i18n/server";
 import { ApiError } from "~/lib/api.server";
 import { cartTotal, getCart } from "~/lib/cart.server";
 import { apiContext } from "~/lib/context.server";
-import { formatPrice } from "~/lib/format";
+import { formatDate, formatPrice } from "~/lib/format";
 import { sessionContext } from "~/lib/session.server";
-import type { CreatedOrder, FieldErrors, UserProfile } from "~/lib/types";
+import type { CreatedOrder, FieldErrors, NpEstimate, UserProfile } from "~/lib/types";
 import { formObject, schemas, zodErrors } from "~/lib/validation";
 
 import type { Route } from "./+types/checkout";
@@ -42,6 +43,10 @@ export async function action({ request, context }: Route.ActionArgs) {
   if (!cart?.cart_items.length) throw localRedirect(request, "/cart");
   const f = parsed.data;
   const pickup = f.delivery === "pickup";
+  // город и отделение, выбранные из справочника Новой Почты (без JS — только текстовые поля)
+  const npCity = pickup ? "" : (values.np_city_ref ?? "");
+  const npWarehouse = pickup || !npCity ? "" : (values.np_warehouse_ref ?? "");
+  const warehouseName = npWarehouse ? (values.np_warehouse_name ?? "") : "";
   try {
     const order = await api.post<CreatedOrder>("/orders/order-create/", {
       cart_uuid: cart.cart_uuid,
@@ -50,7 +55,13 @@ export async function action({ request, context }: Route.ActionArgs) {
       email: f.email,
       city: pickup ? "" : f.city,
       department_number: pickup ? "" : f.department_number,
-      address: pickup ? t("checkout.addressPickup") : t("checkout.addressNp", { city: f.city, department: f.department_number }),
+      address: pickup
+        ? t("checkout.addressPickup")
+        : warehouseName
+          ? t("checkout.addressNpFull", { city: f.city, warehouse: warehouseName }).slice(0, 200)
+          : t("checkout.addressNp", { city: f.city, department: f.department_number }),
+      np_city_ref: npCity,
+      np_warehouse_ref: npWarehouse,
       comment: f.comment,
       payment_type: f.payment_type,
     });
@@ -73,6 +84,13 @@ export default function Checkout({ loaderData, actionData }: Route.ComponentProp
   const [delivery, setDelivery] = useState(values.delivery ?? "nova_poshta");
   const submitting = useNavigation().state === "submitting";
   const t = useT();
+  const lang = useLang();
+  const local = useLocalPath();
+  const estimate = useFetcher<NpEstimate>();
+  const onCity = (ref: string) => {
+    if (ref) estimate.load(local(`/np/estimate?city=${ref}&cost=${Math.round(total)}`));
+  };
+  const est = estimate.data?.cost ? estimate.data : null;
   const v = (name: string, fallback = "") => values[name] ?? fallback;
 
   return (
@@ -119,14 +137,25 @@ export default function Checkout({ loaderData, actionData }: Route.ComponentProp
               ))}
             </div>
             {delivery === "nova_poshta" && (
-              <div className="grid gap-4 sm:grid-cols-2">
-                <Field label={t("checkout.city")} error={errors.city}>
-                  {(p) => <Input {...p} name="city" autoComplete="address-level2" defaultValue={v("city", profile?.city ?? "")} />}
-                </Field>
-                <Field label={t("checkout.department")} error={errors.department_number}>
-                  {(p) => <Input {...p} name="department_number" inputMode="numeric" defaultValue={v("department_number")} />}
-                </Field>
-              </div>
+              <>
+                <NpPicker
+                  names={{ city: "city", department: "department_number", cityRef: "np_city_ref", warehouseRef: "np_warehouse_ref", warehouseName: "np_warehouse_name" }}
+                  initial={{
+                    cityName: v("city", profile?.city ?? ""),
+                    cityRef: v("np_city_ref"),
+                    department: v("department_number"),
+                    warehouseRef: v("np_warehouse_ref"),
+                    warehouseName: v("np_warehouse_name"),
+                  }}
+                  errors={{ city: errors.city, department: errors.department_number }}
+                  onCity={onCity}
+                />
+                {est && (
+                  <p className="text-sm text-muted">
+                    {t("checkout.npEstimate", { cost: formatPrice(est.cost), date: est.date ? formatDate(est.date, lang) : "—" })}
+                  </p>
+                )}
+              </>
             )}
           </Card>
 

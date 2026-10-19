@@ -9,6 +9,7 @@ import {
   PackageSearch,
   Rss,
   ScanBarcode,
+  Settings,
   ShoppingBag,
   Truck,
   Warehouse,
@@ -69,6 +70,8 @@ const NAV: { to: string; label: TKey; icon: typeof Warehouse; end?: boolean }[] 
   { to: "/seller/sources", label: "src.nav", icon: Rss },
 ];
 
+const ADMIN_NAV = { to: "/seller/settings", label: "set.nav" as TKey, icon: Settings, end: false };
+
 export default function SellerLayout({ loaderData }: Route.ComponentProps) {
   const { me } = loaderData;
   const t = useT();
@@ -81,7 +84,7 @@ export default function SellerLayout({ loaderData }: Route.ComponentProps) {
       <aside className="border-line self-start rounded-2xl border bg-white p-3 lg:sticky lg:top-24">
         <p className="truncate px-3 pb-2 text-sm font-semibold">{me.seller?.shop_name ?? t("wh.admin")}</p>
         <nav className="flex gap-1 overflow-x-auto lg:flex-col" aria-label={t("wh.title")}>
-          {NAV.map(({ to, label, icon: Icon, end }) => (
+          {(me.is_superuser ? [...NAV, ADMIN_NAV] : NAV).map(({ to, label, icon: Icon, end }) => (
             <NavLink key={to} to={to} end={end} className={link}>
               <Icon className="size-4 shrink-0" aria-hidden /> {t(label)}
             </NavLink>

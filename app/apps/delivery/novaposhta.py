@@ -111,6 +111,9 @@ def warehouses(city_ref: str, query: str = "", lang: str = "uk", limit: int = 40
                 "max_weight": int(float(w.get("TotalMaxWeightAllowed") or w.get("PlaceMaxWeightAllowed") or 0)) or None,
             }
         )
+    q = query.strip()
+    if q.isdigit():  # «12» — сначала отделение №12, потом №120…, остальные совпадения
+        result.sort(key=lambda w: (w["number"] != q, not w["number"].startswith(q)))
     return result
 
 

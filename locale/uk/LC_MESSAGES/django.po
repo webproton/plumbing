@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-19 21:15+0300\n"
+"POT-Creation-Date: 2026-10-19 22:36+0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -39,6 +39,14 @@ msgstr "Користувач з таким email уже існує."
 msgid "Пароль не должен содержать слово «password»"
 msgstr "Пароль не повинен містити слово «password»"
 
+#: apps/callback/serializers.py:42
+msgid "IBAN: UA и 27 цифр"
+msgstr "IBAN: UA і 27 цифр"
+
+#: apps/callback/serializers.py:48
+msgid "ЄДРПОУ — 8 цифр, ІПН — 10 цифр"
+msgstr "ЄДРПОУ — 8 цифр, ІПН — 10 цифр"
+
 #: apps/callback/views.py:26
 msgid "Сервис временно недоступен"
 msgstr "Сервіс тимчасово недоступний"
@@ -46,6 +54,61 @@ msgstr "Сервіс тимчасово недоступний"
 #: apps/callback/views.py:37
 msgid "Не удалось отправить заявку, попробуйте позже"
 msgstr "Не вдалося надіслати заявку, спробуйте пізніше"
+
+#: apps/delivery/novaposhta.py:56
+msgid "Сервис Новой Почты временно недоступен"
+msgstr "Сервіс Нової Пошти тимчасово недоступний"
+
+#: apps/delivery/novaposhta.py:58
+msgid "неизвестная ошибка"
+msgstr "невідома помилка"
+
+#: apps/delivery/novaposhta.py:59
+#, python-brace-format
+msgid "Нова Пошта: {error}"
+msgstr "Нова Пошта: {error}"
+
+#: apps/delivery/novaposhta.py:173
+msgid "В кабинете Новой Почты нет отправителя"
+msgstr "У кабінеті Нової Пошти немає відправника"
+
+#: apps/delivery/novaposhta.py:177
+msgid "У отправителя нет контактного лица"
+msgstr "У відправника немає контактної особи"
+
+#: apps/delivery/novaposhta.py:203
+msgid "Не удалось создать получателя"
+msgstr "Не вдалося створити отримувача"
+
+#: apps/delivery/novaposhta.py:225
+msgid "Не задан ключ API Новой Почты"
+msgstr "Не задано ключ API Нової Пошти"
+
+#: apps/delivery/novaposhta.py:227
+msgid "Укажите город, отделение и телефон отправителя в настройках магазина"
+msgstr ""
+"Вкажіть місто, відділення й телефон відправника в налаштуваннях магазину"
+
+#: apps/delivery/services.py:37
+msgid "Номер ТТН — 14 цифр"
+msgstr "Номер ТТН — 14 цифр"
+
+#: apps/delivery/services.py:49
+msgid "У заказа уже есть ТТН"
+msgstr "У замовлення вже є ТТН"
+
+#: apps/delivery/services.py:51
+msgid "В заказе нет отделения из справочника Новой Почты — введите ТТН вручную"
+msgstr ""
+"У замовленні немає відділення з довідника Нової Пошти — введіть ТТН вручну"
+
+#: apps/delivery/services.py:64
+msgid "Сантехника"
+msgstr "Сантехніка"
+
+#: apps/delivery/services.py:73
+msgid "Создана"
+msgstr "Створено"
 
 #: apps/imports/connectors/api.py:25 apps/imports/serializers.py:113
 msgid "Укажите адрес API"
@@ -630,17 +693,47 @@ msgstr "Позицію не знайдено"
 msgid "Категория не найдена"
 msgstr "Категорію не знайдено"
 
-#: apps/orders/manage.py:140
+#: apps/orders/manage.py:158
 msgid "В заказе есть товары других продавцов — им управляет администратор"
 msgstr "У замовленні є товари інших продавців — ним керує адміністратор"
 
-#: apps/orders/manage.py:153
+#: apps/orders/manage.py:171
 msgid "Такой переход статуса невозможен"
 msgstr "Такий перехід статусу неможливий"
 
-#: apps/orders/manage.py:164
+#: apps/orders/manage.py:182
 msgid "Неизвестный статус оплаты"
 msgstr "Невідомий статус оплати"
+
+#: apps/orders/manage.py:217
+msgid "Укажите вес числом"
+msgstr "Вкажіть вагу числом"
+
+#: apps/orders/manage.py:219
+msgid "Проверьте вес и количество мест"
+msgstr "Перевірте вагу та кількість місць"
+
+#: apps/orders/manage.py:250
+msgid "У покупателя нет email"
+msgstr "У покупця немає email"
+
+#: apps/orders/manage.py:253
+#, python-brace-format
+msgid "Счёт на оплату заказа №{id}"
+msgstr "Рахунок на оплату замовлення №{id}"
+
+#: apps/orders/manage.py:254
+#, python-brace-format
+msgid ""
+"Добрый день! Во вложении счёт на оплату заказа №{id}. После оплаты мы "
+"отправим заказ."
+msgstr ""
+"Добрий день! У вкладенні рахунок на оплату замовлення №{id}. Після оплати ми "
+"відправимо замовлення."
+
+#: apps/orders/manage.py:273
+msgid "Заполните реквизиты магазина (получатель и IBAN) в настройках"
+msgstr "Заповніть реквізити магазину (отримувач і IBAN) у налаштуваннях"
 
 #: apps/orders/models.py:94
 msgid "Новая Почта"
@@ -710,19 +803,19 @@ msgstr "Статус замовлення"
 msgid "Payment status"
 msgstr "Статус оплати"
 
-#: apps/orders/models.py:156
+#: apps/orders/models.py:165
 msgid "Не резервировался"
 msgstr "Не резервувався"
 
-#: apps/orders/models.py:157
+#: apps/orders/models.py:166
 msgid "Зарезервирован"
 msgstr "Зарезервовано"
 
-#: apps/orders/models.py:158
+#: apps/orders/models.py:167
 msgid "Списан со склада"
 msgstr "Списано зі складу"
 
-#: apps/orders/models.py:159
+#: apps/orders/models.py:168
 msgid "Резерв снят"
 msgstr "Резерв знято"
 
@@ -736,15 +829,15 @@ msgstr "Варіант {pk} не належить товару «{name}»"
 msgid "Для товара «{name}» нужно выбрать вариант"
 msgstr "Для товару «{name}» потрібно обрати варіант"
 
-#: apps/orders/serializers.py:330
+#: apps/orders/serializers.py:347
 msgid "Корзина не найдена или заказ по ней уже оформлен"
 msgstr "Кошик не знайдено або замовлення за ним уже оформлене"
 
-#: apps/orders/serializers.py:339
+#: apps/orders/serializers.py:356
 msgid "Укажите имя получателя"
 msgstr "Вкажіть ім'я отримувача"
 
-#: apps/orders/serializers.py:347
+#: apps/orders/serializers.py:364
 msgid "В комментарии не допускаются ссылки."
 msgstr "Посилання в коментарі не допускаються."
 
@@ -803,7 +896,11 @@ msgstr "Номер телефону має бути у форматі +380XXXXXX
 msgid "Имя может содержать только буквы, пробел, дефис и апостроф."
 msgstr "Ім'я може містити лише літери, пробіл, дефіс та апостроф."
 
-#: apps/orders/views.py:98
+#: apps/orders/views.py:106
+msgid "Счёт доступен только для неоплаченного заказа"
+msgstr "Рахунок доступний лише для неоплаченого замовлення"
+
+#: apps/orders/views.py:112
 msgid "Заказ успешно отменён."
 msgstr "Замовлення успішно скасовано."
 
