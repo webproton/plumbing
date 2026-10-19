@@ -285,6 +285,32 @@ export interface InvoiceLine {
   error: string | null;
 }
 
+export type ParseEngine = "parser" | "universal" | "manual" | "profile" | "ai";
+export type ColumnRole = "name" | "qty" | "price" | "total" | "sku" | "barcode" | "unit";
+export interface ColumnMap {
+  header_row: number | null;
+  columns: Partial<Record<ColumnRole, number>>;
+}
+export interface ParseQuality {
+  verdict: "ok" | "warning" | "bad" | "empty";
+  score: number;
+  lines: number;
+  consistent: number;
+  inconsistent_positions: number[];
+  missing: number;
+  sum_items: number;
+  doc_total: number | null;
+  sum_match: boolean | null;
+}
+export interface InvoiceTable {
+  needs_ai: boolean;
+  columns: number[];
+  rows: { index: number; cells: string[] }[];
+  total_rows: number;
+  suggested: ColumnMap | null;
+  roles: ColumnRole[];
+}
+
 export interface InvoiceDoc {
   id: number;
   document_type: string;
@@ -298,10 +324,16 @@ export interface InvoiceDoc {
   summary: Record<LineStatus, number> | null;
   extracted_data: {
     error?: string;
+    code?: string | null;
     lines?: InvoiceLine[];
     processing_report?: ProcessingReport;
     detected_supplier?: string;
+    engine?: ParseEngine;
+    quality?: ParseQuality;
+    columns?: ColumnMap | null;
   } | null;
+  column_map: ColumnMap | null;
+  ai: { enabled: boolean; status: "" | "queued" | "running" | "done" | "failed"; error: string; has_result: boolean };
 }
 
 export interface ScanCard {

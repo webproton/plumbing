@@ -77,7 +77,7 @@ export default function Documents({ loaderData, actionData }: Route.ComponentPro
       <Card className="p-5">
         <Form method="post" encType="multipart/form-data" className="grid items-end gap-4 sm:grid-cols-[1fr_16rem_auto]">
           <Field label={t("wh.doc.file")} hint={t("wh.doc.fileHint")}>
-            {(p) => <Input {...p} name="file" type="file" accept=".xlsx,.xls,.xml,.yml" required className="py-2" />}
+            {(p) => <Input {...p} name="file" type="file" accept=".xlsx,.xls,.xml,.yml,.pdf,.jpg,.jpeg,.png,.webp" required className="py-2" />}
           </Field>
           <Field label={t("wh.col.supplier")} hint={t("wh.doc.supplierHint")}>
             {(p) => (

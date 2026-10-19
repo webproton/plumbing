@@ -38,6 +38,7 @@ export default [
         route("documents", "routes/seller/documents.tsx"),
         route("documents/:id", "routes/seller/document.tsx"),
         route("documents/:id/file", "routes/seller/document-file.tsx"),
+        route("documents/:id/columns", "routes/seller/document-columns.tsx"),
         route("variants", "routes/seller/variants.tsx"),
         route("import", "routes/seller/import.tsx"),
         route("import/template", "routes/seller/import-template.tsx"),
