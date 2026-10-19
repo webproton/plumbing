@@ -6,7 +6,7 @@ import re
 from parsers.core.date_utils import extract_date
 from parsers.core.numbers import extract_numbers
 from parsers.core.table_engine import TableEngine
-from parsers.core.text_utils import normalize_text, row_text
+from parsers.core.text_utils import fold_lookalikes, normalize_text, row_text
 
 from ..base import BaseInvoiceParser
 
@@ -245,7 +245,7 @@ class DefaultParser(BaseInvoiceParser):
 
     def find_column_map(self, rows):
         for row in rows:
-            normalized = [normalize_text(str(v).strip().lower()) for v in row]
+            normalized = [fold_lookalikes(str(v)) for v in row]
             joined = " ".join(normalized)
 
             # stricter header detection
