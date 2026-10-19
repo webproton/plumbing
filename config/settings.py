@@ -65,6 +65,7 @@ INSTALLED_APPS = [
     "app.apps.callback",
     "app.apps.sellers",
     "app.apps.warehouse",
+    "app.apps.imports",
 ]
 
 MIDDLEWARE = [
@@ -281,6 +282,29 @@ DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default=EMAIL_HOST_USER or "norep
 # ==============================
 TELEGRAM_BOT_TOKEN = env("TOKEN_BOT", default="")
 TELEGRAM_MANAGERS = [m.strip() for m in env.list("MANAGERS", default=[]) if m.strip()]
+# Ключ шифрования доступов к сайтам поставщиков. Пусто — выводится из SECRET_KEY
+# (тогда при смене SECRET_KEY пароли поставщиков придётся ввести заново).
+CREDENTIALS_KEY = env("CREDENTIALS_KEY", default="")
+
+
+# ==============================
+# Celery (фоновые задачи: импорт, синхронизация поставщиков, уведомления)
+# ==============================
+# Отдельная БД Redis: cache.clear() кэша не должен стирать очередь задач
+CELERY_BROKER_URL = env("CELERY_BROKER_URL", default="redis://localhost:6379/2")
+CELERY_TASK_IGNORE_RESULT = True  # результаты задачи пишут в свои модели (ImportRun)
+# True — выполнять задачи сразу в процессе запроса (без воркера): тесты, разработка
+CELERY_TASK_ALWAYS_EAGER = env.bool("CELERY_TASK_ALWAYS_EAGER", default=False)
+CELERY_TASK_ACKS_LATE = True
+CELERY_WORKER_PREFETCH_MULTIPLIER = 1
+CELERY_TASK_SOFT_TIME_LIMIT = 25 * 60
+CELERY_TASK_TIME_LIMIT = 30 * 60
+CELERY_TIMEZONE = TIME_ZONE
+CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
+CELERY_BEAT_SCHEDULE = {
+    # раз в 5 минут ставит в очередь источники, у которых подошло время синхронизации
+    "imports-sync-due-sources": {"task": "imports.sync_due_sources", "schedule": 300.0},
+}
 
 
 # ==============================

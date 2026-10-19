@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-17 21:20+0300\n"
+"POT-Creation-Date: 2026-10-19 14:57+0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -47,6 +47,588 @@ msgstr "Сервіс тимчасово недоступний"
 msgid "Не удалось отправить заявку, попробуйте позже"
 msgstr "Не вдалося надіслати заявку, спробуйте пізніше"
 
+#: apps/imports/connectors/api.py:25 apps/imports/serializers.py:113
+msgid "Укажите адрес API"
+msgstr "Вкажіть адресу API"
+
+#: apps/imports/connectors/api.py:45
+msgid "API вернуло пустой список товаров"
+msgstr "API повернуло порожній список товарів"
+
+#: apps/imports/connectors/base.py:29
+msgid "Не удалось расшифровать пароль/ключ доступа — введите его заново"
+msgstr "Не вдалося розшифрувати пароль/ключ доступу — введіть його знову"
+
+#: apps/imports/connectors/base.py:48 apps/imports/serializers.py:24
+#: core/http.py:125
+#, python-brace-format
+msgid "Файл больше {mb} МБ"
+msgstr "Файл більший за {mb} МБ"
+
+#: apps/imports/connectors/feed.py:23 apps/imports/serializers.py:115
+msgid "Укажите ссылку на фид или загрузите файл"
+msgstr "Вкажіть посилання на фід або завантажте файл"
+
+#: apps/imports/connectors/web.py:56
+#, python-brace-format
+msgid "Не заполнена настройка «{name}»"
+msgstr "Не заповнено налаштування «{name}»"
+
+#: apps/imports/connectors/web.py:77
+msgid "Вход через форму + скачивание прайса"
+msgstr "Вхід через форму + завантаження прайсу"
+
+#: apps/imports/connectors/web.py:79
+msgid ""
+"Открывает страницу входа, отправляет логин и пароль, затем скачивает файл "
+"прайса по ссылке из кабинета."
+msgstr ""
+"Відкриває сторінку входу, надсилає логін і пароль, потім завантажує файл "
+"прайсу за посиланням із кабінету."
+
+#: apps/imports/connectors/web.py:82
+msgid "Страница входа"
+msgstr "Сторінка входу"
+
+#: apps/imports/connectors/web.py:83
+msgid "Куда отправляется форма (если отличается)"
+msgstr "Куди надсилається форма (якщо відрізняється)"
+
+#: apps/imports/connectors/web.py:84
+msgid "Имя поля логина (login, email, username…)"
+msgstr "Назва поля логіна (login, email, username…)"
+
+#: apps/imports/connectors/web.py:85
+msgid "Имя поля пароля"
+msgstr "Назва поля пароля"
+
+#: apps/imports/connectors/web.py:86
+msgid "Имя скрытого поля защиты формы (csrf), если есть"
+msgstr "Назва прихованого поля захисту форми (csrf), якщо є"
+
+#: apps/imports/connectors/web.py:87
+msgid "Ссылка на скачивание прайса после входа"
+msgstr "Посилання на завантаження прайсу після входу"
+
+#: apps/imports/connectors/web.py:88
+msgid "Текст, который виден только после входа (например «Выйти»)"
+msgstr "Текст, який видно лише після входу (наприклад «Вийти»)"
+
+#: apps/imports/connectors/web.py:110
+msgid "Не удалось войти на сайт поставщика — проверьте логин и пароль"
+msgstr "Не вдалося увійти на сайт постачальника — перевірте логін і пароль"
+
+#: apps/imports/connectors/web.py:124
+#, python-brace-format
+msgid "Адаптер «{adapter}» для сайта поставщика не подключён"
+msgstr "Адаптер «{adapter}» для сайту постачальника не підключено"
+
+#: apps/imports/connectors/web.py:127
+msgid "Укажите логин для входа на сайт поставщика"
+msgstr "Вкажіть логін для входу на сайт постачальника"
+
+#: apps/imports/formats.py:105
+#, python-brace-format
+msgid "Неизвестный формат: {fmt}"
+msgstr "Невідомий формат: {fmt}"
+
+#: apps/imports/formats.py:116
+#, python-brace-format
+msgid "Слишком много товаров в файле (больше {max})"
+msgstr "Забагато товарів у файлі (понад {max})"
+
+#: apps/imports/formats.py:203
+msgid "Не удалось прочитать Excel-файл"
+msgstr "Не вдалося прочитати Excel-файл"
+
+#: apps/imports/formats.py:211
+msgid "Файл пустой"
+msgstr "Файл порожній"
+
+#: apps/imports/formats.py:219
+msgid ""
+"Не найдена строка заголовков: нужны хотя бы колонки «Название» или «Артикул» "
+"и «Цена»"
+msgstr ""
+"Не знайдено рядок заголовків: потрібні щонайменше колонки «Назва» або "
+"«Артикул» і «Ціна»"
+
+#: apps/imports/formats.py:243
+msgid ""
+"Не найдены поля с названием или артикулом товара — настройте соответствие "
+"полей"
+msgstr ""
+"Не знайдено поля з назвою або артикулом товару — налаштуйте відповідність "
+"полів"
+
+#: apps/imports/formats.py:287
+msgid "Некорректный JSON"
+msgstr "Некоректний JSON"
+
+#: apps/imports/formats.py:297
+msgid "В ответе не найден список товаров — укажите путь к списку (items_path)"
+msgstr ""
+"У відповіді не знайдено список товарів — вкажіть шлях до списку (items_path)"
+
+#: apps/imports/formats.py:315
+#, python-brace-format
+msgid "Не удалось разобрать XML: {error}"
+msgstr "Не вдалося розібрати XML: {error}"
+
+#: apps/imports/formats.py:328
+msgid "В XML не найдены товары"
+msgstr "У XML не знайдено товарів"
+
+#: apps/imports/formats.py:401
+msgid "В YML-файле нет товаров (<offer>)"
+msgstr "У YML-файлі немає товарів (<offer>)"
+
+#: apps/imports/models.py:25
+msgid "Файл / фид (YML, XML, CSV, Excel)"
+msgstr "Файл / фід (YML, XML, CSV, Excel)"
+
+#: apps/imports/models.py:26
+msgid "JSON API"
+msgstr "JSON API"
+
+#: apps/imports/models.py:27
+msgid "Сайт поставщика с логином"
+msgstr "Сайт постачальника з логіном"
+
+#: apps/imports/models.py:30
+msgid "Определить автоматически"
+msgstr "Визначити автоматично"
+
+#: apps/imports/models.py:46
+msgid "Без авторизации"
+msgstr "Без авторизації"
+
+#: apps/imports/models.py:47
+msgid "Логин и пароль (HTTP Basic)"
+msgstr "Логін і пароль (HTTP Basic)"
+
+#: apps/imports/models.py:48
+msgid "Токен (Bearer)"
+msgstr "Токен (Bearer)"
+
+#: apps/imports/models.py:49
+msgid "Ключ в заголовке"
+msgstr "Ключ у заголовку"
+
+#: apps/imports/models.py:50
+msgid "Ключ в параметре ссылки"
+msgstr "Ключ у параметрі посилання"
+
+#: apps/imports/models.py:51
+msgid "Вход на сайт (логин и пароль)"
+msgstr "Вхід на сайт (логін і пароль)"
+
+#: apps/imports/models.py:55
+msgid "Рекомендованная цена поставщика"
+msgstr "Рекомендована ціна постачальника"
+
+#: apps/imports/models.py:56
+msgid "Закупочная цена + наценка"
+msgstr "Закупівельна ціна + націнка"
+
+#: apps/imports/models.py:106
+msgid "Источник товаров"
+msgstr "Джерело товарів"
+
+#: apps/imports/models.py:107
+msgid "Источники товаров"
+msgstr "Джерела товарів"
+
+#: apps/imports/models.py:124
+msgid "Не связан"
+msgstr "Не зв'язано"
+
+#: apps/imports/models.py:124
+msgid "Связан"
+msgstr "Зв'язано"
+
+#: apps/imports/models.py:124
+msgid "Пропущен"
+msgstr "Пропущено"
+
+#: apps/imports/models.py:157
+msgid "Товар поставщика"
+msgstr "Товар постачальника"
+
+#: apps/imports/models.py:158
+msgid "Товары поставщиков"
+msgstr "Товари постачальників"
+
+#: apps/imports/models.py:173
+msgid "Шаблон товаров"
+msgstr "Шаблон товарів"
+
+#: apps/imports/models.py:173
+msgid "Синхронизация поставщика"
+msgstr "Синхронізація постачальника"
+
+#: apps/imports/models.py:176
+msgid "В очереди"
+msgstr "У черзі"
+
+#: apps/imports/models.py:177
+msgid "Выполняется"
+msgstr "Виконується"
+
+#: apps/imports/models.py:178
+msgid "Ожидает подтверждения"
+msgstr "Очікує підтвердження"
+
+#: apps/imports/models.py:179
+msgid "Применяется"
+msgstr "Застосовується"
+
+#: apps/imports/models.py:180
+msgid "Готово"
+msgstr "Готово"
+
+#: apps/imports/models.py:181
+msgid "Ошибка"
+msgstr "Помилка"
+
+#: apps/imports/models.py:203
+msgid "Запуск импорта"
+msgstr "Запуск імпорту"
+
+#: apps/imports/models.py:204
+msgid "Запуски импорта"
+msgstr "Запуски імпорту"
+
+#: apps/imports/serializers.py:21
+#, python-brace-format
+msgid "Неподдерживаемый тип файла. Допустимо: {types}"
+msgstr "Непідтримуваний тип файлу. Допустимо: {types}"
+
+#: apps/imports/serializers.py:69 core/http.py:46
+msgid "Поддерживаются только ссылки http:// и https://"
+msgstr "Підтримуються лише посилання http:// і https://"
+
+#: apps/imports/serializers.py:74
+#, python-brace-format
+msgid "{name}: ожидается объект «ключ → значение»"
+msgstr "{name}: очікується об'єкт «ключ → значення»"
+
+#: apps/imports/serializers.py:80
+msgid "field_map: ключи и значения должны быть строками"
+msgstr "field_map: ключі та значення мають бути рядками"
+
+#: apps/imports/serializers.py:88
+msgid "Интервал — от 30 минут до 7 дней (0 — только вручную)"
+msgstr "Інтервал — від 30 хвилин до 7 днів (0 — лише вручну)"
+
+#: apps/imports/serializers.py:93
+msgid "Наценка — от 0 до 1000 %"
+msgstr "Націнка — від 0 до 1000 %"
+
+#: apps/imports/serializers.py:98
+msgid "Шаг округления — больше 0 и не больше 1000"
+msgstr "Крок округлення — більше 0 і не більше 1000"
+
+#: apps/imports/serializers.py:111
+msgid "Выберите адаптер сайта поставщика"
+msgstr "Оберіть адаптер сайту постачальника"
+
+#: apps/imports/services.py:276
+msgid "Источник не вернул ни одного товара"
+msgstr "Джерело не повернуло жодного товару"
+
+#: apps/imports/services.py:285 apps/imports/tasks.py:53
+#, python-brace-format
+msgid "Внутренняя ошибка: {error}"
+msgstr "Внутрішня помилка: {error}"
+
+#: apps/imports/services.py:321
+msgid "Задача не завершилась (перезапуск сервера?)"
+msgstr "Завдання не завершилося (перезапуск сервера?)"
+
+#: apps/imports/services.py:334
+msgid "Товар не найден или принадлежит другому продавцу"
+msgstr "Товар не знайдено або він належить іншому продавцю"
+
+#: apps/imports/services.py:338
+#, python-brace-format
+msgid "Этот товар уже связан с позицией «{name}»"
+msgstr "Цей товар уже зв'язано з позицією «{name}»"
+
+#: apps/imports/tasks.py:21
+msgid "Синхронизация этого источника уже выполняется"
+msgstr "Синхронізація цього джерела вже виконується"
+
+#: apps/imports/template.py:37
+msgid "Артикул"
+msgstr "Артикул"
+
+#: apps/imports/template.py:38
+msgid "Уникальный код товара. Если товар с таким артикулом есть — он обновится"
+msgstr ""
+"Унікальний код товару. Якщо товар із таким артикулом є — його буде оновлено"
+
+#: apps/imports/template.py:40
+msgid "Штрихкод"
+msgstr "Штрихкод"
+
+#: apps/imports/template.py:40
+msgid "EAN-13 или другой код со штрихкода"
+msgstr "EAN-13 або інший код зі штрихкоду"
+
+#: apps/imports/template.py:41
+msgid "Название"
+msgstr "Назва"
+
+#: apps/imports/template.py:41
+msgid "Обязательно для новых товаров"
+msgstr "Обов'язково для нових товарів"
+
+#: apps/imports/template.py:42
+msgid "Вариант"
+msgstr "Варіант"
+
+#: apps/imports/template.py:42
+msgid "Цвет, размер и т. п., если у товара несколько вариантов"
+msgstr "Колір, розмір тощо, якщо в товару кілька варіантів"
+
+#: apps/imports/template.py:45
+msgid "Код группы"
+msgstr "Код групи"
+
+#: apps/imports/template.py:46
+msgid "Строки с одинаковым кодом группы станут вариантами одного товара"
+msgstr "Рядки з однаковим кодом групи стануть варіантами одного товару"
+
+#: apps/imports/template.py:48
+msgid "Категория"
+msgstr "Категорія"
+
+#: apps/imports/template.py:48
+msgid "Категория на сайте; если такой нет — будет создана"
+msgstr "Категорія на сайті; якщо такої немає — її буде створено"
+
+#: apps/imports/template.py:49
+msgid "Бренд"
+msgstr "Бренд"
+
+#: apps/imports/template.py:50
+msgid "Цена"
+msgstr "Ціна"
+
+#: apps/imports/template.py:50
+msgid "Цена продажи, грн. Обязательно для новых товаров"
+msgstr "Ціна продажу, грн. Обов'язково для нових товарів"
+
+#: apps/imports/template.py:51
+msgid "Старая цена"
+msgstr "Стара ціна"
+
+#: apps/imports/template.py:51
+msgid "Цена до скидки — на сайте будет зачёркнута"
+msgstr "Ціна до знижки — на сайті буде закреслена"
+
+#: apps/imports/template.py:52
+msgid "Закупочная цена"
+msgstr "Закупівельна ціна"
+
+#: apps/imports/template.py:52
+msgid "Себестоимость, грн"
+msgstr "Собівартість, грн"
+
+#: apps/imports/template.py:55
+msgid "Остаток"
+msgstr "Залишок"
+
+#: apps/imports/template.py:56
+msgid ""
+"Фактический остаток на складе, выбранном при загрузке. Пусто — не менять"
+msgstr ""
+"Фактичний залишок на складі, обраному під час завантаження. Порожньо — не "
+"змінювати"
+
+#: apps/imports/template.py:58
+msgid "Описание"
+msgstr "Опис"
+
+#: apps/imports/template.py:61
+msgid "Фото"
+msgstr "Фото"
+
+#: apps/imports/template.py:62
+msgid "Ссылки на фото через запятую (загрузятся, если у товара ещё нет фото)"
+msgstr ""
+"Посилання на фото через кому (завантажаться, якщо в товару ще немає фото)"
+
+#: apps/imports/template.py:64
+msgid "Показывать на сайте"
+msgstr "Показувати на сайті"
+
+#: apps/imports/template.py:64
+msgid "да / нет. Пусто — по настройке загрузки"
+msgstr "так / ні. Порожньо — за налаштуванням завантаження"
+
+#: apps/imports/template.py:96
+msgid "да"
+msgstr "так"
+
+#: apps/imports/template.py:96
+msgid "нет"
+msgstr "ні"
+
+#: apps/imports/template.py:113
+msgid "Товары"
+msgstr "Товари"
+
+#: apps/imports/template.py:127
+msgid "Инструкция"
+msgstr "Інструкція"
+
+#: apps/imports/template.py:128
+msgid "Колонка"
+msgstr "Колонка"
+
+#: apps/imports/template.py:128
+msgid "Что указывать"
+msgstr "Що вказувати"
+
+#: apps/imports/template.py:133
+msgid ""
+"Товар ищется по артикулу, затем по штрихкоду. Найден — обновится, нет — "
+"создастся новый."
+msgstr ""
+"Товар шукається за артикулом, потім за штрихкодом. Знайдено — оновиться, ні —"
+" створиться новий."
+
+#: apps/imports/template.py:134
+msgid "Пустая ячейка у существующего товара — значение не меняется."
+msgstr "Порожня клітинка в наявного товару — значення не змінюється."
+
+#: apps/imports/template.py:155
+#, python-brace-format
+msgid "Некорректное значение в колонке «{column}»: {value}"
+msgstr "Некоректне значення в колонці «{column}»: {value}"
+
+#: apps/imports/template.py:182
+msgid "Артикул длиннее 50 символов"
+msgstr "Артикул довший за 50 символів"
+
+#: apps/imports/template.py:184
+msgid ""
+"Штрихкод может содержать только цифры, латиницу и дефис (до 50 символов)"
+msgstr "Штрихкод може містити лише цифри, латиницю та дефіс (до 50 символів)"
+
+#: apps/imports/template.py:186
+msgid "Название длиннее 255 символов"
+msgstr "Назва довша за 255 символів"
+
+#: apps/imports/template.py:189
+#, python-brace-format
+msgid "«{column}»: не понятно значение, будет применена настройка загрузки"
+msgstr ""
+"«{column}»: незрозуміле значення, буде застосовано налаштування завантаження"
+
+#: apps/imports/template.py:192
+msgid "В колонке «Фото» нет ссылок http(s)"
+msgstr "У колонці «Фото» немає посилань http(s)"
+
+#: apps/imports/template.py:199
+msgid "Загрузите файл Excel (.xlsx) или CSV по шаблону"
+msgstr "Завантажте файл Excel (.xlsx) або CSV за шаблоном"
+
+#: apps/imports/template.py:202
+#, python-brace-format
+msgid "В файле больше {max} строк — разбейте его на части"
+msgstr "У файлі понад {max} рядків — розділіть його на частини"
+
+#: apps/imports/template.py:239
+#, python-brace-format
+msgid "Артикул повторяется (строка {row})"
+msgstr "Артикул повторюється (рядок {row})"
+
+#: apps/imports/template.py:241
+#, python-brace-format
+msgid "Штрихкод повторяется (строка {row})"
+msgstr "Штрихкод повторюється (рядок {row})"
+
+#: apps/imports/template.py:250
+msgid "Артикул и штрихкод принадлежат разным товарам"
+msgstr "Артикул і штрихкод належать різним товарам"
+
+#: apps/imports/template.py:252
+msgid "Товар с этим артикулом/штрихкодом принадлежит другому продавцу"
+msgstr "Товар із цим артикулом/штрихкодом належить іншому продавцю"
+
+#: apps/imports/template.py:255
+msgid "Для нового товара укажите название"
+msgstr "Для нового товару вкажіть назву"
+
+#: apps/imports/template.py:257
+msgid "Для нового товара укажите цену"
+msgstr "Для нового товару вкажіть ціну"
+
+#: apps/imports/template.py:261
+#, python-brace-format
+msgid "Будет создана категория «{name}»"
+msgstr "Буде створено категорію «{name}»"
+
+#: apps/imports/template.py:263
+msgid "Старая цена не больше цены — скидка не будет показана"
+msgstr "Стара ціна не більша за ціну — знижку не буде показано"
+
+#: apps/imports/template.py:398
+msgid "Не выбран склад для остатков"
+msgstr "Не обрано склад для залишків"
+
+#: apps/imports/template.py:399
+#, python-brace-format
+msgid "Импорт товаров #{run}, строка {row}"
+msgstr "Імпорт товарів #{run}, рядок {row}"
+
+#: apps/imports/template.py:404
+msgid "Артикул или штрихкод уже занят"
+msgstr "Артикул або штрихкод уже зайнятий"
+
+#: apps/imports/views.py:35
+msgid "Фоновые задачи временно недоступны, попробуйте через минуту"
+msgstr "Фонові завдання тимчасово недоступні, спробуйте за хвилину"
+
+#: apps/imports/views.py:41
+msgid "Импорт товаров доступен одобренным продавцам"
+msgstr "Імпорт товарів доступний схваленим продавцям"
+
+#: apps/imports/views.py:50 apps/warehouse/views.py:510
+msgid "Склад не найден"
+msgstr "Склад не знайдено"
+
+#: apps/imports/views.py:121
+msgid "В файле нет строк с товарами"
+msgstr "У файлі немає рядків із товарами"
+
+#: apps/imports/views.py:162
+msgid "В файле есть остатки — выберите склад"
+msgstr "У файлі є залишки — оберіть склад"
+
+#: apps/imports/views.py:169
+msgid "Этот импорт уже применён или выполняется"
+msgstr "Цей імпорт уже застосовано або він виконується"
+
+#: apps/imports/views.py:180
+msgid "Удалить можно только неприменённую загрузку"
+msgstr "Видалити можна лише незастосоване завантаження"
+
+#: apps/imports/views.py:221
+msgid "Синхронизация уже выполняется"
+msgstr "Синхронізація вже виконується"
+
+#: apps/imports/views.py:275
+msgid "Позиция не найдена"
+msgstr "Позицію не знайдено"
+
+#: apps/imports/views.py:299
+msgid "Категория не найдена"
+msgstr "Категорію не знайдено"
+
 #: apps/orders/models.py:122
 msgid "Total price"
 msgstr "Сума"
@@ -69,57 +651,57 @@ msgstr "Варіант {pk} не належить товару «{name}»"
 msgid "Для товара «{name}» нужно выбрать вариант"
 msgstr "Для товару «{name}» потрібно обрати варіант"
 
-#: apps/orders/serializers.py:328
+#: apps/orders/serializers.py:330
 msgid "Корзина не найдена или заказ по ней уже оформлен"
 msgstr "Кошик не знайдено або замовлення за ним уже оформлене"
 
-#: apps/orders/serializers.py:337
+#: apps/orders/serializers.py:339
 msgid "Укажите имя получателя"
 msgstr "Вкажіть ім'я отримувача"
 
-#: apps/orders/serializers.py:345
+#: apps/orders/serializers.py:347
 msgid "В комментарии не допускаются ссылки."
 msgstr "Посилання в коментарі не допускаються."
 
-#: apps/orders/services.py:34
+#: apps/orders/services.py:35
 #, python-brace-format
 msgid "Для товара «{name}» не выбран вариант"
 msgstr "Для товару «{name}» не обрано варіант"
 
-#: apps/orders/services.py:49
+#: apps/orders/services.py:50
 msgid "Заказ для этой корзины уже оформлен"
 msgstr "Замовлення для цього кошика вже оформлене"
 
-#: apps/orders/services.py:53
+#: apps/orders/services.py:54
 msgid "Корзина пуста, невозможно создать заказ"
 msgstr "Кошик порожній, неможливо створити замовлення"
 
-#: apps/orders/services.py:59
+#: apps/orders/services.py:60
 #, python-brace-format
 msgid "У товара «{name}» не указана цена"
 msgstr "У товару «{name}» не вказана ціна"
 
-#: apps/orders/services.py:100
+#: apps/orders/services.py:102
 msgid "Товар уже списан со склада — оформите возврат"
 msgstr "Товар уже списано зі складу — оформіть повернення"
 
-#: apps/orders/services.py:108
+#: apps/orders/services.py:110
 msgid "Заказ был отменён — резерв снят"
 msgstr "Замовлення скасовано — резерв знято"
 
-#: apps/orders/services.py:119
+#: apps/orders/services.py:121
 msgid "Отменённый заказ нельзя вернуть в работу"
 msgstr "Скасоване замовлення не можна повернути в роботу"
 
-#: apps/orders/services.py:128
+#: apps/orders/services.py:130
 msgid "Вы не можете отменить этот заказ"
 msgstr "Ви не можете скасувати це замовлення"
 
-#: apps/orders/services.py:130
+#: apps/orders/services.py:132
 msgid "Отменить можно только заказ, ожидающий оплаты"
 msgstr "Скасувати можна лише замовлення, що очікує оплати"
 
-#: apps/orders/services.py:132
+#: apps/orders/services.py:134
 msgid "Заказ уже передан в доставку"
 msgstr "Замовлення вже передано в доставку"
 
@@ -249,20 +831,20 @@ msgstr "Накладні / документи"
 msgid "Доступ к складу есть только у одобренных продавцов."
 msgstr "Доступ до складу мають лише схвалені продавці."
 
-#: apps/warehouse/serializers.py:82
+#: apps/warehouse/serializers.py:117
 msgid "Для прихода/возврата поставщику нужен поставщик"
 msgstr "Для приходу/повернення постачальнику потрібен постачальник"
 
-#: apps/warehouse/serializers.py:139
+#: apps/warehouse/serializers.py:194
 #, python-brace-format
 msgid "Неподдерживаемый формат {ext}. Допустимы: {allowed}"
 msgstr "Непідтримуваний формат {ext}. Допустимі: {allowed}"
 
-#: apps/warehouse/serializers.py:140
+#: apps/warehouse/serializers.py:195
 msgid "(без расширения)"
 msgstr "(без розширення)"
 
-#: apps/warehouse/serializers.py:144
+#: apps/warehouse/serializers.py:199
 msgid "Файл больше 10 МБ"
 msgstr "Файл більший за 10 МБ"
 
@@ -279,7 +861,7 @@ msgid "некорректная цена ({value!r})"
 msgstr "некоректна ціна ({value!r})"
 
 #: apps/warehouse/services.py:171 apps/warehouse/services.py:201
-#: apps/warehouse/services.py:282 apps/warehouse/views.py:470
+#: apps/warehouse/services.py:282 apps/warehouse/views.py:503
 msgid "Документ уже проведён"
 msgstr "Документ уже проведено"
 
@@ -374,8 +956,7 @@ msgstr "Фактичний залишок не може бути від'ємни
 #, python-brace-format
 msgid ""
 "Недостаточно товара (id {variant_id}): доступно {value}, требуется {qty}"
-msgstr ""
-"Недостатньо товару (id {variant_id}): доступно {value}, потрібно {qty}"
+msgstr "Недостатньо товару (id {variant_id}): доступно {value}, потрібно {qty}"
 
 #: apps/warehouse/stock.py:390
 #, python-brace-format
@@ -386,68 +967,104 @@ msgstr ""
 "Недостатньо товару на складах для списання (id {variant_id}): бракує "
 "{remaining}"
 
-#: apps/warehouse/views.py:61
+#: apps/warehouse/views.py:64
 msgid "Склад не принадлежит вашему магазину"
 msgstr "Склад не належить вашому магазину"
 
-#: apps/warehouse/views.py:107
+#: apps/warehouse/views.py:110
 msgid "Товар принадлежит другому продавцу"
 msgstr "Товар належить іншому продавцю"
 
-#: apps/warehouse/views.py:137
+#: apps/warehouse/views.py:140
 msgid "Параметр query обязателен"
 msgstr "Параметр query обов'язковий"
 
-#: apps/warehouse/views.py:141
+#: apps/warehouse/views.py:144
 msgid "Товар не найден"
 msgstr "Товар не знайдено"
 
-#: apps/warehouse/views.py:170
+#: apps/warehouse/views.py:173
 msgid "Поля barcode (или sku) и name обязательны"
 msgstr "Поля barcode (або sku) і name обов'язкові"
 
-#: apps/warehouse/views.py:175
+#: apps/warehouse/views.py:178
 #, python-brace-format
 msgid "Товар с кодом {code} уже существует"
 msgstr "Товар з кодом {code} уже існує"
 
-#: apps/warehouse/views.py:194
+#: apps/warehouse/views.py:197
 msgid "Документ принадлежит другому продавцу"
 msgstr "Документ належить іншому продавцю"
 
-#: apps/warehouse/views.py:249
+#: apps/warehouse/views.py:252
 msgid "Создавать склады может только одобренный продавец"
 msgstr "Створювати склади може лише схвалений продавець"
 
-#: apps/warehouse/views.py:254
+#: apps/warehouse/views.py:275
 msgid "По складу есть движения — удалить нельзя"
 msgstr "По складу є рухи — видалити не можна"
 
-#: apps/warehouse/views.py:373
+#: apps/warehouse/views.py:406
 msgid "Загружать накладные может только одобренный продавец"
 msgstr "Завантажувати накладні може лише схвалений продавець"
 
-#: apps/warehouse/views.py:379
+#: apps/warehouse/views.py:412
 #, python-brace-format
 msgid "Этот файл уже загружен (документ #{pk})"
 msgstr "Цей файл уже завантажено (документ #{pk})"
 
-#: apps/warehouse/views.py:392
+#: apps/warehouse/views.py:425
 msgid "Проведённый документ изменять нельзя"
 msgstr "Проведений документ змінювати не можна"
 
-#: apps/warehouse/views.py:455
+#: apps/warehouse/views.py:488
 msgid "У продавца нет склада"
 msgstr "У продавця немає складу"
 
-#: apps/warehouse/views.py:474
+#: apps/warehouse/views.py:507
 msgid "barcode и warehouse обязательны"
 msgstr "barcode і warehouse обов'язкові"
 
-#: apps/warehouse/views.py:477
-msgid "Склад не найден"
-msgstr "Склад не знайдено"
-
-#: apps/warehouse/views.py:485
+#: apps/warehouse/views.py:518
 msgid "Товар не зарегистрирован. Открыть форму создания?"
 msgstr "Товар не зареєстровано. Відкрити форму створення?"
+
+#: core/http.py:48
+msgid "Логин и пароль укажите в настройках доступа, а не в ссылке"
+msgstr "Логін і пароль вкажіть у налаштуваннях доступу, а не в посиланні"
+
+#: core/http.py:51
+msgid "Некорректная ссылка"
+msgstr "Некоректне посилання"
+
+#: core/http.py:56
+#, python-brace-format
+msgid "Сервер {host} не найден"
+msgstr "Сервер {host} не знайдено"
+
+#: core/http.py:58
+#, python-brace-format
+msgid "Адрес {host} недоступен для загрузки"
+msgstr "Адреса {host} недоступна для завантаження"
+
+#: core/http.py:70
+msgid "Адрес недоступен для загрузки"
+msgstr "Адреса недоступна для завантаження"
+
+#: core/http.py:104
+#, python-brace-format
+msgid "Не удалось подключиться: {error}"
+msgstr "Не вдалося підключитися: {error}"
+
+#: core/http.py:118
+#, python-brace-format
+msgid "Сервер ответил ошибкой {status}"
+msgstr "Сервер відповів помилкою {status}"
+
+#: core/http.py:128
+msgid "Обрыв соединения при загрузке"
+msgstr "Обрив з'єднання під час завантаження"
+
+#: core/http.py:137
+msgid "Слишком много перенаправлений"
+msgstr "Забагато переадресацій"

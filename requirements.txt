@@ -21,6 +21,8 @@ django-filter>=23.5
 django-model-utils>=4.4
 django-redis>=5.4
 redis>=5
+celery[redis]>=5.4,<6
+cryptography>=42
 transliterate>=1.10
 requests>=2.31
 

@@ -12,6 +12,9 @@ PASSWORD_HASHERS = ["django.contrib.auth.hashers.MD5PasswordHasher"]  # уско
 ACCOUNT_EMAIL_VERIFICATION = "mandatory"
 TELEGRAM_BOT_TOKEN = ""
 TELEGRAM_MANAGERS = []
+CELERY_TASK_ALWAYS_EAGER = True
+CELERY_TASK_EAGER_PROPAGATES = True
+CREDENTIALS_KEY = ""
 
 # Загрузки в тестах — во временную папку, а не в реальный MEDIA_ROOT
 import tempfile  # noqa: E402
