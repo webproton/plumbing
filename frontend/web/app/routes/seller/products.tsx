@@ -1,12 +1,22 @@
-import { Eye, EyeOff, FolderInput, ImageOff, Package, Plus } from "lucide-react";
+import { Eye, EyeOff, FolderInput, ImageOff, Package, Plus, Printer } from "lucide-react";
 import { useState } from "react";
 import { data, Form, useNavigation, useSearchParams } from "react-router";
 
 import { Pagination } from "~/components/Pagination";
 import { Table, TableWrap, Td, Th } from "~/components/seller/Table";
-import { Alert, Badge, Button, ButtonLink, EmptyState, Input, PageTitle, Select } from "~/components/ui";
+import {
+  Alert,
+  Badge,
+  Button,
+  ButtonLink,
+  buttonClass,
+  EmptyState,
+  Input,
+  PageTitle,
+  Select,
+} from "~/components/ui";
 import { langFromRequest, makeT, tFromMatches, type TKey } from "~/i18n";
-import { Link, useT } from "~/i18n/react";
+import { Link, useLocalPath, useT } from "~/i18n/react";
 import { ApiError } from "~/lib/api.server";
 import { formatPrice, formatQty, pluralize } from "~/lib/format";
 import { pageOf, pagesOf, paged, requireSeller } from "~/lib/seller.server";
@@ -65,8 +75,11 @@ export async function action({ request, context }: Route.ActionArgs) {
 
 function Rows({ results, categories }: { results: ManageProductRow[]; categories: Category[] }) {
   const t = useT();
+  const local = useLocalPath();
   const busy = useNavigation().state === "submitting";
   const [selected, setSelected] = useState<Set<number>>(new Set());
+  const labels = (size: "thermal" | "a4") =>
+    local(`/seller/labels?products=${[...selected].join(",")}&size=${size}`);
   const toggle = (id: number) =>
     setSelected((prev) => {
       const next = new Set(prev);
@@ -128,6 +141,21 @@ function Rows({ results, categories }: { results: ManageProductRow[]; categories
         >
           <FolderInput className="size-3.5" aria-hidden /> {t("prod.bulk.category")}
         </Button>
+        {selected.size > 0 && (
+          <>
+            <a
+              href={labels("thermal")}
+              target="_blank"
+              rel="noreferrer"
+              className={buttonClass("ghost", "sm")}
+            >
+              <Printer className="size-3.5" aria-hidden /> {t("prod.labels.thermal")}
+            </a>
+            <a href={labels("a4")} target="_blank" rel="noreferrer" className={buttonClass("ghost", "sm")}>
+              <Printer className="size-3.5" aria-hidden /> {t("prod.labels.a4")}
+            </a>
+          </>
+        )}
       </Form>
       <TableWrap>
         <Table>

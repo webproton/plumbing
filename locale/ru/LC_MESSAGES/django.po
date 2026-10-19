@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-19 15:34+0300\n"
+"POT-Creation-Date: 2026-10-19 21:15+0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -332,25 +332,25 @@ msgstr "Шаг округления — больше 0 и не больше 1000
 msgid "Выберите адаптер сайта поставщика"
 msgstr "Выберите адаптер сайта поставщика"
 
-#: apps/imports/services.py:276
+#: apps/imports/services.py:260
 msgid "Источник не вернул ни одного товара"
 msgstr "Источник не вернул ни одного товара"
 
-#: apps/imports/services.py:285 apps/imports/tasks.py:53
+#: apps/imports/services.py:269 apps/imports/tasks.py:53
 #: apps/warehouse/tasks.py:40
 #, python-brace-format
 msgid "Внутренняя ошибка: {error}"
 msgstr "Внутренняя ошибка: {error}"
 
-#: apps/imports/services.py:321
+#: apps/imports/services.py:305
 msgid "Задача не завершилась (перезапуск сервера?)"
 msgstr "Задача не завершилась (перезапуск сервера?)"
 
-#: apps/imports/services.py:334
+#: apps/imports/services.py:318
 msgid "Товар не найден или принадлежит другому продавцу"
 msgstr "Товар не найден или принадлежит другому продавцу"
 
-#: apps/imports/services.py:338
+#: apps/imports/services.py:322
 #, python-brace-format
 msgid "Этот товар уже связан с позицией «{name}»"
 msgstr "Этот товар уже связан с позицией «{name}»"
@@ -595,7 +595,7 @@ msgstr "Фоновые задачи временно недоступны, по�
 msgid "Импорт товаров доступен одобренным продавцам"
 msgstr "Импорт товаров доступен одобренным продавцам"
 
-#: apps/imports/views.py:50 apps/warehouse/views.py:602
+#: apps/imports/views.py:50 apps/warehouse/views.py:603
 msgid "Склад не найден"
 msgstr "Склад не найден"
 
@@ -627,6 +627,74 @@ msgstr "Позиция не найдена"
 msgid "Категория не найдена"
 msgstr "Категория не найдена"
 
+#: apps/orders/manage.py:140
+msgid "В заказе есть товары других продавцов — им управляет администратор"
+msgstr "В заказе есть товары других продавцов — им управляет администратор"
+
+#: apps/orders/manage.py:153
+msgid "Такой переход статуса невозможен"
+msgstr "Такой переход статуса невозможен"
+
+#: apps/orders/manage.py:164
+msgid "Неизвестный статус оплаты"
+msgstr "Неизвестный статус оплаты"
+
+#: apps/orders/models.py:94
+msgid "Новая Почта"
+msgstr "Новая Почта"
+
+#: apps/orders/models.py:94
+msgid "Самовывоз"
+msgstr "Самовывоз"
+
+#: apps/orders/models.py:96
+msgid "В обработке"
+msgstr "В обработке"
+
+#: apps/orders/models.py:97
+msgid "Доставлен"
+msgstr "Доставлен"
+
+#: apps/orders/models.py:98
+msgid "Доставляется"
+msgstr "Доставляется"
+
+#: apps/orders/models.py:99
+msgid "Завершен"
+msgstr "Завершен"
+
+#: apps/orders/models.py:100
+msgid "Отмена"
+msgstr "Отмена"
+
+#: apps/orders/models.py:104
+msgid "Ожидание оплаты"
+msgstr "Ожидание оплаты"
+
+#: apps/orders/models.py:105
+msgid "Оплачено"
+msgstr "Оплачено"
+
+#: apps/orders/models.py:106
+msgid "Отменен"
+msgstr "Отменен"
+
+#: apps/orders/models.py:107
+msgid "Возврат"
+msgstr "Возврат"
+
+#: apps/orders/models.py:108
+msgid "Возврат средств"
+msgstr "Возврат средств"
+
+#: apps/orders/models.py:112
+msgid "Полная оплата"
+msgstr "Полная оплата"
+
+#: apps/orders/models.py:113
+msgid "50% предоплата"
+msgstr "50% предоплата"
+
 #: apps/orders/models.py:122
 msgid "Total price"
 msgstr "Сумма"
@@ -638,6 +706,22 @@ msgstr "Статус заказа"
 #: apps/orders/models.py:130
 msgid "Payment status"
 msgstr "Статус оплаты"
+
+#: apps/orders/models.py:156
+msgid "Не резервировался"
+msgstr "Не резервировался"
+
+#: apps/orders/models.py:157
+msgid "Зарезервирован"
+msgstr "Зарезервирован"
+
+#: apps/orders/models.py:158
+msgid "Списан со склада"
+msgstr "Списан со склада"
+
+#: apps/orders/models.py:159
+msgid "Резерв снят"
+msgstr "Резерв снят"
 
 #: apps/orders/serializers.py:67
 #, python-brace-format
@@ -687,6 +771,11 @@ msgstr "Товар уже списан со склада — оформите в
 msgid "Заказ был отменён — резерв снят"
 msgstr "Заказ был отменён — резерв снят"
 
+#: apps/orders/services.py:115
+#, python-brace-format
+msgid "Заказ #{pk}"
+msgstr "Заказ #{pk}"
+
 #: apps/orders/services.py:121
 msgid "Отменённый заказ нельзя вернуть в работу"
 msgstr "Отменённый заказ нельзя вернуть в работу"
@@ -714,6 +803,62 @@ msgstr "Имя может содержать только буквы, пробе
 #: apps/orders/views.py:98
 msgid "Заказ успешно отменён."
 msgstr "Заказ успешно отменён."
+
+#: apps/products/manage.py:87
+msgid "Уже есть у другого товара"
+msgstr "Уже есть у другого товара"
+
+#: apps/products/manage.py:101
+msgid "Старая цена должна быть больше цены"
+msgstr "Старая цена должна быть больше цены"
+
+#: apps/products/manage.py:178
+msgid "Укажите цену товара"
+msgstr "Укажите цену товара"
+
+#: apps/products/manage.py:198
+msgid "Фото больше 10 МБ"
+msgstr "Фото больше 10 МБ"
+
+#: apps/products/manage.py:205
+msgid "Файл не является изображением"
+msgstr "Файл не является изображением"
+
+#: apps/products/manage.py:207
+msgid "Поддерживаются JPG, PNG и WebP"
+msgstr "Поддерживаются JPG, PNG и WebP"
+
+#: apps/products/manage.py:254
+msgid "Создавать товары может только одобренный продавец"
+msgstr "Создавать товары может только одобренный продавец"
+
+#: apps/products/manage.py:264
+msgid ""
+"Товар есть в заказах или в журнале склада — его можно только скрыть с сайта"
+msgstr ""
+"Товар есть в заказах или в журнале склада — его можно только скрыть с сайта"
+
+#: apps/products/manage.py:282
+msgid "Выберите фото"
+msgstr "Выберите фото"
+
+#: apps/products/manage.py:285
+msgid "Вариант не найден"
+msgstr "Вариант не найден"
+
+#: apps/products/manage.py:313
+msgid "Фото не найдено"
+msgstr "Фото не найдено"
+
+#: apps/products/manage.py:354
+msgid "Это единственный вариант — удалите товар целиком или скройте его"
+msgstr "Это единственный вариант — удалите товар целиком или скройте его"
+
+#: apps/products/manage.py:360
+msgid ""
+"Вариант есть в заказах или в журнале склада — его можно только скрыть с сайта"
+msgstr ""
+"Вариант есть в заказах или в журнале склада — его можно только скрыть с сайта"
 
 #: apps/products/views.py:169
 #, python-brace-format
@@ -869,7 +1014,7 @@ msgstr "некорректная цена ({value!r})"
 #: apps/warehouse/services.py:185 apps/warehouse/services.py:240
 #: apps/warehouse/services.py:271 apps/warehouse/services.py:286
 #: apps/warehouse/services.py:302 apps/warehouse/services.py:383
-#: apps/warehouse/views.py:595
+#: apps/warehouse/views.py:596
 msgid "Документ уже проведён"
 msgstr "Документ уже проведён"
 
@@ -1005,71 +1150,79 @@ msgstr ""
 "Недостаточно товара на складах для списания (id {variant_id}): не хватает "
 "{remaining}"
 
-#: apps/warehouse/views.py:87
+#: apps/warehouse/views.py:88
 msgid "Склад не принадлежит вашему магазину"
 msgstr "Склад не принадлежит вашему магазину"
 
-#: apps/warehouse/views.py:133
+#: apps/warehouse/views.py:134
 msgid "Товар принадлежит другому продавцу"
 msgstr "Товар принадлежит другому продавцу"
 
-#: apps/warehouse/views.py:163
+#: apps/warehouse/views.py:164
 msgid "Параметр query обязателен"
 msgstr "Параметр query обязателен"
 
-#: apps/warehouse/views.py:167
+#: apps/warehouse/views.py:168
 msgid "Товар не найден"
 msgstr "Товар не найден"
 
-#: apps/warehouse/views.py:196
+#: apps/warehouse/views.py:197
 msgid "Поля barcode (или sku) и name обязательны"
 msgstr "Поля barcode (или sku) и name обязательны"
 
-#: apps/warehouse/views.py:201
+#: apps/warehouse/views.py:202
 #, python-brace-format
 msgid "Товар с кодом {code} уже существует"
 msgstr "Товар с кодом {code} уже существует"
 
-#: apps/warehouse/views.py:220
+#: apps/warehouse/views.py:221
 msgid "Документ принадлежит другому продавцу"
 msgstr "Документ принадлежит другому продавцу"
 
-#: apps/warehouse/views.py:275
+#: apps/warehouse/views.py:276
 msgid "Создавать склады может только одобренный продавец"
 msgstr "Создавать склады может только одобренный продавец"
 
-#: apps/warehouse/views.py:298
+#: apps/warehouse/views.py:299
 msgid "По складу есть движения — удалить нельзя"
 msgstr "По складу есть движения — удалить нельзя"
 
-#: apps/warehouse/views.py:429
+#: apps/warehouse/views.py:430
 msgid "Загружать накладные может только одобренный продавец"
 msgstr "Загружать накладные может только одобренный продавец"
 
-#: apps/warehouse/views.py:435
+#: apps/warehouse/views.py:436
 #, python-brace-format
 msgid "Этот файл уже загружен (документ #{pk})"
 msgstr "Этот файл уже загружен (документ #{pk})"
 
-#: apps/warehouse/views.py:458
+#: apps/warehouse/views.py:459
 msgid "Проведённый документ изменять нельзя"
 msgstr "Проведённый документ изменять нельзя"
 
-#: apps/warehouse/views.py:525
+#: apps/warehouse/views.py:526
 msgid "Укажите колонки"
 msgstr "Укажите колонки"
 
-#: apps/warehouse/views.py:580
+#: apps/warehouse/views.py:581
 msgid "У продавца нет склада"
 msgstr "У продавца нет склада"
 
-#: apps/warehouse/views.py:599
+#: apps/warehouse/views.py:600
 msgid "barcode и warehouse обязательны"
 msgstr "barcode и warehouse обязательны"
 
-#: apps/warehouse/views.py:610
+#: apps/warehouse/views.py:611
 msgid "Товар не зарегистрирован. Открыть форму создания?"
 msgstr "Товар не зарегистрирован. Открыть форму создания?"
+
+#: apps/warehouse/views.py:753
+msgid "Выберите товары для печати"
+msgstr "Выберите товары для печати"
+
+#: apps/warehouse/views.py:763
+msgid "Товары не найдены"
+msgstr "Товары не найдены"
 
 #: core/http.py:48
 msgid "Логин и пароль укажите в настройках доступа, а не в ссылке"

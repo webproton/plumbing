@@ -22,6 +22,7 @@ from app.core.pagination import StandardPagination
 
 from . import stock
 from .inventory.barcode_scanner import find_variant_by_code, scan_barcode
+from .labels import generate_labels
 from .models import InventoryDocument, ProductBarcode, StockBalance, StockMovement, Supplier, Warehouse
 from .pdf import generate_invoice_pdf
 from .permissions import IsWarehouseStaff, IsWarehouseStaffOrReadOnly, get_active_seller
@@ -727,3 +728,42 @@ class WarehouseDashboardAPIView(APIView):
                 ).data,
             }
         )
+
+
+class LabelsView(APIView):
+    """
+    PDF этикеток: ?variants=1,2,3 или ?products=4,5 (все варианты), &size=thermal|a4, &copies=1..50.
+    Продавец печатает только свои товары, администратор — любые.
+    """
+
+    permission_classes = [IsWarehouseStaff]
+    MAX_LABELS = 500
+
+    def get(self, request):
+        from app.apps.products.services import editable_products
+
+        def ids(name):
+            return [int(x) for x in request.query_params.get(name, "").split(",") if x.strip().isdigit()][:300]
+
+        user = request.user
+        seller = get_active_seller(user)
+        variants = ProductVariant.objects.filter(product__in=editable_products(user, seller)).select_related("product")
+        variant_ids, product_ids = ids("variants"), ids("products")
+        if not variant_ids and not product_ids:
+            raise ValidationError({"variants": _("Выберите товары для печати")})
+        variants = variants.filter(Q(pk__in=variant_ids) | Q(product_id__in=product_ids)).order_by(
+            "product__name", "id"
+        )
+        try:
+            copies = max(1, min(int(request.query_params.get("copies", 1)), 50))
+        except ValueError:
+            copies = 1
+        variants = list(variants[: self.MAX_LABELS])
+        if not variants:
+            raise NotFound(_("Товары не найдены"))
+        copies = min(copies, max(1, self.MAX_LABELS // len(variants)))
+        size = "a4" if request.query_params.get("size") == "a4" else "thermal"
+        pdf = generate_labels(variants, size=size, copies=copies, shop=seller.shop_name if seller else "")
+        response = HttpResponse(pdf, content_type="application/pdf")
+        response["Content-Disposition"] = f'inline; filename="labels-{size}.pdf"'
+        return response

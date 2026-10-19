@@ -91,26 +91,26 @@ class Order(models.Model):
     """
 
     # Типы доставки
-    DELIVERY_CHOICES = Choices(("new_post", "Новая Почта"), ("self_pickup", "Самовывоз"))
+    DELIVERY_CHOICES = Choices(("new_post", _("Новая Почта")), ("self_pickup", _("Самовывоз")))
     STATUS = Choices(
-        ("in_processing", "В обработке"),
-        ("delivered", "Доставлен"),
-        ("delivering", "Доставляется"),
-        ("completed", "Завершен"),
-        ("canceled", "Отмена"),
+        ("in_processing", _("В обработке")),
+        ("delivered", _("Доставлен")),
+        ("delivering", _("Доставляется")),
+        ("completed", _("Завершен")),
+        ("canceled", _("Отмена")),
     )
 
     PAYMENT_STATUS = Choices(
-        ("waiting_for_payment", "Ожидание оплаты"),
-        ("paid_for", "Оплачено"),
-        ("canceled", "Отменен"),
-        ("returned", "Возврат"),
-        ("returning", "Возврат средств"),
+        ("waiting_for_payment", _("Ожидание оплаты")),
+        ("paid_for", _("Оплачено")),
+        ("canceled", _("Отменен")),
+        ("returned", _("Возврат")),
+        ("returning", _("Возврат средств")),
     )
 
     PAYMENT_CHOICES = [
-        ("full", "Полная оплата"),
-        ("partial", "50% предоплата"),
+        ("full", _("Полная оплата")),
+        ("partial", _("50% предоплата")),
     ]
 
     customer = models.ForeignKey(
@@ -149,13 +149,14 @@ class Order(models.Model):
     manager = models.ForeignKey(
         User, on_delete=models.SET_NULL, related_name="managed_orders", verbose_name="Менеджер", null=True, blank=True
     )
+    manager_note = models.TextField(blank=True, default="", verbose_name="Заметка менеджера")
 
     # Состояние товара по заказу (меняется только через app.apps.orders.services)
     STOCK_STATE = Choices(
-        ("none", "Не резервировался"),  # заказы до введения резервов
-        ("reserved", "Зарезервирован"),
-        ("written_off", "Списан со склада"),
-        ("released", "Резерв снят"),
+        ("none", _("Не резервировался")),  # заказы до введения резервов
+        ("reserved", _("Зарезервирован")),
+        ("written_off", _("Списан со склада")),
+        ("released", _("Резерв снят")),
     )
     stock_state = models.CharField(
         max_length=20, choices=STOCK_STATE, default=STOCK_STATE.none, verbose_name="Состояние товара"

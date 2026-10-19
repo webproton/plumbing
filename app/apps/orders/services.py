@@ -112,7 +112,7 @@ def change_status(order: Order, new_status: str, *, user=None) -> Order:
             stock.write_off_reserved(
                 _stock_lines(order),
                 user=user,
-                comment=f"Заказ #{order.pk}",
+                comment=_("Заказ #{pk}").format(pk=order.pk),
                 from_reserve=order.stock_state == Order.STOCK_STATE.reserved,
             )
             order.stock_state = Order.STOCK_STATE.written_off

@@ -1,10 +1,10 @@
-import { ExternalLink, ImagePlus, Plus, Save, Star, Trash2 } from "lucide-react";
+import { ExternalLink, ImagePlus, Plus, Printer, Save, Star, Trash2 } from "lucide-react";
 import { data, Form, useFetcher, useNavigation } from "react-router";
 
 import { VariantFields, variantPayload } from "~/components/seller/VariantFields";
 import { Alert, Badge, Button, Card, Field, Input, PageTitle, Select, Textarea } from "~/components/ui";
 import { langFromRequest, makeT, tFromMatches } from "~/i18n";
-import { Link, useT } from "~/i18n/react";
+import { Link, useLocalPath, useT } from "~/i18n/react";
 import { localRedirect } from "~/i18n/server";
 import { ApiError, LONG_TIMEOUT } from "~/lib/api.server";
 import { formatQty } from "~/lib/format";
@@ -90,6 +90,7 @@ function VariantCard({
   index: number;
 }) {
   const t = useT();
+  const local = useLocalPath();
   const fetcher = useFetcher<Result>();
   const errors = fetcher.data && !fetcher.data.ok ? (fetcher.data.errors ?? {}) : {};
   const saved = fetcher.state === "idle" && fetcher.data?.ok && fetcher.data.intent === "variant";
@@ -110,7 +111,16 @@ function VariantCard({
           ·{" "}
           <Link to={`/seller/movements?variant=${variant.id}`} className="text-brand-700 hover:underline">
             {t("prod.variant.movements")}
-          </Link>
+          </Link>{" "}
+          ·{" "}
+          <a
+            href={local(`/seller/labels?variants=${variant.id}`)}
+            target="_blank"
+            rel="noreferrer"
+            className="text-brand-700 inline-flex items-center gap-1 hover:underline"
+          >
+            <Printer className="size-3.5" aria-hidden /> {t("prod.labels.one")}
+          </a>
         </p>
       </div>
       <fetcher.Form method="post" className="space-y-3">
