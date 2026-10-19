@@ -555,3 +555,51 @@ export interface ManageProduct {
   created: string;
   modified: string;
 }
+
+// ---------- заказы (кабинет) ----------
+
+export type OrderStatus = "in_processing" | "delivering" | "delivered" | "completed" | "canceled";
+export type PaymentStatus = "waiting_for_payment" | "paid_for" | "canceled" | "returned" | "returning";
+
+export interface ManageOrderRow {
+  id: number;
+  creation_date: string;
+  customer_name: string;
+  phone_number: string | null;
+  email: string | null;
+  address: string;
+  total_price: Money | null;
+  status_order: OrderStatus;
+  status_display: string;
+  payment_status: PaymentStatus;
+  payment_status_display: string;
+  payment_type: "full" | "partial";
+  payment_type_display: string;
+  stock_state: "none" | "reserved" | "written_off" | "released";
+  items_count: number;
+  manager_email: string | null;
+}
+
+export interface ManageOrder extends ManageOrderRow {
+  city: string | null;
+  department_number: string | null;
+  comment: string | null;
+  telegram: string | null;
+  whatsapp: string | null;
+  manager_note: string;
+  customer_email: string | null;
+  items: {
+    id: number;
+    name: string;
+    sku: string;
+    quantity: Money;
+    unit_price: Money;
+    line_total: Money;
+    variant: number;
+    product: number | null;
+    photo: string | null;
+    available_stock: Money;
+  }[];
+  next_statuses: { value: OrderStatus; label: string }[];
+  can_manage: boolean;
+}

@@ -54,6 +54,8 @@
 | `models.py` | `Category`, `Product`, `ProductVariant` (цена, скидка, код, штрихкод, **`stock`/`reserved` Decimal**, `available_stock`, себестоимость), `Wishlist`, `ProductPhoto`, ~20 справочников атрибутов |
 | `views.py` | `catalog_queryset()` — только товары с видимыми вариантами + `min_price`; `ProductListView` (список/карточка, сортировка `price/-price/name/-name/new`), `CategoryList`, `NewProducts`, `WishlistViewSet` |
 | `serializers.py` | `ProductListSerializer` (цена «от», первый видимый вариант), `ProductDetailSerializer` (только видимые варианты), `ProductVariantSerializer` (+`in_stock`, `available_qty`), `WishlistSerializer` |
+| `manage.py` | Редактор кабинета `/api/manage/products|variants|brands`: список со сводкой, CRUD, варианты, фото, массовые действия |
+| `services.py` | `discount_fields` (цена + старая цена → скидка), `editable_products` / `editable_variants` (права), `brand_by_name` |
 | `filters.py` | `ProductFilters`: категория (slug), цена, габариты, атрибуты, `search` (название, артикул, штрихкод) |
 | `admin.py`, `actions.py` | Админка каталога, массовая скидка, генерация баннеров, подбор цвета по фото |
 | `utils/color_utils.py` | Определение цвета по фото (k-means, ColorThief), парсинг размеров/булевых значений |
@@ -73,6 +75,7 @@ API: `/api/products/`, `/api/products/{slug}/`, `/api/category/`, `/api/new_prod
 | `serializers.py` | Корзина «заменить содержимое» (`CartCreateSerializer`), «установить количества» (`CartDetailSerializer`), оформление `OrderCreateSerializer` (только по `cart_uuid`), список/детали заказа |
 | `notifications.py` | Письмо клиенту и сообщение менеджеру в Telegram после коммита |
 | `tasks.py` | `notify_order_created_task` — отправка уведомлений в фоне |
+| `manage.py` | Заказы в кабинете `/api/orders/manage/`: список, карточка, статус, оплата, заметка, менеджер, счётчики |
 | `validators.py` | `validate_phone_number` (+380…), `validate_person_name` (буквы, пробел, дефис, апостроф) |
 | `permissions.py` | `IsCartOwnerOrAnonWithUUID` |
 | `views.py`, `admin.py` | API и админка; смена статуса в админке идёт через `services.change_status` |
@@ -88,6 +91,7 @@ API: `/api/orders/cart/` (+`by-uuid/`), `/api/orders/order-create/`, `/api/order
 | `services.py` | Приёмка накладной: `parse_document` (через `parsers.pipeline`) → `set_line_variant` → `process_inventory_document`; `set_document_columns` / `reset_document_columns` (ручные колонки, профили), `request_ai_parse`; `VariantMatcher` (память → штрихкод → артикул → fuzzy; устойчив к «двойникам» букв); `suggest_variants` |
 | `inventory/barcode_scanner.py` | `find_variant_by_code`, `scan_barcode` (пик = +1 шт. по документу) |
 | `pdf.py` | PDF накладной в памяти |
+| `labels.py` | PDF этикеток (58×40 / A4 3×8), EAN-13 или Code128 |
 | `tasks.py` | `parse_document_ai_task` — разбор накладной через ИИ в фоне |
 | `permissions.py` | `get_active_seller`, `IsWarehouseStaff` (одобренный продавец / суперпользователь, только свои объекты) |
 | `views.py`, `serializers.py`, `admin.py` | API склада, сканер, админка (журнал — только чтение, «Провести», «Сверить остатки») |
@@ -157,9 +161,9 @@ React Router 8 (SSR) · React 19 · TypeScript strict · Tailwind CSS 4 · zod �
 | `app/lib/types.ts` | Типы ответов API |
 | `app/components/` | UI-кит (`ui.tsx`), шапка, подвал, карточка товара, цена, пагинация, количество, «в корзину», заявка на звонок |
 | `app/routes/` | Страницы: главная, каталог, товар, корзина, оформление, вход/регистрация/пароль, кабинет, избранное, доставка, контакты |
-| `app/routes/seller/` | Кабинет склада/продавца: `layout` (роль, навигация), `index` (обзор), `stock`, `documents` + `document` (накладные, «Перевірка розбору», ИИ) + `document-columns` (ручной выбор колонок), `operations`, `scanner`, `movements`, `warehouses`, `suppliers`, импорт — `import` (шаблон, загрузка, история), `import-run` (предпросмотр/применение), `sources` (источники), `source` (позиции поставщика), `source-edit` (создание/настройки); ресурсные маршруты `variants` (поиск товара), `document-file`, `import-template` (скачивание) |
-| `app/components/seller/` | `Table` (таблицы, карточки-метрики), `VariantPicker` (поиск товара), `CameraScanner` (камера телефона), `imports.tsx` (статусы запусков/источников, `usePolling` — автообновление во время фоновой задачи) |
-| `app/i18n/` | Словари: `uk.ts` (еталон), `ru.ts`, кабинет — `seller.uk.ts`/`seller.ru.ts`, импорт — `import.uk.ts`/`import.ru.ts`; `react.tsx` (useT, Link с языком), `server.ts` |
+| `app/routes/seller/` | Кабинет склада/продавца: `layout` (роль, навигация), `index` (обзор), `products` + `product-new` + `product-edit` (товары), `orders` + `order` (заказы), `labels` (PDF этикеток), `stock`, `documents` + `document` (накладные, «Перевірка розбору», ИИ) + `document-columns` (ручной выбор колонок), `operations`, `scanner`, `movements`, `warehouses`, `suppliers`, импорт — `import` (шаблон, загрузка, история), `import-run` (предпросмотр/применение), `sources` (источники), `source` (позиции поставщика), `source-edit` (создание/настройки); ресурсные маршруты `variants` (поиск товара), `document-file`, `import-template` (скачивание) |
+| `app/components/seller/` | `Table` (таблицы, карточки-метрики), `VariantPicker` (поиск товара), `CameraScanner` (камера телефона), `imports.tsx` (статусы запусков/источников, `usePolling` — автообновление во время фоновой задачи), `VariantFields` (поля варианта товара) |
+| `app/i18n/` | Словари: `uk.ts` (еталон), `ru.ts`, кабинет — `seller.uk.ts`/`seller.ru.ts`, импорт — `import.uk.ts`/`import.ru.ts`, товары и заказы — `cabinet.uk.ts`/`cabinet.ru.ts`; `react.tsx` (useT, Link с языком), `server.ts` |
 | `tests/` | Vitest: форматирование, валидация, API-клиент, компоненты |
 | `Dockerfile` | Node 24 alpine, SSR-сервер `react-router-serve` на :3000 |
 

@@ -55,3 +55,10 @@ export function statusTone(status: string): "success" | "danger" | "info" {
   if (status === "canceled") return "danger";
   return "info";
 }
+
+/** Цвет бейджа статуса оплаты */
+export function paymentTone(status: string): "success" | "info" | "muted" {
+  if (status === "paid_for") return "success";
+  if (status === "waiting_for_payment") return "info";
+  return "muted";
+}
