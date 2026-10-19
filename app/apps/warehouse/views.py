@@ -1,5 +1,7 @@
+import logging
 from decimal import Decimal
 
+from django.conf import settings
 from django.contrib.admin.views.decorators import staff_member_required
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
@@ -36,12 +38,33 @@ from .serializers import (
     WarehouseSerializer,
 )
 from .services import (
+    COLUMN_ROLES,
+    ai_enabled,
     file_sha256,
     parse_document,
     process_inventory_document,
+    request_ai_parse,
+    reset_document_columns,
+    set_document_columns,
     set_line_variant,
     suggest_variants,
 )
+
+logger = logging.getLogger(__name__)
+
+TABLE_PREVIEW_ROWS = 150
+TABLE_CELL_CHARS = 80
+
+
+def _cell_text(value) -> str:
+    if value is None:
+        return ""
+    if hasattr(value, "isoformat"):
+        return value.isoformat()[:10]
+    if isinstance(value, float) and value.is_integer():
+        value = int(value)
+    return " ".join(str(value).split())[:TABLE_CELL_CHARS]
+
 
 # ---------------------------------------------------------------------------
 # helpers
@@ -414,10 +437,20 @@ class InventoryDocumentViewSet(viewsets.ModelViewSet):
                 }
             )
         document = serializer.save(seller=seller, file_hash=digest)
+        needs_ai = False
         try:
-            parse_document(document)
+            parsed = parse_document(document)
+            needs_ai = parsed["quality"]["verdict"] in ("empty", "bad")
         except Exception as exc:  # битый/нераспознанный файл: документ остаётся, оператор видит причину
-            InventoryDocument.objects.filter(pk=document.pk).update(extracted_data={"error": str(exc)})
+            error = {"error": str(exc), "code": getattr(exc, "code", None)}
+            InventoryDocument.objects.filter(pk=document.pk).update(extracted_data=error)
+            needs_ai = error["code"] == "needs_ai" or isinstance(exc, ValueError)
+        # режим auto: не разобралась (скан, фото, не сходится арифметика) — сразу отдаём ИИ
+        if needs_ai and settings.INVOICE_AI_MODE == "auto" and ai_enabled():
+            try:
+                request_ai_parse(document)
+            except stock.StockError:
+                logger.warning("Не удалось поставить ИИ-разбор накладной %s", document.pk)
         serializer.instance.refresh_from_db()
 
     def perform_update(self, serializer):
@@ -447,6 +480,65 @@ class InventoryDocumentViewSet(viewsets.ModelViewSet):
         parse_document(document)
         document.refresh_from_db()
         return Response(self.get_serializer(document).data)
+
+    @action(detail=True, methods=["get"])
+    def table(self, request, pk=None):
+        """Сетка файла для ручного выбора колонок: первые строки, только непустые колонки + предложенная раскладка."""
+        from parsers import universal
+        from parsers.core.loader import NeedsAI, load_rows
+
+        document = self.get_object()
+        try:
+            rows = load_rows(document.file.path)
+        except NeedsAI:
+            return Response({"needs_ai": True, "columns": [], "rows": [], "total_rows": 0, "suggested": None})
+        preview = rows[:TABLE_PREVIEW_ROWS]
+        used = sorted({i for r in preview for i, c in enumerate(r) if _cell_text(c)})
+        suggested = document.column_map or (document.extracted_data or {}).get("columns")
+        if not suggested:
+            found = universal.detect_columns(rows)
+            suggested = {"header_row": found["header_row"], "columns": found["columns"]} if found else None
+        return Response(
+            {
+                "needs_ai": False,
+                "columns": used,
+                "rows": [
+                    {"index": i, "cells": [_cell_text(r[c]) if c < len(r) else "" for c in used]}
+                    for i, r in enumerate(preview)
+                    if any(_cell_text(c) for c in r)
+                ],
+                "total_rows": len(rows),
+                "suggested": suggested,
+                "roles": COLUMN_ROLES,
+            }
+        )
+
+    @action(detail=True, methods=["post"])
+    def columns(self, request, pk=None):
+        """{"header_row": i|null, "columns": {"name": i, "qty": i, "price": i, ...}, "remember": bool} или {"reset": true}."""
+        document = self.get_object()
+        if _flag(request.data.get("reset")):
+            reset_document_columns(document)
+        else:
+            columns = request.data.get("columns")
+            if not isinstance(columns, dict):
+                raise ValidationError({"columns": _("Укажите колонки")})
+            header_row = request.data.get("header_row")
+            set_document_columns(
+                document,
+                int(header_row) if header_row not in (None, "") else None,
+                columns,
+                remember=_flag(request.data.get("remember")),
+                user=request.user,
+            )
+        document.refresh_from_db()
+        return Response(self.get_serializer(document).data)
+
+    @action(detail=True, methods=["post"])
+    def ai(self, request, pk=None):
+        """Разобрать накладную через ИИ (в фоне); статус — в поле ai."""
+        document = request_ai_parse(self.get_object())
+        return Response(self.get_serializer(document).data, status=status.HTTP_202_ACCEPTED)
 
     @action(detail=True, methods=["post"], url_path=r"lines/(?P<position>\d+)")
     def set_line(self, request, pk=None, position=None):

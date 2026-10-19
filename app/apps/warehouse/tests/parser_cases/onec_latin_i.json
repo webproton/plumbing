@@ -88,6 +88,8 @@
   "number": "1001",
   "date": "2026-04-22",
   "total": 2663.0,
+  "engine": "parser",
+  "quality": "ok",
   "items": [
    {
     "position": 1,

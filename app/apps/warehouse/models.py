@@ -190,6 +190,19 @@ class InventoryDocument(models.Model):
     extracted_data = models.JSONField(blank=True, null=True, verbose_name="Распознанные данные и строки приёмки")
     processed = models.BooleanField(default=False, verbose_name="Проведён")
     processed_at = models.DateTimeField(null=True, blank=True, verbose_name="Дата проведения")
+    # Колонки, указанные оператором для ЭТОЙ накладной: {"header_row": i | null, "columns": {"name": i, ...}}
+    column_map = models.JSONField(blank=True, null=True, verbose_name="Колонки, заданные вручную")
+    # Разбор через ИИ (запасной вариант): результат хранится отдельно, при разборе сравнивается с остальными
+    AI_STATUSES = [
+        ("", "—"),
+        ("queued", "В очереди"),
+        ("running", "Выполняется"),
+        ("done", "Готово"),
+        ("failed", "Ошибка"),
+    ]
+    ai_status = models.CharField(max_length=10, choices=AI_STATUSES, blank=True, default="")
+    ai_result = models.JSONField(blank=True, null=True)
+    ai_error = models.TextField(blank=True, default="")
 
     class Meta:
         verbose_name = _("Накладная / документ")
@@ -235,3 +248,27 @@ class VariantMatchMemory(models.Model):
 
     class Meta:
         unique_together = ("supplier", "raw_code", "raw_name", "variant")
+
+
+class InvoiceColumnProfile(models.Model):
+    """
+    Запомненная раскладка колонок накладной поставщика. Накладные одного поставщика бывают разными
+    (их составляют вручную), поэтому профилей может быть несколько: применяется тот, чья шапка совпала.
+    """
+
+    supplier = models.ForeignKey(Supplier, on_delete=models.CASCADE, related_name="column_profiles")
+    # тексты заголовков выбранных колонок {"индекс": "текст"} — по ним профиль узнаёт свою шапку
+    header = models.JSONField(default=dict)
+    columns = models.JSONField(default=dict)
+    created_by = models.ForeignKey("accounts.User", on_delete=models.SET_NULL, null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    used_count = models.PositiveIntegerField(default=0)
+    last_used_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        verbose_name = _("Профиль колонок накладной")
+        verbose_name_plural = _("Профили колонок накладных")
+        ordering = ["-last_used_at", "-created_at"]
+
+    def __str__(self):
+        return f"{self.supplier}: {', '.join(self.header.values())[:80]}"

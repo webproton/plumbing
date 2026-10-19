@@ -103,6 +103,8 @@
   "number": "ИС-100",
   "date": "2025-10-03",
   "total": 844.36,
+  "engine": "parser",
+  "quality": "ok",
   "items": [
    {
     "position": 1,

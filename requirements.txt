@@ -41,3 +41,5 @@ numpy>=1.26
 python-calamine>=0.2
 rapidfuzz>=3.6
 defusedxml>=0.7
+pdfplumber>=0.11
+anthropic>=1.15,<2
