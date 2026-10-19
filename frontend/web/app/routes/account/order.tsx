@@ -2,7 +2,7 @@ import { data, Form, useNavigation } from "react-router";
 
 import { Alert, Badge, Button, Card, PageTitle } from "~/components/ui";
 import { langFromRequest, makeT, tFromMatches } from "~/i18n";
-import { Link, useLang, useT } from "~/i18n/react";
+import { Link, useLang, useLocalPath, useT } from "~/i18n/react";
 import { ApiError } from "~/lib/api.server";
 import { requireUser } from "~/lib/auth.server";
 import { apiContext } from "~/lib/context.server";
@@ -47,6 +47,7 @@ export default function Order({ loaderData, actionData }: Route.ComponentProps) 
   const canceling = useNavigation().state === "submitting";
   const t = useT();
   const lang = useLang();
+  const local = useLocalPath();
   return (
     <div className="space-y-4">
       <Link to="/account/orders" className="text-sm text-brand-600 hover:underline">{t("account.allOrders")}</Link>
@@ -55,7 +56,22 @@ export default function Order({ loaderData, actionData }: Route.ComponentProps) 
       <div className="flex flex-wrap gap-2">
         <Badge tone={statusTone(order.status_order)}>{order.status_order_display}</Badge>
         <Badge tone="muted">{order.payment_type_display}</Badge>
+        <Badge tone="muted">{order.payment_status_display}</Badge>
       </div>
+      {order.ttn && (
+        <Alert>
+          {t("account.ttn", { ttn: order.ttn })}
+          {order.ttn_status && ` — ${order.ttn_status}`}{" "}
+          <a href={`https://novaposhta.ua/tracking/?cargo_number=${order.ttn}`} target="_blank" rel="noreferrer" className="font-semibold underline">
+            {t("account.track")}
+          </a>
+        </Alert>
+      )}
+      {order.can_download_invoice && (
+        <a href={local(`/account/orders/${order.number_order}/invoice`)} target="_blank" rel="noreferrer" className="inline-block text-sm font-semibold text-brand-700 hover:underline">
+          {t("account.invoice")}
+        </a>
+      )}
       <Card className="divide-y divide-line">
         {order.list_of_products.map((line) => (
           <div key={line.variant.id} className="flex items-center gap-4 p-4">

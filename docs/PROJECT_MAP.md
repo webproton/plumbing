@@ -75,7 +75,8 @@ API: `/api/products/`, `/api/products/{slug}/`, `/api/category/`, `/api/new_prod
 | `serializers.py` | Корзина «заменить содержимое» (`CartCreateSerializer`), «установить количества» (`CartDetailSerializer`), оформление `OrderCreateSerializer` (только по `cart_uuid`), список/детали заказа |
 | `notifications.py` | Письмо клиенту и сообщение менеджеру в Telegram после коммита |
 | `tasks.py` | `notify_order_created_task` — отправка уведомлений в фоне |
-| `manage.py` | Заказы в кабинете `/api/orders/manage/`: список, карточка, статус, оплата, заметка, менеджер, счётчики |
+| `manage.py` | Заказы в кабинете `/api/orders/manage/`: список, карточка, статус, оплата, заметка, менеджер, счётчики, ТТН, счёт PDF и email |
+| `invoice.py` | Счёт на оплату PDF, `amount_in_words` (сумма прописью по-украински) |
 | `validators.py` | `validate_phone_number` (+380…), `validate_person_name` (буквы, пробел, дефис, апостроф) |
 | `permissions.py` | `IsCartOwnerOrAnonWithUUID` |
 | `views.py`, `admin.py` | API и админка; смена статуса в админке идёт через `services.change_status` |
@@ -133,13 +134,22 @@ API (`/api/warehouse/`): `me/`, `dashboard/`, `balances/`, `variants/search/`, `
 | `permissions.py` | `IsImportStaff` — продавец работает только со своими источниками и загрузками |
 | `views.py`, `serializers.py`, `urls.py`, `admin.py` | API `/api/imports/`, админка (секреты не показываются) |
 
-### 2.7 Остальные приложения
+### 2.7 `app/apps/delivery/` — Новая Почта
+
+| Файл | Что внутри |
+|---|---|
+| `novaposhta.py` | Клиент API: `search_cities`, `warehouses`, `estimate`, `track`, `create_document` (+ отправитель из кабинета НП, получатель), кэш справочников |
+| `services.py` | `set_ttn`, `create_ttn`, `refresh_statuses` (отримано → «Доставлен»), `orders_to_track` |
+| `views.py`, `urls.py` | Публичный справочник `/api/delivery/np/cities|warehouses|estimate/` |
+| `tasks.py` | Celery beat: `delivery.refresh_ttn_statuses` |
+
+### 2.8 Остальные приложения
 
 | Приложение | Что внутри |
 |---|---|
 | `accounts` | `User` (вход по email), `Profile`, регистрация/логин (dj-rest-auth), `/api/dj-rest-auth/…` |
 | `sellers` | `Seller` (комиссия — только админ, удаление через API запрещено), `Shop`, `/api/sellers/…` |
-| `callback` | «Перезвоните мне» → Telegram, настройки сайта, `/api/callback/…` |
+| `callback` | «Перезвоните мне» → Telegram, настройки сайта и магазина (`SiteSettings`: контакты, реквизиты, отправитель НП), `/api/callback/…` |
 
 ---
 
@@ -159,9 +169,9 @@ React Router 8 (SSR) · React 19 · TypeScript strict · Tailwind CSS 4 · zod �
 | `app/lib/validation.ts` | zod-схемы форм, `normalizePhone` (+380…) |
 | `app/lib/format.ts` | Цены (₴), количества, даты, склонения, цвет статуса заказа |
 | `app/lib/types.ts` | Типы ответов API |
-| `app/components/` | UI-кит (`ui.tsx`), шапка, подвал, карточка товара, цена, пагинация, количество, «в корзину», заявка на звонок |
-| `app/routes/` | Страницы: главная, каталог, товар, корзина, оформление, вход/регистрация/пароль, кабинет, избранное, доставка, контакты |
-| `app/routes/seller/` | Кабинет склада/продавца: `layout` (роль, навигация), `index` (обзор), `products` + `product-new` + `product-edit` (товары), `orders` + `order` (заказы), `labels` (PDF этикеток), `stock`, `documents` + `document` (накладные, «Перевірка розбору», ИИ) + `document-columns` (ручной выбор колонок), `operations`, `scanner`, `movements`, `warehouses`, `suppliers`, импорт — `import` (шаблон, загрузка, история), `import-run` (предпросмотр/применение), `sources` (источники), `source` (позиции поставщика), `source-edit` (создание/настройки); ресурсные маршруты `variants` (поиск товара), `document-file`, `import-template` (скачивание) |
+| `app/components/` | `NpPicker` (город и отделение Новой Почты с автодополнением), UI-кит (`ui.tsx`), шапка, подвал, карточка товара, цена, пагинация, количество, «в корзину», заявка на звонок |
+| `app/routes/` | Страницы: главная, каталог, товар, корзина, оформление (Новая Почта), ресурсные `np/*` (справочник НП), `account/order-invoice` (счёт), вход/регистрация/пароль, кабинет, избранное, доставка, контакты |
+| `app/routes/seller/` | Кабинет склада/продавца: `layout` (роль, навигация), `index` (обзор), `products` + `product-new` + `product-edit` (товары), `orders` + `order` + `order-invoice` (заказы, ТТН, счёт), `labels` (PDF этикеток), `settings` (настройки магазина), `stock`, `documents` + `document` (накладные, «Перевірка розбору», ИИ) + `document-columns` (ручной выбор колонок), `operations`, `scanner`, `movements`, `warehouses`, `suppliers`, импорт — `import` (шаблон, загрузка, история), `import-run` (предпросмотр/применение), `sources` (источники), `source` (позиции поставщика), `source-edit` (создание/настройки); ресурсные маршруты `variants` (поиск товара), `document-file`, `import-template` (скачивание) |
 | `app/components/seller/` | `Table` (таблицы, карточки-метрики), `VariantPicker` (поиск товара), `CameraScanner` (камера телефона), `imports.tsx` (статусы запусков/источников, `usePolling` — автообновление во время фоновой задачи), `VariantFields` (поля варианта товара) |
 | `app/i18n/` | Словари: `uk.ts` (еталон), `ru.ts`, кабинет — `seller.uk.ts`/`seller.ru.ts`, импорт — `import.uk.ts`/`import.ru.ts`, товары и заказы — `cabinet.uk.ts`/`cabinet.ru.ts`; `react.tsx` (useT, Link с языком), `server.ts` |
 | `tests/` | Vitest: форматирование, валидация, API-клиент, компоненты |

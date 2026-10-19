@@ -132,6 +132,10 @@ export interface OrderDetail {
   payment_status: string;
   payment_type: string;
   payment_type_display: string;
+  payment_status_display: string;
+  can_download_invoice: boolean;
+  ttn: string;
+  ttn_status: string;
   list_of_products: OrderLine[];
 }
 
@@ -602,4 +606,33 @@ export interface ManageOrder extends ManageOrderRow {
   }[];
   next_statuses: { value: OrderStatus; label: string }[];
   can_manage: boolean;
+  np_city_ref: string;
+  np_warehouse_ref: string;
+  ttn: string;
+  ttn_status: string;
+  ttn_status_code: string;
+  ttn_updated_at: string | null;
+  delivery_tools: { can_create_ttn: boolean; np_key: boolean; sender_ready: boolean; has_requisites: boolean };
+}
+
+// ---------- Нова Пошта ----------
+
+export interface NpCity {
+  ref: string;
+  name: string;
+  label: string;
+  warehouses: number;
+}
+
+export interface NpWarehouse {
+  ref: string;
+  number: string;
+  name: string;
+  kind: "branch" | "postomat";
+  max_weight: number | null;
+}
+
+export interface NpEstimate {
+  cost?: number | null;
+  date?: string | null;
 }

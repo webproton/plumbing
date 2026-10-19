@@ -1,11 +1,22 @@
-import { ArrowRight, Phone, Save, UserCheck, XCircle } from "lucide-react";
+import { ArrowRight, FileText, Mail, Phone, RefreshCw, Save, Truck, UserCheck, XCircle } from "lucide-react";
 import { data, Form, useNavigation } from "react-router";
 
 import { Table, TableWrap, Td, Th } from "~/components/seller/Table";
-import { Alert, Badge, Button, Card, Field, PageTitle, Select, Textarea } from "~/components/ui";
+import {
+  Alert,
+  Badge,
+  Button,
+  buttonClass,
+  Card,
+  Field,
+  Input,
+  PageTitle,
+  Select,
+  Textarea,
+} from "~/components/ui";
 import { langFromRequest, makeT, tFromMatches, type TKey } from "~/i18n";
-import { Link, useLang, useT } from "~/i18n/react";
-import { ApiError } from "~/lib/api.server";
+import { Link, useLang, useLocalPath, useT } from "~/i18n/react";
+import { ApiError, LONG_TIMEOUT } from "~/lib/api.server";
 import { formatDateTime, formatPrice, formatQty, paymentTone, statusTone } from "~/lib/format";
 import { requireSeller } from "~/lib/seller.server";
 import type { ManageOrder, PaymentStatus } from "~/lib/types";
@@ -40,6 +51,26 @@ export async function action({ request, params, context }: Route.ActionArgs) {
       await api.post(`${base}/payment/`, { payment_status: form.get("payment_status") });
     if (intent === "note") await api.post(`${base}/note/`, { manager_note: form.get("manager_note") ?? "" });
     if (intent === "assign") await api.post(`${base}/assign/`);
+    if (intent === "ttn") await api.post(`${base}/ttn/`, { ttn: form.get("ttn") ?? "" });
+    if (intent === "ttn_refresh") await api.post(`${base}/ttn/refresh/`);
+    if (intent === "ttn_create")
+      await api.post(
+        `${base}/ttn/create/`,
+        {
+          weight: form.get("weight"),
+          seats: form.get("seats"),
+          description: form.get("description") ?? "",
+          payer: form.get("payer"),
+          cod: form.get("cod") === "1",
+        },
+        { timeoutMs: LONG_TIMEOUT },
+      );
+    if (intent === "invoice_send") {
+      const r = await api.post<{ sent_to: string }>(`${base}/invoice/send/`, undefined, {
+        timeoutMs: LONG_TIMEOUT,
+      });
+      return { ok: true as const, intent, error: null, sentTo: r.sent_to };
+    }
     return { ok: true as const, intent, error: null };
   } catch (e) {
     if (!(e instanceof ApiError)) throw e;
@@ -73,6 +104,9 @@ export default function OrderPage({ loaderData, actionData }: Route.ComponentPro
         <span className="text-muted text-sm">{t(`ord.stock.${order.stock_state}` as TKey)}</span>
       </div>
       {actionData && !actionData.ok && <Alert tone="danger">{actionData.error}</Alert>}
+      {actionData?.ok && "sentTo" in actionData && (
+        <Alert tone="success">{t("ord.invoice.sent", { email: actionData.sentTo ?? "" })}</Alert>
+      )}
       {!order.can_manage && <Alert>{t("ord.readOnly")}</Alert>}
 
       <div className="grid gap-4 md:grid-cols-2">
@@ -177,6 +211,8 @@ export default function OrderPage({ loaderData, actionData }: Route.ComponentPro
         </TableWrap>
       </section>
 
+      <DeliveryCard order={order} />
+
       {order.can_manage && (
         <Card className="space-y-4 p-5">
           <h2 className="font-semibold">{t("ord.actions")}</h2>
@@ -279,6 +315,176 @@ export default function OrderPage({ loaderData, actionData }: Route.ComponentPro
           </Form>
         </Card>
       )}
+    </div>
+  );
+}
+
+function DeliveryCard({ order }: { order: ManageOrder }) {
+  const t = useT();
+  const lang = useLang();
+  const local = useLocalPath();
+  const nav = useNavigation();
+  const busy = (intent: string) => nav.state !== "idle" && nav.formData?.get("intent") === intent;
+  const tools = order.delivery_tools;
+  const pickup = !order.city && !order.np_warehouse_ref;
+
+  return (
+    <div className="grid gap-4 md:grid-cols-2">
+      <Card className="space-y-3 p-5 text-sm">
+        <h2 className="flex items-center gap-2 font-semibold">
+          <Truck className="size-4" aria-hidden /> {t("ord.np.title")}
+        </h2>
+        {order.ttn ? (
+          <div className="space-y-1">
+            <p>
+              {t("ord.np.ttn")}:{" "}
+              <a
+                href={`https://novaposhta.ua/tracking/?cargo_number=${order.ttn}`}
+                target="_blank"
+                rel="noreferrer"
+                className="text-brand-700 font-semibold hover:underline"
+              >
+                {order.ttn}
+              </a>
+            </p>
+            {order.ttn_status && (
+              <p>
+                {order.ttn_status}
+                {order.ttn_updated_at && (
+                  <span className="text-muted"> · {formatDateTime(order.ttn_updated_at, lang)}</span>
+                )}
+              </p>
+            )}
+            {order.can_manage && (
+              <Form method="post">
+                <input type="hidden" name="intent" value="ttn_refresh" />
+                <Button type="submit" size="sm" variant="ghost" loading={busy("ttn_refresh")}>
+                  <RefreshCw className="size-3.5" aria-hidden /> {t("ord.np.refresh")}
+                </Button>
+              </Form>
+            )}
+          </div>
+        ) : (
+          <p className="text-muted">{pickup ? t("ord.np.pickup") : t("ord.np.noTtn")}</p>
+        )}
+        {order.can_manage && !pickup && (
+          <Form method="post" className="flex items-end gap-2">
+            <input type="hidden" name="intent" value="ttn" />
+            <Field label={order.ttn ? t("ord.np.change") : t("ord.np.manual")} hint={t("ord.np.manualHint")}>
+              {(p) => (
+                <Input
+                  {...p}
+                  name="ttn"
+                  defaultValue={order.ttn}
+                  inputMode="numeric"
+                  placeholder="20450000000000"
+                  className="w-48"
+                />
+              )}
+            </Field>
+            <Button type="submit" size="sm" variant="secondary" loading={busy("ttn")} className="mb-6">
+              <Save className="size-3.5" aria-hidden />
+            </Button>
+          </Form>
+        )}
+        {order.can_manage && !order.ttn && tools.can_create_ttn && (
+          <details className="border-line rounded-xl border p-3">
+            <summary className="cursor-pointer font-medium">{t("ord.np.create")}</summary>
+            <Form method="post" className="mt-3 grid gap-3 sm:grid-cols-2">
+              <input type="hidden" name="intent" value="ttn_create" />
+              <Field label={t("ord.np.weight")}>
+                {(p) => (
+                  <Input {...p} name="weight" type="number" min="0.1" step="0.1" defaultValue="1" required />
+                )}
+              </Field>
+              <Field label={t("ord.np.seats")}>
+                {(p) => (
+                  <Input {...p} name="seats" type="number" min="1" max="50" defaultValue="1" required />
+                )}
+              </Field>
+              <Field label={t("ord.np.description")}>
+                {(p) => (
+                  <Input
+                    {...p}
+                    name="description"
+                    maxLength={100}
+                    placeholder={t("ord.np.descriptionPlaceholder")}
+                  />
+                )}
+              </Field>
+              <Field label={t("ord.np.payer")}>
+                {(p) => (
+                  <Select {...p} name="payer" defaultValue="Recipient">
+                    <option value="Recipient">{t("ord.np.payerRecipient")}</option>
+                    <option value="Sender">{t("ord.np.payerSender")}</option>
+                  </Select>
+                )}
+              </Field>
+              <label className="flex items-center gap-2 sm:col-span-2">
+                <input
+                  type="checkbox"
+                  name="cod"
+                  value="1"
+                  defaultChecked={order.payment_status !== "paid_for"}
+                  className="accent-brand-600 size-4"
+                />
+                {t("ord.np.cod", { sum: formatPrice(order.total_price) })}
+              </label>
+              <Button
+                type="submit"
+                size="sm"
+                loading={busy("ttn_create")}
+                className="sm:col-span-2 sm:justify-self-start"
+              >
+                <Truck className="size-3.5" aria-hidden /> {t("ord.np.createSubmit")}
+              </Button>
+            </Form>
+          </details>
+        )}
+        {order.can_manage && !order.ttn && !pickup && !tools.can_create_ttn && (
+          <p className="text-muted text-xs">
+            {!tools.np_key
+              ? t("ord.np.noKey")
+              : !tools.sender_ready
+                ? t("ord.np.noSender")
+                : t("ord.np.noRef")}
+          </p>
+        )}
+      </Card>
+
+      <Card className="space-y-3 p-5 text-sm">
+        <h2 className="flex items-center gap-2 font-semibold">
+          <FileText className="size-4" aria-hidden /> {t("ord.invoice.title")}
+        </h2>
+        {tools.has_requisites ? (
+          <div className="flex flex-wrap gap-2">
+            <a
+              href={local(`/seller/orders/${order.id}/invoice`)}
+              target="_blank"
+              rel="noreferrer"
+              className={buttonClass("secondary", "sm")}
+            >
+              <FileText className="size-3.5" aria-hidden /> {t("ord.invoice.pdf")}
+            </a>
+            {order.can_manage && (order.email || order.customer_email) && (
+              <Form method="post">
+                <input type="hidden" name="intent" value="invoice_send" />
+                <Button type="submit" size="sm" variant="ghost" loading={busy("invoice_send")}>
+                  <Mail className="size-3.5" aria-hidden />{" "}
+                  {t("ord.invoice.send", { email: order.email || order.customer_email || "" })}
+                </Button>
+              </Form>
+            )}
+          </div>
+        ) : (
+          <p className="text-muted">
+            {t("ord.invoice.noRequisites")}{" "}
+            <Link to="/seller/settings" className="text-brand-700 hover:underline">
+              {t("set.nav")}
+            </Link>
+          </p>
+        )}
+      </Card>
     </div>
   );
 }

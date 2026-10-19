@@ -148,6 +148,10 @@ const base = {
   "checkout.summary": "Ваше замовлення",
   "checkout.outOfStock": "Частина товарів закінчилася, поки ви оформлювали замовлення. Перевірте кошик.",
   "checkout.addressPickup": "Самовивіз",
+  "checkout.addressNpFull": "Нова Пошта, {city}, {warehouse}",
+  "checkout.npEstimate": "Доставка ≈ {cost} за тарифами перевізника, орієнтовно {date}",
+  "np.searchHint": "Почніть вводити номер відділення або вулицю",
+  "np.maxWeight": "до {kg} кг",
   "checkout.addressNp": "Нова Пошта, {city}, відділення {department}",
 
   // замовлення прийнято
@@ -213,6 +217,9 @@ const base = {
   "account.recipient": "Отримувач",
   "account.deliveryTo": "Доставка",
   "account.comment": "Коментар",
+  "account.ttn": "Посилка Новою Поштою: ТТН {ttn}",
+  "account.track": "Відстежити",
+  "account.invoice": "Завантажити рахунок на оплату (PDF)",
   "account.cancel": "Скасувати замовлення",
   "account.cancelConfirm": "Скасувати замовлення? Товар повернеться в продаж.",
   "account.cancelError": "Не вдалося скасувати замовлення",

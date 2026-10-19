@@ -1,4 +1,5 @@
 import os
+import secrets
 
 from django.contrib.auth.models import Group
 from django.core.management.base import BaseCommand
@@ -36,10 +37,12 @@ class Command(BaseCommand):
                 },
             )
             if created:
-                user.set_password("manager123")  # дефолтный пароль
+                # случайный пароль показывается один раз; потом его можно сменить через «Забыли пароль»
+                password = secrets.token_urlsafe(12)
+                user.set_password(password)
                 user.save()
                 user.groups.add(managers_group)
-                self.stdout.write(self.style.SUCCESS(f"✅ Создан {email}, telegram={telegram_id}"))
+                self.stdout.write(self.style.SUCCESS(f"✅ Создан {email}, пароль: {password}, telegram={telegram_id}"))
             else:
                 if telegram_id and user.telegram != telegram_id:
                     user.telegram = telegram_id

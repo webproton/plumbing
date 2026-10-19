@@ -23,6 +23,7 @@ export default [
         index("routes/account/profile.tsx"),
         route("orders", "routes/account/orders.tsx"),
         route("orders/:id", "routes/account/order.tsx"),
+        route("orders/:id/invoice", "routes/account/order-invoice.tsx"),
       ]),
     ]),
 
@@ -33,8 +34,10 @@ export default [
         route("products/new", "routes/seller/product-new.tsx"),
         route("products/:id", "routes/seller/product-edit.tsx"),
         route("labels", "routes/seller/labels.tsx"),
+        route("settings", "routes/seller/settings.tsx"),
         route("orders", "routes/seller/orders.tsx"),
         route("orders/:id", "routes/seller/order.tsx"),
+        route("orders/:id/invoice", "routes/seller/order-invoice.tsx"),
         route("stock", "routes/seller/stock.tsx"),
         route("movements", "routes/seller/movements.tsx"),
         route("operations", "routes/seller/operations.tsx"),
@@ -59,6 +62,9 @@ export default [
     route("delivery", "routes/pages/delivery.tsx"),
     route("contacts", "routes/pages/contacts.tsx"),
     route("callback", "routes/callback.tsx"),
+    route("np/cities", "routes/np/cities.tsx"),
+    route("np/warehouses", "routes/np/warehouses.tsx"),
+    route("np/estimate", "routes/np/estimate.tsx"),
 
     // старые адреса SPA → новые (сохраняем ссылки и SEO)
     route("products", "routes/legacy/products.tsx"),
