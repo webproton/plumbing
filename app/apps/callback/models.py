@@ -17,6 +17,22 @@ class SiteSettings(models.Model):
     telegram = models.URLField(verbose_name="Telegram", blank=True, null=True)
     whatsapp = models.URLField(verbose_name="WhatsApp", blank=True, null=True)
 
+    # Реквизиты для счёта на оплату (ручная оплата)
+    legal_name = models.CharField("Получатель платежа", max_length=255, blank=True, default="")
+    tax_id = models.CharField("ЄДРПОУ / ІПН", max_length=20, blank=True, default="")
+    iban = models.CharField("IBAN", max_length=34, blank=True, default="")
+    bank_name = models.CharField("Банк", max_length=255, blank=True, default="")
+    legal_address = models.CharField("Адрес", max_length=255, blank=True, default="")
+    vat_payer = models.BooleanField("Плательщик НДС", default=False)
+    invoice_note = models.TextField("Примечание в счёте", blank=True, default="")
+
+    # Отправка Новой Почтой (город/отделение — Ref из справочника НП)
+    np_sender_city_ref = models.CharField(max_length=36, blank=True, default="")
+    np_sender_city_name = models.CharField(max_length=255, blank=True, default="")
+    np_sender_warehouse_ref = models.CharField(max_length=36, blank=True, default="")
+    np_sender_warehouse_name = models.CharField(max_length=255, blank=True, default="")
+    np_sender_phone = models.CharField("Телефон отправителя", max_length=20, blank=True, default="")
+
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
@@ -25,3 +41,11 @@ class SiteSettings(models.Model):
 
     def __str__(self):
         return f"Настройки ({self.phone})"
+
+    @classmethod
+    def current(cls):
+        return cls.objects.order_by("id").first() or cls()
+
+    @property
+    def has_requisites(self) -> bool:
+        return bool(self.legal_name and self.iban)

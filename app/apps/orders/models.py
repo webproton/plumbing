@@ -151,6 +151,15 @@ class Order(models.Model):
     )
     manager_note = models.TextField(blank=True, default="", verbose_name="Заметка менеджера")
 
+    # Нова Пошта: город и отделение из справочника НП (Ref), ТТН и последний статус посылки
+    np_city_ref = models.CharField(max_length=36, blank=True, default="")
+    np_warehouse_ref = models.CharField(max_length=36, blank=True, default="")
+    ttn = models.CharField("ТТН", max_length=20, blank=True, default="", db_index=True)
+    ttn_ref = models.CharField(max_length=36, blank=True, default="")
+    ttn_status = models.CharField("Статус посылки", max_length=255, blank=True, default="")
+    ttn_status_code = models.CharField(max_length=10, blank=True, default="")
+    ttn_updated_at = models.DateTimeField(null=True, blank=True)
+
     # Состояние товара по заказу (меняется только через app.apps.orders.services)
     STOCK_STATE = Choices(
         ("none", _("Не резервировался")),  # заказы до введения резервов

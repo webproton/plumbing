@@ -6,16 +6,22 @@ services.change_status), оплата, менеджер, заметка.
 все позиции заказа — его (иначе смена статуса списала бы со склада чужие товары).
 """
 
+from django.core.mail import EmailMessage
 from django.db.models import Count, Exists, OuterRef, Q
+from django.http import HttpResponse
 from django.utils.translation import gettext as _
 from rest_framework import mixins, serializers, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
 
+from app.apps.callback.models import SiteSettings
+from app.apps.delivery import novaposhta as np
+from app.apps.delivery import services as delivery
 from app.apps.warehouse.permissions import IsWarehouseStaff, get_active_seller
 from app.core.pagination import StandardPagination
 
+from .invoice import generate_invoice
 from .models import Order, OrderItem
 from .services import change_status
 
@@ -89,6 +95,7 @@ class OrderRowSerializer(serializers.ModelSerializer):
 
 class OrderDetailSerializer(OrderRowSerializer):
     items = ItemSerializer(many=True, read_only=True)
+    delivery_tools = serializers.SerializerMethodField()
     next_statuses = serializers.SerializerMethodField()
     can_manage = serializers.SerializerMethodField()
     customer_email = serializers.CharField(source="customer.email", read_only=True, default=None)
@@ -97,7 +104,8 @@ class OrderDetailSerializer(OrderRowSerializer):
         fields = [
             *OrderRowSerializer.Meta.fields,
             "city", "department_number", "comment", "telegram", "whatsapp", "manager_note", "customer_email",
-            "items", "next_statuses", "can_manage",
+            "items", "next_statuses", "can_manage", "np_city_ref", "np_warehouse_ref", "ttn", "ttn_status",
+            "ttn_status_code", "ttn_updated_at", "delivery_tools",
         ]  # fmt: skip
 
     def get_next_statuses(self, order):
@@ -105,6 +113,16 @@ class OrderDetailSerializer(OrderRowSerializer):
 
     def get_can_manage(self, order):
         return can_manage(self.context["request"].user, order)
+
+    def get_delivery_tools(self, order):
+        shop = SiteSettings.current()
+        sender_ready = bool(shop.np_sender_city_ref and shop.np_sender_warehouse_ref and shop.np_sender_phone)
+        return {
+            "can_create_ttn": np.enabled_ttn() and sender_ready and bool(order.np_warehouse_ref),
+            "np_key": np.enabled_ttn(),
+            "sender_ready": sender_ready,
+            "has_requisites": shop.has_requisites,
+        }
 
 
 class ManageOrderViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet):
@@ -178,8 +196,86 @@ class ManageOrderViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, views
         Order.objects.filter(pk=order.pk).update(manager=request.user)
         return self._respond(order)
 
+    @action(detail=True, methods=["post"])
+    def ttn(self, request, pk=None):
+        """{"ttn": "20450000000000"} — номер, созданный в кабинете Новой Почты; пусто — убрать."""
+        order = delivery.set_ttn(self._managed(), str(request.data.get("ttn") or ""), user=request.user)
+        if order.ttn:
+            try:
+                delivery.refresh_statuses([order])
+            except np.NovaPoshtaError:
+                pass  # статус подтянется по расписанию
+        return self._respond(order)
+
+    @action(detail=True, methods=["post"], url_path="ttn/create")
+    def ttn_create(self, request, pk=None):
+        """Создать ТТН через API Новой Почты: weight (кг), seats, description, payer (Recipient|Sender), cod."""
+        try:
+            weight = round(float(request.data.get("weight") or 1), 2)
+            seats = int(request.data.get("seats") or 1)
+        except (TypeError, ValueError):
+            raise ValidationError({"weight": _("Укажите вес числом")}) from None
+        if not (0.1 <= weight <= 1000) or not (1 <= seats <= 50):
+            raise ValidationError({"weight": _("Проверьте вес и количество мест")})
+        payer = "Sender" if request.data.get("payer") == "Sender" else "Recipient"
+        order = delivery.create_ttn(
+            self._managed(),
+            weight=weight,
+            seats=seats,
+            description=str(request.data.get("description") or "")[:100],
+            payer=payer,
+            cod=str(request.data.get("cod")).lower() in ("1", "true", "on"),
+            user=request.user,
+        )
+        return self._respond(order)
+
+    @action(detail=True, methods=["post"], url_path="ttn/refresh")
+    def ttn_refresh(self, request, pk=None):
+        order = self.get_object()
+        try:
+            delivery.refresh_statuses([order])
+        except np.NovaPoshtaError as exc:
+            raise ValidationError({"ttn": str(exc)}) from None
+        return self._respond(order)
+
+    @action(detail=True, methods=["get"])
+    def invoice(self, request, pk=None):
+        return invoice_response(self.get_object())
+
+    @action(detail=True, methods=["post"], url_path="invoice/send")
+    def invoice_send(self, request, pk=None):
+        order = self._managed()
+        email = order.email or (order.customer.email if order.customer_id else "")
+        if not email:
+            raise ValidationError({"detail": _("У покупателя нет email")})
+        shop = _shop_with_requisites()
+        message = EmailMessage(
+            subject=_("Счёт на оплату заказа №{id}").format(id=order.pk),
+            body=_("Добрый день! Во вложении счёт на оплату заказа №{id}. После оплаты мы отправим заказ.").format(
+                id=order.pk
+            ),
+            to=[email],
+        )
+        message.attach(f"invoice-{order.pk}.pdf", generate_invoice(order, shop), "application/pdf")
+        message.send(fail_silently=False)
+        return Response({"sent_to": email})
+
     @action(detail=False, methods=["get"])
     def counts(self, request):
         """Количество заказов по статусам (вкладки и счётчик новых в меню)."""
         rows = visible_orders(request.user).values("status_order").annotate(n=Count("id"))
         return Response({r["status_order"]: r["n"] for r in rows})
+
+
+def _shop_with_requisites():
+    shop = SiteSettings.current()
+    if not shop.has_requisites:
+        raise ValidationError({"detail": _("Заполните реквизиты магазина (получатель и IBAN) в настройках")})
+    return shop
+
+
+def invoice_response(order):
+    pdf = generate_invoice(order, _shop_with_requisites())
+    response = HttpResponse(pdf, content_type="application/pdf")
+    response["Content-Disposition"] = f'inline; filename="invoice-{order.pk}.pdf"'
+    return response
