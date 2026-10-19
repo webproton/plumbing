@@ -47,7 +47,11 @@ interface RequestOptions {
   query?: Record<string, string | number | undefined | null>;
   body?: unknown;
   auth?: boolean; // прикладывать токен пользователя (по умолчанию — если он есть)
+  timeoutMs?: number; // по умолчанию 15 с; длинные операции (импорт, публикация) — до LONG_TIMEOUT
 }
+
+/** Для тяжёлых запросов (разбор файла импорта, создание сотен товаров). Меньше proxy_read_timeout nginx. */
+export const LONG_TIMEOUT = 90_000;
 
 /**
  * Клиент Django API для loaders/actions. Создаётся на каждый запрос (см. root middleware).
@@ -100,7 +104,7 @@ export class Api {
         method,
         headers,
         body: opts.body === undefined ? undefined : isForm ? (opts.body as FormData) : JSON.stringify(opts.body),
-        signal: AbortSignal.timeout(15_000),
+        signal: AbortSignal.timeout(opts.timeoutMs ?? 15_000),
       });
     } catch {
       throw new ApiError(503, { detail: makeT(this.lang)("error.unavailable") }, this.lang);
@@ -148,13 +152,13 @@ export class Api {
   }
 
   /** Сырой ответ API (скачивание файлов). Токен подставляется на сервере витрины. */
-  async download(path: string, retried = false): Promise<Response> {
+  async download(path: string, retried = false, timeoutMs = 30_000): Promise<Response> {
     const token = this.session.get("access");
     const response = await fetch(`${config.apiUrl}/api${path}`, {
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-      signal: AbortSignal.timeout(30_000),
+      headers: { "Accept-Language": LOCALE[this.lang], ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      signal: AbortSignal.timeout(timeoutMs),
     });
-    if (response.status === 401 && token && !retried && (await this.refresh())) return this.download(path, true);
+    if (response.status === 401 && token && !retried && (await this.refresh())) return this.download(path, true, timeoutMs);
     if (!response.ok) throw new ApiError(response.status, null, this.lang);
     return response;
   }

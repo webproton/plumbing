@@ -206,7 +206,7 @@ def read_rows(content: bytes, filename: str = "") -> tuple[list[dict], dict]:
         if not any(data[f] for f in ("sku", "barcode", "name")):
             continue
         rows.append({"row": number, "data": data, "errors": errors, "warnings": warnings})
-    return rows, table.columns
+    return rows, {f: table.columns[f] for f in HEADERS if f in table.columns}  # в порядке шаблона
 
 
 def _lookup(model_qs, field, values):

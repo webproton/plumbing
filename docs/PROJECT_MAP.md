@@ -16,7 +16,8 @@
 | `config/urls.py` | Маршруты: всё API под `/api/`, `/admin/`, `/account/` (allauth) |
 | `Dockerfile` | Образ бэкенда: Python 3.12 slim, wheels в отдельной стадии, non-root, gunicorn |
 | `gunicorn.conf.py` | Воркеры/таймауты gunicorn (через env) |
-| `docker-compose.prod.yml` | Prod: `db`, `redis`, `migrate` (миграции+статика), `app` (Django), `frontend` (SSR), `nginx` |
+| `docker-compose.prod.yml` | Prod: `db`, `redis`, `migrate` (миграции+статика), `app` (Django), `worker` + `beat` (Celery), `frontend` (SSR), `nginx` |
+| `config/celery.py` | Приложение Celery (`celery -A config worker` / `beat`), задачи ищутся в `tasks.py` приложений |
 | `deploy/nginx/default.conf` | Маршрутизация nginx между Django и SSR-фронтендом |
 | `docker-compose.dev.yml` | Dev: только `db` и `redis` на localhost |
 | `.dockerignore` | Что не попадает в образ (frontend, data, media, .env, …) |
@@ -40,6 +41,10 @@
 | `telegram.py` | `send_message` (таймаут 5 с), `esc` (экранирование HTML), `next_manager_chat_id` (round-robin в Redis) |
 | `storage.py` | `private_storage` — хранилище файлов вне публичного `/media/` (накладные) |
 | `views.py` | `health` — `GET /api/health/`: проверка БД и кэша (healthcheck docker) |
+| `http.py` | `fetch` / `check_url` — загрузка по пользовательским ссылкам с защитой от SSRF, проверкой редиректов и лимитом размера |
+| `crypto.py` | `encrypt` / `decrypt` — шифрование секретов в БД (Fernet, `CREDENTIALS_KEY`) |
+| `tasks.py` | `enqueue` — постановка задачи Celery; при недоступном Redis — выполнить сразу или `QueueUnavailable` |
+| `pagination.py` | `StandardPagination` (`?page=`, `?page_size=` ≤ 100) |
 
 ### 2.2 `app/apps/products/` — каталог
 
@@ -67,6 +72,7 @@ API: `/api/products/`, `/api/products/{slug}/`, `/api/category/`, `/api/new_prod
 | `services.py` | `create_order_from_cart` (блокировка корзины, резерв, позиции), `change_status` (отмена → снять резерв; доставлен/завершён → списать), `cancel_by_customer` |
 | `serializers.py` | Корзина «заменить содержимое» (`CartCreateSerializer`), «установить количества» (`CartDetailSerializer`), оформление `OrderCreateSerializer` (только по `cart_uuid`), список/детали заказа |
 | `notifications.py` | Письмо клиенту и сообщение менеджеру в Telegram после коммита |
+| `tasks.py` | `notify_order_created_task` — отправка уведомлений в фоне |
 | `validators.py` | `validate_phone_number` (+380…), `validate_person_name` (буквы, пробел, дефис, апостроф) |
 | `permissions.py` | `IsCartOwnerOrAnonWithUUID` |
 | `views.py`, `admin.py` | API и админка; смена статуса в админке идёт через `services.change_status` |
@@ -101,7 +107,22 @@ API (`/api/warehouse/`): `me/`, `dashboard/`, `balances/`, `variants/search/`, `
 | `suppliers/` | `default`, `aquadom`, `presto`, `santan` (`ber` — не подключён) |
 | `run.py` | Отладка из консоли: `python -m parsers.run файл.xlsx` |
 
-### 2.6 Остальные приложения
+### 2.6 `app/apps/imports/` — импорт товаров
+
+| Файл | Что внутри |
+|---|---|
+| `models.py` | `ImportSource` (источник, зашифрованный `secret`), `SupplierItem` (каталог поставщика), `ImportRun` (запуск, строки предпросмотра) |
+| `fields.py` | Синонимы колонок/тегов (`FIELD_SYNONYMS`), `detect_columns`, разбор чисел, количеств («>10»), да/нет, ссылок на фото |
+| `formats.py` | `parse_items`: YML, XML (тег товара определяется сам), CSV (кодировка/разделитель), Excel (строка заголовков среди первых 30), JSON (путь к списку, вложенные поля) → `SourceItem` |
+| `connectors/` | `feed.py` (ссылка/файл), `api.py` (JSON, страницы), `web.py` (`SiteAdapter`, `@register`, `FormLoginAdapter`, `WebConnector`), `base.py` (авторизация запросов) |
+| `services.py` | `sync_source`, `upsert_items`, `auto_link`, `apply_updates`, `Pricing` (РРЦ / наценка, курс, округление), `link_item`, `publish_items`, `set_status`, `editable_variants` |
+| `template.py` | Шаблон: `build_template`, `read_rows`, `plan` (создать/обновить/ошибка), `apply` (группы → варианты, остатки инвентаризацией) |
+| `photos.py` | Загрузка фото товара по ссылкам (проверка Pillow, только если у товара нет фото) |
+| `tasks.py` | Celery: `sync_source_task` (с блокировкой), `sync_due_sources` (beat), `apply_template_task`, `download_photos_task` |
+| `permissions.py` | `IsImportStaff` — продавец работает только со своими источниками и загрузками |
+| `views.py`, `serializers.py`, `urls.py`, `admin.py` | API `/api/imports/`, админка (секреты не показываются) |
+
+### 2.7 Остальные приложения
 
 | Приложение | Что внутри |
 |---|---|
@@ -129,9 +150,9 @@ React Router 8 (SSR) · React 19 · TypeScript strict · Tailwind CSS 4 · zod �
 | `app/lib/types.ts` | Типы ответов API |
 | `app/components/` | UI-кит (`ui.tsx`), шапка, подвал, карточка товара, цена, пагинация, количество, «в корзину», заявка на звонок |
 | `app/routes/` | Страницы: главная, каталог, товар, корзина, оформление, вход/регистрация/пароль, кабинет, избранное, доставка, контакты |
-| `app/routes/seller/` | Кабинет склада/продавца: `layout` (роль, навигация), `index` (обзор), `stock`, `documents` + `document` (накладные), `operations`, `scanner`, `movements`, `warehouses`, `suppliers`, ресурсные маршруты `variants` (поиск товара) и `document-file` (скачивание) |
-| `app/components/seller/` | `Table` (таблицы, карточки-метрики), `VariantPicker` (поиск товара), `CameraScanner` (камера телефона) |
-| `app/i18n/` | Словари: `uk.ts` (еталон), `ru.ts`, кабинет — `seller.uk.ts`/`seller.ru.ts`; `react.tsx` (useT, Link с языком), `server.ts` |
+| `app/routes/seller/` | Кабинет склада/продавца: `layout` (роль, навигация), `index` (обзор), `stock`, `documents` + `document` (накладные), `operations`, `scanner`, `movements`, `warehouses`, `suppliers`, импорт — `import` (шаблон, загрузка, история), `import-run` (предпросмотр/применение), `sources` (источники), `source` (позиции поставщика), `source-edit` (создание/настройки); ресурсные маршруты `variants` (поиск товара), `document-file`, `import-template` (скачивание) |
+| `app/components/seller/` | `Table` (таблицы, карточки-метрики), `VariantPicker` (поиск товара), `CameraScanner` (камера телефона), `imports.tsx` (статусы запусков/источников, `usePolling` — автообновление во время фоновой задачи) |
+| `app/i18n/` | Словари: `uk.ts` (еталон), `ru.ts`, кабинет — `seller.uk.ts`/`seller.ru.ts`, импорт — `import.uk.ts`/`import.ru.ts`; `react.tsx` (useT, Link с языком), `server.ts` |
 | `tests/` | Vitest: форматирование, валидация, API-клиент, компоненты |
 | `Dockerfile` | Node 24 alpine, SSR-сервер `react-router-serve` на :3000 |
 

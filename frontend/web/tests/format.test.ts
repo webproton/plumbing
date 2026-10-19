@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { formatPrice, formatQty, pluralize, statusTone } from "~/lib/format";
+import { formatDateTime, formatPrice, formatQty, pluralize, statusTone } from "~/lib/format";
 
 describe("format", () => {
   it("formats prices in UAH", () => {
@@ -25,5 +25,12 @@ describe("format", () => {
     expect(statusTone("completed")).toBe("success");
     expect(statusTone("canceled")).toBe("danger");
     expect(statusTone("in_processing")).toBe("info");
+  });
+});
+
+describe("formatDateTime", () => {
+  it("показывает время по Киеву независимо от часового пояса сервера", () => {
+    expect(formatDateTime("2026-10-19T12:08:00Z", "uk")).toBe("19.10.2026, 15:08");
+    expect(formatDateTime("2026-10-19T12:08:00Z", "ru")).toBe("19.10.2026, 15:08");
   });
 });

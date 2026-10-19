@@ -15,8 +15,28 @@ export function formatQty(value: string | number): string {
   return Number.isFinite(n) ? new Intl.NumberFormat("uk-UA", { maximumFractionDigits: 3 }).format(n) : String(value);
 }
 
+// Время магазина фиксировано: одинаковый текст при SSR и в браузере (без расхождений гидратации)
+const TIME_ZONE = "Europe/Kyiv";
+
 export function formatDate(iso: string, lang: Lang = "uk"): string {
-  return new Intl.DateTimeFormat(LOCALE[lang], { day: "2-digit", month: "long", year: "numeric" }).format(new Date(iso));
+  return new Intl.DateTimeFormat(LOCALE[lang], {
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+    timeZone: TIME_ZONE,
+  }).format(new Date(iso));
+}
+
+/** «19.10.2026, 15:08» — для журналов и синхронизаций */
+export function formatDateTime(iso: string, lang: Lang = "uk"): string {
+  return new Intl.DateTimeFormat(LOCALE[lang], {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: TIME_ZONE,
+  }).format(new Date(iso));
 }
 
 /** forms: массив или строка "товар|товари|товарів" (так формы хранятся в словарях) */

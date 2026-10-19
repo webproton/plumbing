@@ -318,3 +318,154 @@ export interface ScanCard {
   stock_current: string | null;
   photo: string | null;
 }
+
+// ---------- импорт товаров ----------
+
+export type RunStatus = "pending" | "running" | "preview" | "applying" | "done" | "failed";
+export type RowAction = "create" | "update" | "error";
+
+export interface ImportRowData {
+  sku: string;
+  barcode: string;
+  name: string;
+  variant: string;
+  group: string;
+  category: string;
+  brand: string;
+  price: string | null;
+  old_price: string | null;
+  cost: string | null;
+  quantity: string | null;
+  photos: string[];
+  visible: boolean | null;
+}
+
+export interface ImportRow {
+  row: number;
+  action: RowAction;
+  data: ImportRowData;
+  errors: string[];
+  warnings: string[];
+  variant_id: number | null;
+  result?: "create" | "update" | "failed";
+}
+
+export interface ImportRunStats {
+  rows?: number;
+  create?: number;
+  update?: number;
+  errors?: number;
+  stock?: number;
+  warnings?: number;
+  columns?: Record<string, string>;
+  result?: { created: number; updated: number; failed: number; stock: number };
+  // синхронизация источника
+  total?: number;
+  new?: number;
+  changed?: number;
+  unchanged?: number;
+  missing?: number;
+  linked_auto?: number;
+  price_changed?: number;
+  hidden?: number;
+  shown?: number;
+  skipped?: number;
+  duplicates?: number;
+  format?: string;
+}
+
+export interface ImportRun {
+  id: number;
+  kind: "template" | "sync";
+  status: RunStatus;
+  source: number | null;
+  source_name: string | null;
+  file_name: string;
+  options: { warehouse_id?: number | null; publish?: boolean };
+  stats: ImportRunStats;
+  error: string;
+  created_by_email: string | null;
+  created_at: string;
+  started_at: string | null;
+  finished_at: string | null;
+}
+
+export type SourceKind = "feed" | "api" | "web";
+export type AuthType = "none" | "basic" | "bearer" | "header" | "query" | "login";
+
+export interface ImportSource {
+  id: number;
+  name: string;
+  kind: SourceKind;
+  url: string;
+  has_file: boolean;
+  file_name: string;
+  format: "auto" | "yml" | "xml" | "csv" | "xlsx" | "json";
+  auth_type: AuthType;
+  auth_login: string;
+  has_secret: boolean;
+  adapter: string;
+  field_map: Record<string, string>;
+  options: Record<string, string | number>;
+  currency: string;
+  price_mode: "rrp" | "markup";
+  markup_percent: string;
+  price_rounding: string;
+  category: number | null;
+  category_name: string | null;
+  supplier: number | null;
+  supplier_name: string | null;
+  publish_new: boolean;
+  update_prices: boolean;
+  hide_when_unavailable: boolean;
+  sync_interval_minutes: number;
+  is_active: boolean;
+  last_sync_at: string | null;
+  next_sync_at: string | null;
+  last_status: "" | "running" | "ok" | "error";
+  last_error: string;
+  counts: { total: number; new: number; linked: number; ignored: number; missing: number } | null;
+  created_at: string;
+}
+
+export interface SiteAdapterInfo {
+  code: string;
+  title: string;
+  description: string;
+  options: Record<string, string>;
+}
+
+export type SupplierItemStatus = "new" | "linked" | "ignored";
+
+export interface SupplierItemRow {
+  id: number;
+  external_id: string;
+  sku: string;
+  barcode: string;
+  name: string;
+  brand: string;
+  category_name: string;
+  url: string;
+  price: string | null;
+  old_price: string | null;
+  cost: string | null;
+  currency: string;
+  quantity: string | null;
+  available: boolean | null;
+  photo: string | null;
+  params: Record<string, string>;
+  status: SupplierItemStatus;
+  variant: number | null;
+  variant_name: string | null;
+  variant_price: string | null;
+  our_price: string | null;
+  match_method: string;
+  missing: boolean;
+  changed_at: string;
+}
+
+export interface SupplierCategory {
+  category_name: string;
+  total: number;
+  new: number;
+}
