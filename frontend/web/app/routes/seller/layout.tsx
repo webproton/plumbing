@@ -2,9 +2,11 @@ import {
   ArrowLeftRight,
   Building2,
   ClipboardList,
+  FileSpreadsheet,
   FileText,
   LayoutDashboard,
   PackageSearch,
+  Rss,
   ScanBarcode,
   Truck,
   Warehouse,
@@ -59,6 +61,8 @@ const NAV: { to: string; label: TKey; icon: typeof Warehouse; end?: boolean }[] 
   { to: "/seller/movements", label: "wh.nav.movements", icon: ClipboardList },
   { to: "/seller/warehouses", label: "wh.nav.warehouses", icon: Building2 },
   { to: "/seller/suppliers", label: "wh.nav.suppliers", icon: Truck },
+  { to: "/seller/import", label: "imp.nav", icon: FileSpreadsheet },
+  { to: "/seller/sources", label: "src.nav", icon: Rss },
 ];
 
 export default function SellerLayout({ loaderData }: Route.ComponentProps) {
@@ -70,7 +74,7 @@ export default function SellerLayout({ loaderData }: Route.ComponentProps) {
 
   return (
     <div className="grid gap-6 lg:grid-cols-[14rem_1fr]">
-      <aside className="self-start rounded-2xl border border-line bg-white p-3 lg:sticky lg:top-24">
+      <aside className="border-line self-start rounded-2xl border bg-white p-3 lg:sticky lg:top-24">
         <p className="truncate px-3 pb-2 text-sm font-semibold">{me.seller?.shop_name ?? t("wh.admin")}</p>
         <nav className="flex gap-1 overflow-x-auto lg:flex-col" aria-label={t("wh.title")}>
           {NAV.map(({ to, label, icon: Icon, end }) => (

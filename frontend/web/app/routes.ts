@@ -39,6 +39,13 @@ export default [
         route("documents/:id", "routes/seller/document.tsx"),
         route("documents/:id/file", "routes/seller/document-file.tsx"),
         route("variants", "routes/seller/variants.tsx"),
+        route("import", "routes/seller/import.tsx"),
+        route("import/template", "routes/seller/import-template.tsx"),
+        route("import/:id", "routes/seller/import-run.tsx"),
+        route("sources", "routes/seller/sources.tsx"),
+        route("sources/new", "routes/seller/source-edit.tsx", { id: "seller-source-new" }),
+        route("sources/:id", "routes/seller/source.tsx"),
+        route("sources/:id/edit", "routes/seller/source-edit.tsx", { id: "seller-source-edit" }),
       ]),
     ]),
 

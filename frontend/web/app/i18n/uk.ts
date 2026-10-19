@@ -1,4 +1,5 @@
 // Українська — мова за замовчуванням. Ключі цього словника — еталон для інших мов.
+import { importUk } from "./import.uk";
 import { sellerUk } from "./seller.uk";
 
 const base = {
@@ -247,6 +248,6 @@ const base = {
   "page.contacts.unavailable": "Контакти тимчасово недоступні.",
 } as const;
 
-export const uk = { ...base, ...sellerUk } as const;
+export const uk = { ...base, ...sellerUk, ...importUk } as const;
 
 export type Dict = { [K in keyof typeof uk]: string };

@@ -1,3 +1,4 @@
+import json
 from decimal import Decimal
 
 import pytest
@@ -196,11 +197,18 @@ def test_api_flow_and_isolation(client, seller, photo_requests):
             "secret": "top-secret",
             "auth_type": "basic",
             "auth_login": "u",
+            # так отправляет форма кабинета, когда приложен файл: JSON-поля строками
+            "field_map": json.dumps({"sku": "vendorCode"}),
+            "options": json.dumps({"encoding": "utf-8"}),
+            "publish_new": "false",
+            "category": "",
         },
         format="multipart",
     )
     assert resp.status_code == 201, resp.json()
     data = resp.json()
+    assert data["field_map"] == {"sku": "vendorCode"} and data["options"] == {"encoding": "utf-8"}
+    assert data["category"] is None and data["publish_new"] is False
     assert data["has_secret"] is True and data["has_file"] is True and "secret" not in data
     source = ImportSource.objects.get(pk=data["id"])
     assert "top-secret" not in source.secret_encrypted and source.secret == "top-secret"
