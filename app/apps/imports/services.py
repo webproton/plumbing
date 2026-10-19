@@ -20,6 +20,7 @@ from django.utils import timezone
 from django.utils.translation import gettext as _
 
 from app.apps.products.models import Brand, Category, Product, ProductVariant
+from app.apps.products.services import discount_fields, editable_variants
 from app.apps.warehouse.models import CurrencyRate, ProductBarcode
 from app.core.http import FetchError
 
@@ -57,14 +58,6 @@ class ImportActionError(Exception):
 # ---------------------------------------------------------------------------
 # Права: какие варианты продавец может менять импортом
 # ---------------------------------------------------------------------------
-
-
-def editable_variants(seller):
-    """Свои товары продавца; у администратора — ещё и общие товары магазина (без продавца)."""
-    cond = Q(product__seller=seller)
-    if seller.user.is_superuser:
-        cond |= Q(product__seller__isnull=True)
-    return ProductVariant.objects.filter(cond)
 
 
 # ---------------------------------------------------------------------------
@@ -109,15 +102,6 @@ class Pricing:
             return None
         old = self._round(item.old_price * rate)
         return old if old > sale else None
-
-
-def discount_fields(price: Decimal, old: Decimal | None) -> dict:
-    """Поля варианта для цены со «старой ценой» (как их ожидает ProductVariant.save)."""
-    if old and old > price:
-        discount = int(((Decimal(1) - price / old) * 100).quantize(Decimal(1), rounding=ROUND_HALF_UP))
-        if discount >= 1:
-            return {"price": price, "original_price": old, "discount": min(discount, 99)}
-    return {"price": price, "original_price": None, "discount": 0}
 
 
 # ---------------------------------------------------------------------------

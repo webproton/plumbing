@@ -1,9 +1,10 @@
+import { cabinetRu } from "./cabinet.ru";
 import { importRu } from "./import.ru";
 import { sellerRu } from "./seller.ru";
 import type { Dict } from "./uk";
 
 // Русский. Тип Dict гарантирует, что переведены все ключи украинского словаря.
-const base: Omit<Dict, keyof typeof sellerRu | keyof typeof importRu> = {
+const base: Omit<Dict, keyof typeof sellerRu | keyof typeof importRu | keyof typeof cabinetRu> = {
   "site.tagline": "Сантехника и мебель с доставкой по Украине",
   "site.description": "Смесители, трубы, сантехника и мебель. Наличие на складе, доставка Новой Почтой.",
   "common.currencyFrom": "от ",
@@ -235,4 +236,4 @@ const base: Omit<Dict, keyof typeof sellerRu | keyof typeof importRu> = {
   "page.contacts.unavailable": "Контакты временно недоступны.",
 };
 
-export const ru: Dict = { ...base, ...sellerRu, ...importRu };
+export const ru: Dict = { ...base, ...sellerRu, ...importRu, ...cabinetRu };

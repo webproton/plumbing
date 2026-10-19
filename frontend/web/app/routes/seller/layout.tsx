@@ -5,6 +5,7 @@ import {
   FileSpreadsheet,
   FileText,
   LayoutDashboard,
+  Package,
   PackageSearch,
   Rss,
   ScanBarcode,
@@ -54,6 +55,7 @@ export function useSellerMe(): WarehouseMe {
 
 const NAV: { to: string; label: TKey; icon: typeof Warehouse; end?: boolean }[] = [
   { to: "/seller", label: "wh.nav.overview", icon: LayoutDashboard, end: true },
+  { to: "/seller/products", label: "prod.nav", icon: Package },
   { to: "/seller/stock", label: "wh.nav.stock", icon: PackageSearch },
   { to: "/seller/documents", label: "wh.nav.documents", icon: FileText },
   { to: "/seller/operations", label: "wh.nav.operations", icon: ArrowLeftRight },
