@@ -4,6 +4,7 @@ from django.db.models import Prefetch, Q
 from django.utils.translation import gettext as _
 from rest_framework import mixins, permissions, status, viewsets
 from rest_framework.decorators import action
+from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 
 from . import services
@@ -91,6 +92,19 @@ class OrderListView(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.Retri
 
     def get_serializer_class(self):
         return OrderDetailSerializer if self.action == "retrieve" else OrderListSerializer
+
+    @action(detail=True, methods=["get"])
+    def invoice(self, request, pk=None):
+        """Счёт на оплату своего заказа (пока заказ ждёт оплаты)."""
+        from .manage import invoice_response
+
+        order = self.get_object()
+        if (
+            order.payment_status != Order.PAYMENT_STATUS.waiting_for_payment
+            or order.status_order == Order.STATUS.canceled
+        ):
+            raise ValidationError({"detail": _("Счёт доступен только для неоплаченного заказа")})
+        return invoice_response(order)
 
     @action(detail=True, methods=["post"])
     def cancel(self, request, pk=None):

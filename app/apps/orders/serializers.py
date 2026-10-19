@@ -264,10 +264,16 @@ class OrderDetailSerializer(serializers.ModelSerializer):
     list_of_products = OrderItemSerializer(source="items", many=True, read_only=True)
     payment_type_display = serializers.CharField(source="get_payment_type_display", read_only=True)
     status_order_display = serializers.CharField(source="get_status_order_display", read_only=True)
+    payment_status_display = serializers.CharField(source="get_payment_status_display", read_only=True)
+    can_download_invoice = serializers.SerializerMethodField()
 
     class Meta:
         model = Order
         fields = [
+            "ttn",
+            "ttn_status",
+            "payment_status_display",
+            "can_download_invoice",
             "customer_name",
             "customer",
             "address",
@@ -286,6 +292,12 @@ class OrderDetailSerializer(serializers.ModelSerializer):
             "payment_type_display",
         ]
 
+    def get_can_download_invoice(self, order):
+        from app.apps.callback.models import SiteSettings
+
+        waiting = order.payment_status == Order.PAYMENT_STATUS.waiting_for_payment
+        return waiting and order.status_order != Order.STATUS.canceled and SiteSettings.current().has_requisites
+
 
 class OrderCreateSerializer(serializers.ModelSerializer):
     """
@@ -300,6 +312,9 @@ class OrderCreateSerializer(serializers.ModelSerializer):
     telegram = serializers.CharField(required=False, allow_blank=True, write_only=True)
     whatsapp = serializers.CharField(required=False, allow_blank=True, write_only=True)
     payment_type = serializers.ChoiceField(choices=Order.PAYMENT_CHOICES, default="full")
+    # выбранные в справочнике Новой Почты город и отделение (необязательно: можно ввести текстом)
+    np_city_ref = serializers.RegexField(r"^[0-9a-fA-F-]{36}$", required=False, allow_blank=True)
+    np_warehouse_ref = serializers.RegexField(r"^[0-9a-fA-F-]{36}$", required=False, allow_blank=True)
     items = OrderItemSerializer(many=True, read_only=True)
 
     class Meta:
@@ -317,6 +332,8 @@ class OrderCreateSerializer(serializers.ModelSerializer):
             "department_number",
             "comment",
             "payment_type",
+            "np_city_ref",
+            "np_warehouse_ref",
             "total_price",
             "items",
         ]

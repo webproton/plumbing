@@ -66,6 +66,7 @@ INSTALLED_APPS = [
     "app.apps.sellers",
     "app.apps.warehouse",
     "app.apps.imports",
+    "app.apps.delivery",
 ]
 
 MIDDLEWARE = [
@@ -206,6 +207,8 @@ REST_FRAMEWORK = {
     "DEFAULT_THROTTLE_RATES": {
         "anon": env("THROTTLE_ANON", default="120/min"),
         "user": env("THROTTLE_USER", default="300/min"),
+        # автодополнение городов/отделений Новой Почты при оформлении заказа
+        "novaposhta": env("THROTTLE_NOVAPOSHTA", default="90/min"),
     },
 }
 
@@ -290,6 +293,9 @@ CREDENTIALS_KEY = env("CREDENTIALS_KEY", default="")
 INVOICE_AI_MODE = env("INVOICE_AI_MODE", default="off")
 ANTHROPIC_API_KEY = env("ANTHROPIC_API_KEY", default="")
 INVOICE_AI_MODEL = env("INVOICE_AI_MODEL", default="claude-opus-5-5")
+# Нова Пошта: поиск отделений, стоимость и отслеживание работают без ключа; ключ нужен для создания ТТН
+# (my.novaposhta.ua → Налаштування → Безпека → API-ключ). Отправитель — в «Налаштуваннях магазину».
+NOVA_POSHTA_API_KEY = env("NOVA_POSHTA_API_KEY", default="")
 
 
 # ==============================
@@ -309,6 +315,8 @@ CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
 CELERY_BEAT_SCHEDULE = {
     # раз в 5 минут ставит в очередь источники, у которых подошло время синхронизации
     "imports-sync-due-sources": {"task": "imports.sync_due_sources", "schedule": 300.0},
+    # статусы посылок Новой Почты (полученные заказы переходят в «Доставлен»)
+    "delivery-refresh-ttn": {"task": "delivery.refresh_ttn_statuses", "schedule": 2 * 3600.0},
 }
 
 
