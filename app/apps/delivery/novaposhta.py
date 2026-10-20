@@ -20,6 +20,8 @@ logger = logging.getLogger(__name__)
 API_URL = "https://api.novaposhta.ua/v2.0/json/"
 TIMEOUT = (5, 15)
 # Статусы ТТН (StatusCode): получено / окончательные / отказ и возврат
+# 7 — прибыл в отделение, 8 — прибыл и загружен в почтомат: покупателю пора забирать
+ARRIVED_CODES = {"7", "8"}
 RECEIVED_CODES = {"9", "10", "11", "106"}
 FINAL_CODES = RECEIVED_CODES | {"2", "102", "103", "105", "108"}
 

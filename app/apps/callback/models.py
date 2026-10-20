@@ -43,6 +43,9 @@ class SiteSettings(models.Model):
     telegram_channel = models.CharField("Канал Telegram (@имя или -100…)", max_length=64, blank=True, default="")
     telegram_autopost = models.BooleanField("Публиковать новинки в канал", default=False)
 
+    # Письма покупателю: заказ принят, отправлен (ТТН), в отделении, оплата получена, отменён
+    notify_customers = models.BooleanField("Уведомлять покупателей по email", default=True)
+
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:

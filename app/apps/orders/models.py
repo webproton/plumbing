@@ -170,6 +170,8 @@ class Order(models.Model):
     stock_state = models.CharField(
         max_length=20, choices=STOCK_STATE, default=STOCK_STATE.none, verbose_name="Состояние товара"
     )
+    # язык витрины при оформлении — на нём уходят письма покупателю
+    language = models.CharField(max_length=5, default="uk", verbose_name="Язык покупателя")
 
     class Meta:
         ordering = ["-creation_date"]
@@ -210,3 +212,39 @@ class OrderItem(models.Model):
 
     def __str__(self):
         return f"{self.name} × {self.quantity}"
+
+
+class CustomerNotification(models.Model):
+    """
+    Письмо покупателю по заказу. Ключ уникален в заказе — одно событие не уходит дважды
+    (повтор задачи, повторный ввод той же ТТН, опрос статусов НП каждые 2 часа).
+    """
+
+    EVENTS = Choices(
+        ("created", "Заказ принят"),
+        ("shipped", "Заказ отправлен"),
+        ("ttn", "Номер ТТН"),
+        ("arrived", "Посылка в отделении"),
+        ("paid", "Оплата получена"),
+        ("canceled", "Заказ отменён"),
+    )
+    STATUSES = Choices(("pending", "Отправляется"), ("sent", "Отправлено"), ("failed", "Ошибка"))
+
+    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name="notifications")
+    event = models.CharField(max_length=20, choices=EVENTS)
+    key = models.CharField(max_length=80)
+    recipient = models.CharField(max_length=254)
+    ttn = models.CharField(max_length=20, blank=True, default="")
+    status = models.CharField(max_length=10, choices=STATUSES, default=STATUSES.pending)
+    error = models.TextField(blank=True, default="")
+    created_at = models.DateTimeField(auto_now_add=True)
+    sent_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        verbose_name = "Уведомление покупателю"
+        verbose_name_plural = "Уведомления покупателям"
+        ordering = ["created_at", "id"]
+        constraints = [models.UniqueConstraint(fields=["order", "key"], name="customernotification_order_key_uniq")]
+
+    def __str__(self):
+        return f"{self.order} · {self.get_event_display()} · {self.get_status_display()}"

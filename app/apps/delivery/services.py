@@ -9,7 +9,8 @@ from django.utils.translation import gettext as _
 from rest_framework.exceptions import ValidationError
 
 from app.apps.callback.models import SiteSettings
-from app.apps.orders.models import Order
+from app.apps.orders import customer_notifications
+from app.apps.orders.models import CustomerNotification, Order
 from app.apps.orders.services import change_status
 
 from . import novaposhta as np
@@ -25,9 +26,14 @@ def _phone(order) -> str:
 
 
 def _mark_shipped(order, user=None):
-    """Есть ТТН — заказ в доставке (склад не меняется: списание — при «Доставлен»)."""
+    """
+    Есть ТТН — заказ в доставке (склад не меняется: списание — при «Доставлен»). Покупатель получит
+    письмо «отправлен» с номером, а если заказ уже был в доставке — письмо с новым номером ТТН.
+    """
     if order.status_order == Order.STATUS.in_processing:
         change_status(order, Order.STATUS.delivering, user=user)
+    elif order.status_order == Order.STATUS.delivering:
+        customer_notifications.schedule(order.pk, CustomerNotification.EVENTS.ttn)
 
 
 @transaction.atomic
@@ -93,6 +99,8 @@ def refresh_statuses(orders) -> int:
             ttn_status=info["status"][:255], ttn_status_code=info["code"], ttn_updated_at=timezone.now()
         )
         updated += 1
+        if info["code"] in np.ARRIVED_CODES and order.ttn_status_code not in np.ARRIVED_CODES:
+            customer_notifications.schedule(order.pk, CustomerNotification.EVENTS.arrived)
         if info["code"] in np.RECEIVED_CODES and order.status_order in ACTIVE:
             try:
                 with transaction.atomic():
