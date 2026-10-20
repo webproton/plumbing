@@ -405,6 +405,19 @@ docker compose -f docker-compose.prod.yml logs migrate | tail -20
 'pg_restore -U "$POSTGRES_USER" -d "$POSTGRES_DB" --clean --if-exists' < backup-….dump` → `up -d --build`.
 После обновления: вход в магазин и в `/admin/`, «Забули пароль?», кабинет продавца.
 
+**Демо-данные** (проверить корзину и оформление, когда у товаров нет остатков) — только на тестовой базе:
+```bash
+docker compose -f docker-compose.prod.yml exec app python app/manage.py seed_demo --force   # Docker
+python app/manage.py seed_demo                                                               # локально, DEBUG=True
+```
+Каждому видимому варианту без остатка (до `--limit 100`, новые первыми) — приход `--qty 20` шт. от
+«Демо-постачальника» (документ `DEMO`) на склад по умолчанию продавца; пустой каталог — сначала 10 демо-вариантов
+(4 категории). Повторный запуск ничего не задваивает. Приходы — обычные записи журнала склада, их не удалить
+(только списать), поэтому при `DEBUG=False` команда без `--force` не запускается.
+
+**Ветки и PR.** `main` — то, что выкатывается на сервер; `develop` — общая ветка разработки. Новая задача —
+ветка от `develop` (`feature/…`, `fix/…`), PR в `develop`; релиз — PR `develop` → `main`.
+
 **Локальная разработка:** `docker compose -f docker-compose.dev.yml up -d` (БД и Redis), в `.env`:
 `DEBUG=True`, `POSTGRES_HOST=localhost`, `REDIS_URL=redis://localhost:6379/1`; затем
 `python app/manage.py migrate && python app/manage.py runserver`; витрина — `cd frontend/web && npm install &&
@@ -747,3 +760,13 @@ Django 4.2 больше не получает исправлений безоп�
 - Фронтенд: `npm update` в пределах текущих диапазонов (React Router 8.5, Vitest 5.0.5, ESLint 10.13,
   lucide-react 1.60). Мажорные TypeScript 7 и jsdom 29 не ставились (новый компилятор; jsdom закреплён под Node 24.4).
   `npm audit` и `pip-audit` (последние версии из `requirements.txt`): уязвимостей нет.
+
+### 2026-10-20 — Демо-данные, ветка develop
+- Команда `seed_demo` (`warehouse/management/commands/`): остатки для ручной проверки корзины и оформления — обычным
+  приходом через `warehouse.stock` (журнал и кэши сходятся), пустой каталог — 10 демо-вариантов. Защита от запуска на
+  боевой базе (`DEBUG=False` → нужен `--force`). Подробно — §8 «Демо-данные».
+- Ветки: `develop` создана от `main`; работа ведётся в ветках от `develop`, PR — в `develop` (§8 «Ветки и PR»).
+
+**Проверено вживую** (временная БД, `DEBUG=False`): без `--force` — отказ; с `--force` — 10 вариантов × 20 шт.,
+повтор — 0; на витрине «В наявності: 20 шт.», в корзину 3 × 210 = 630 ₴, 25 шт. — «В наявності лише 20 шт.».
+Тесты: backend 231 (+3).
