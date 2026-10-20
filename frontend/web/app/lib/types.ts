@@ -168,6 +168,10 @@ export interface SiteSettings {
   email: string | null;
   telegram: string | null;
   whatsapp: string | null;
+  ga4_id?: string;
+  gtm_id?: string;
+  meta_pixel_id?: string;
+  tiktok_pixel_id?: string;
 }
 
 /** Ошибки валидации DRF: {field: ["msg"]} или {detail: "msg"} */

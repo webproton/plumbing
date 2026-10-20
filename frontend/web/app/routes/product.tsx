@@ -1,5 +1,5 @@
 import { Heart, ImageOff, PackageCheck, PackageX, Truck } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { data, useFetcher, useSearchParams } from "react-router";
 
 import { AddToCartButton } from "~/components/AddToCartButton";
@@ -8,6 +8,7 @@ import { QuantityStepper } from "~/components/QuantityStepper";
 import { Badge, Button } from "~/components/ui";
 import { langFromRequest, makeT, type Lang, type TFunction } from "~/i18n";
 import { Link, useLocalPath, useT } from "~/i18n/react";
+import { trackEvent } from "~/lib/analytics";
 import { ApiError } from "~/lib/api.server";
 import { apiContext } from "~/lib/context.server";
 import { formatQty } from "~/lib/format";
@@ -74,6 +75,9 @@ export default function ProductPage({ loaderData }: Route.ComponentProps) {
   const variant =
     product.variants.find((v) => String(v.id) === params.get("v")) ?? product.variants[0] ?? null;
   const [qty, setQty] = useState(1);
+  useEffect(() => {
+    if (variant) trackEvent("view_item", { items: [{ id: variant.id, name: product.name, price: Number(variant.price ?? 0) }] });
+  }, [variant, product.name]);
   const images = [variant?.photo, product.photo, ...product.photos.map((p) => p.photo)].filter(
     (src, i, all): src is string => Boolean(src) && all.indexOf(src) === i,
   );
@@ -174,6 +178,7 @@ export default function ProductPage({ loaderData }: Route.ComponentProps) {
                   disabled={!variant.in_stock}
                   size="lg"
                   className="min-w-48 flex-1"
+                  track={{ id: variant.id, name: product.name, price: Number(variant.price ?? 0) }}
                 />
                 {user && <WishlistButton variantId={variant.id} />}
               </div>

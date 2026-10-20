@@ -60,10 +60,26 @@ class ShopSettingsView(APIView):
     permission_classes = [IsShopAdmin]
 
     def get(self, request):
+        from django.conf import settings
+
         from app.apps.delivery import novaposhta
 
-        data = ShopSettingsSerializer(SiteSettings.current()).data
-        return Response({**data, "np_key_configured": novaposhta.enabled_ttn()})
+        shop = SiteSettings.current()
+        data = ShopSettingsSerializer(shop).data
+        base = settings.FRONTEND_URL.rstrip("/")
+        feeds = (
+            {name: f"{base}/api/feeds/{shop.feeds_token}/{name}" for name in ("prom.yml", "rozetka.yml", "google.xml")}
+            if shop.feeds_enabled and shop.feeds_token
+            else {}
+        )
+        return Response(
+            {
+                **data,
+                "np_key_configured": novaposhta.enabled_ttn(),
+                "telegram_bot_configured": bool(settings.TELEGRAM_BOT_TOKEN),
+                "feed_urls": feeds,
+            }
+        )
 
     def patch(self, request):
         shop = SiteSettings.current()
@@ -71,5 +87,12 @@ class ShopSettingsView(APIView):
         serializer.is_valid(raise_exception=True)
         if not shop.phone and not serializer.validated_data.get("phone"):
             serializer.validated_data["phone"] = ""
-        serializer.save()
+        shop = serializer.save()
+        if shop.feeds_enabled:
+            from app.apps.marketing.services import ensure_feeds_token
+
+            # новый токен — старые ссылки на фиды перестают работать
+            ensure_feeds_token(
+                shop, regenerate=str(request.data.get("regenerate_feeds_token")).lower() in ("1", "true")
+            )
         return self.get(request)

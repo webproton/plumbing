@@ -33,6 +33,16 @@ class SiteSettings(models.Model):
     np_sender_warehouse_name = models.CharField(max_length=255, blank=True, default="")
     np_sender_phone = models.CharField("Телефон отправителя", max_length=20, blank=True, default="")
 
+    # Маркетинг: пиксели (ID проверяются строго — они вставляются в скрипт на странице), фиды, Telegram
+    ga4_id = models.CharField("Google Analytics 4 (G-…)", max_length=20, blank=True, default="")
+    gtm_id = models.CharField("Google Tag Manager (GTM-…)", max_length=20, blank=True, default="")
+    meta_pixel_id = models.CharField("Meta Pixel", max_length=20, blank=True, default="")
+    tiktok_pixel_id = models.CharField("TikTok Pixel", max_length=30, blank=True, default="")
+    feeds_enabled = models.BooleanField("Фиды товаров включены", default=False)
+    feeds_token = models.CharField(max_length=32, blank=True, default="")
+    telegram_channel = models.CharField("Канал Telegram (@имя или -100…)", max_length=64, blank=True, default="")
+    telegram_autopost = models.BooleanField("Публиковать новинки в канал", default=False)
+
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:

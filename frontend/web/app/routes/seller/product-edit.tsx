@@ -1,13 +1,13 @@
-import { ExternalLink, ImagePlus, Plus, Printer, Save, Star, Trash2 } from "lucide-react";
+import { ExternalLink, ImagePlus, Plus, Printer, Save, Send, Star, Trash2 } from "lucide-react";
 import { data, Form, useFetcher, useNavigation } from "react-router";
 
 import { VariantFields, variantPayload } from "~/components/seller/VariantFields";
 import { Alert, Badge, Button, Card, Field, Input, PageTitle, Select, Textarea } from "~/components/ui";
 import { langFromRequest, makeT, tFromMatches } from "~/i18n";
-import { Link, useLocalPath, useT } from "~/i18n/react";
+import { Link, useLang, useLocalPath, useT } from "~/i18n/react";
 import { localRedirect } from "~/i18n/server";
 import { ApiError, LONG_TIMEOUT } from "~/lib/api.server";
-import { formatQty } from "~/lib/format";
+import { formatDateTime, formatQty } from "~/lib/format";
 import { requireSeller } from "~/lib/seller.server";
 import type { Category, ManageProduct, ManageVariant } from "~/lib/types";
 
@@ -20,12 +20,15 @@ export const meta: Route.MetaFunction = ({ loaderData, matches }) => [
 export async function loader({ request, params, context }: Route.LoaderArgs) {
   const api = requireSeller(request, context);
   try {
-    const [product, categories, brands] = await Promise.all([
+    const [product, categories, brands, telegram] = await Promise.all([
       api.get<ManageProduct>(`/manage/products/${params.id}/`),
       api.get<Category[]>("/category/"),
       api.get<string[]>("/manage/brands/"),
+      api
+        .get<{ enabled: boolean; posted_at: string | null }>(`/marketing/telegram/products/${params.id}/`)
+        .catch(() => ({ enabled: false, posted_at: null })),
     ]);
-    return { product, categories, brands };
+    return { product, categories, brands, telegram };
   } catch (e) {
     if (e instanceof ApiError && e.status === 404) throw data("Not Found", { status: 404 });
     throw e;
@@ -67,6 +70,9 @@ export async function action({ request, params, context }: Route.ActionArgs) {
       }
       case "photo_op":
         await api.post(`${base}/photos/${String(form.get("photo"))}/${String(form.get("op"))}/`);
+        break;
+      case "telegram":
+        await api.post(`/marketing/telegram/products/${params.id}/`);
         break;
       case "delete":
         await api.delete(`${base}/`);
@@ -182,7 +188,8 @@ function PhotoButton({
 }
 
 export default function ProductEdit({ loaderData, actionData }: Route.ComponentProps) {
-  const { product, categories, brands } = loaderData;
+  const { product, categories, brands, telegram } = loaderData;
+  const lang = useLang();
   const t = useT();
   const nav = useNavigation();
   const busy = (intent: string) => nav.state !== "idle" && nav.formData?.get("intent") === intent;
@@ -327,6 +334,29 @@ export default function ProductEdit({ loaderData, actionData }: Route.ComponentP
           </Form>
         </details>
       </Card>
+
+      {telegram.enabled && (
+        <Card className="space-y-3 p-5">
+          <h2 className="font-semibold">Telegram</h2>
+          {telegram.posted_at && (
+            <p className="text-muted text-sm">
+              {t("mkt.tgPosted", { date: formatDateTime(telegram.posted_at, lang) })}
+            </p>
+          )}
+          {failed?.intent === "telegram" && (
+            <Alert tone="danger">{failed.errors?.form ?? failed.errors?.detail}</Alert>
+          )}
+          {actionData?.ok && actionData.intent === "telegram" && (
+            <Alert tone="success">{t("mkt.tgDone")}</Alert>
+          )}
+          <Form method="post">
+            <input type="hidden" name="intent" value="telegram" />
+            <Button type="submit" variant="secondary" loading={busy("telegram")} disabled={!visible}>
+              <Send className="size-4" aria-hidden /> {t("mkt.tgPublish")}
+            </Button>
+          </Form>
+        </Card>
+      )}
 
       <Card className="space-y-3 p-5">
         <h2 className="font-semibold">{t("prod.danger")}</h2>

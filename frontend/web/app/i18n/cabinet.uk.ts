@@ -173,6 +173,25 @@ export const cabinetUk = {
   "set.npKeyOn": "Ключ API Нової Пошти підключено — ТТН можна створювати з картки замовлення.",
   "set.npKeyOff":
     "Ключ API Нової Пошти не підключено: пошук відділень і відстеження працюють, ТТН створюйте в застосунку НП і вставляйте номер.",
+  "mkt.feeds": "Фіди товарів",
+  "mkt.feedsHint":
+    "Посилання для Prom.ua, Rozetka, Google Merchant Center, Facebook/Instagram і TikTok Catalog. У фід потрапляють товари, показані на сайті; оновлюється раз на 30 хвилин.",
+  "mkt.feedsEnabled": "Увімкнути фіди",
+  "mkt.feed.prom_yml": "Prom.ua (YML)",
+  "mkt.feed.rozetka_yml": "Rozetka (YML)",
+  "mkt.feed.google_xml": "Google Merchant · Facebook/Instagram · TikTok",
+  "mkt.regenerate": "Змінити секретну частину посилань (старі посилання перестануть працювати)",
+  "mkt.pixels": "Аналітика та пікселі",
+  "mkt.pixelsHint":
+    "Вставте ID — скрипти підключаться на всіх сторінках. Події: перегляд товару, кошик, оформлення, покупка.",
+  "mkt.tgChannel": "Канал",
+  "mkt.tgHint": "Бот (TOKEN_BOT) має бути адміністратором каналу.",
+  "mkt.tgNoBot":
+    "Щоб публікувати в канал, на сервері потрібен токен бота TOKEN_BOT; бот — адміністратор каналу.",
+  "mkt.tgAutopost": "Автоматично публікувати новинки (товар уперше показано на сайті, не більше 20 за раз)",
+  "mkt.tgPublish": "Опублікувати в Telegram-канал",
+  "mkt.tgPosted": "Опубліковано {date}",
+  "mkt.tgDone": "Опубліковано в канал",
   "ord.saved": "Збережено",
 } as const;
 

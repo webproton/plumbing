@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-19 22:36+0300\n"
+"POT-Creation-Date: 2026-10-20 11:50+0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -18,11 +18,11 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=4; plural=(n % 1 == 0 && n % 10 == 1 && n % 100 != 11 ? 0 : n % 1 == 0 && n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % 100 > 14) ? 1 : n % 1 == 0 && (n % 10 ==0 || (n % 10 >=5 && n % 10 <=9) || (n % 100 >=11 && n % 100 <=14 )) ? 2: 3);\n"
 
-#: apps/accounts/models.py:50
+#: apps/accounts/models.py:35
 msgid "email address"
 msgstr "адреса email"
 
-#: apps/accounts/models.py:71 apps/accounts/models.py:123
+#: apps/accounts/models.py:56 apps/accounts/models.py:108
 #: apps/orders/models.py:120
 msgid "Creation date"
 msgstr "Дата створення"
@@ -39,11 +39,15 @@ msgstr "Користувач з таким email уже існує."
 msgid "Пароль не должен содержать слово «password»"
 msgstr "Пароль не повинен містити слово «password»"
 
-#: apps/callback/serializers.py:42
+#: apps/callback/serializers.py:35
+msgid "Неверный формат"
+msgstr "Невірний формат"
+
+#: apps/callback/serializers.py:66
 msgid "IBAN: UA и 27 цифр"
 msgstr "IBAN: UA і 27 цифр"
 
-#: apps/callback/serializers.py:48
+#: apps/callback/serializers.py:72
 msgid "ЄДРПОУ — 8 цифр, ІПН — 10 цифр"
 msgstr "ЄДРПОУ — 8 цифр, ІПН — 10 цифр"
 
@@ -68,23 +72,23 @@ msgstr "невідома помилка"
 msgid "Нова Пошта: {error}"
 msgstr "Нова Пошта: {error}"
 
-#: apps/delivery/novaposhta.py:173
+#: apps/delivery/novaposhta.py:176
 msgid "В кабинете Новой Почты нет отправителя"
 msgstr "У кабінеті Нової Пошти немає відправника"
 
-#: apps/delivery/novaposhta.py:177
+#: apps/delivery/novaposhta.py:180
 msgid "У отправителя нет контактного лица"
 msgstr "У відправника немає контактної особи"
 
-#: apps/delivery/novaposhta.py:203
+#: apps/delivery/novaposhta.py:206
 msgid "Не удалось создать получателя"
 msgstr "Не вдалося створити отримувача"
 
-#: apps/delivery/novaposhta.py:225
+#: apps/delivery/novaposhta.py:228
 msgid "Не задан ключ API Новой Почты"
 msgstr "Не задано ключ API Нової Пошти"
 
-#: apps/delivery/novaposhta.py:227
+#: apps/delivery/novaposhta.py:230
 msgid "Укажите город, отделение и телефон отправителя в настройках магазина"
 msgstr ""
 "Вкажіть місто, відділення й телефон відправника в налаштуваннях магазину"
@@ -693,6 +697,39 @@ msgstr "Позицію не знайдено"
 msgid "Категория не найдена"
 msgstr "Категорію не знайдено"
 
+#: apps/marketing/models.py:16
+msgid "Публикация в Telegram"
+msgstr "Публікація в Telegram"
+
+#: apps/marketing/models.py:17
+msgid "Публикации в Telegram"
+msgstr "Публікації в Telegram"
+
+#: apps/marketing/telegram.py:31
+msgid "от "
+msgstr "від "
+
+#: apps/marketing/telegram.py:41
+msgid "Купить на сайте"
+msgstr "Купити на сайті"
+
+#: apps/marketing/telegram.py:48
+msgid "Не задан токен бота Telegram (TOKEN_BOT)"
+msgstr "Не задано токен бота Telegram (TOKEN_BOT)"
+
+#: apps/marketing/telegram.py:50
+msgid "Укажите канал Telegram в настройках магазина"
+msgstr "Вкажіть канал Telegram у налаштуваннях магазину"
+
+#: apps/marketing/telegram.py:64
+msgid "Telegram недоступен"
+msgstr "Telegram недоступний"
+
+#: apps/marketing/telegram.py:66
+#, python-brace-format
+msgid "Telegram: {error}"
+msgstr "Telegram: {error}"
+
 #: apps/orders/manage.py:158
 msgid "В заказе есть товары других продавцов — им управляет администратор"
 msgstr "У замовленні є товари інших продавців — ним керує адміністратор"
@@ -932,30 +969,30 @@ msgstr "Підтримуються JPG, PNG і WebP"
 msgid "Создавать товары может только одобренный продавец"
 msgstr "Створювати товари може лише схвалений продавець"
 
-#: apps/products/manage.py:264
+#: apps/products/manage.py:266
 msgid ""
 "Товар есть в заказах или в журнале склада — его можно только скрыть с сайта"
 msgstr ""
 "Товар є в замовленнях або в журналі складу — його можна лише приховати з "
 "сайту"
 
-#: apps/products/manage.py:282
+#: apps/products/manage.py:284
 msgid "Выберите фото"
 msgstr "Оберіть фото"
 
-#: apps/products/manage.py:285
+#: apps/products/manage.py:287
 msgid "Вариант не найден"
 msgstr "Варіант не знайдено"
 
-#: apps/products/manage.py:313
+#: apps/products/manage.py:315
 msgid "Фото не найдено"
 msgstr "Фото не знайдено"
 
-#: apps/products/manage.py:354
+#: apps/products/manage.py:364
 msgid "Это единственный вариант — удалите товар целиком или скройте его"
 msgstr "Це єдиний варіант — видаліть товар повністю або приховайте його"
 
-#: apps/products/manage.py:360
+#: apps/products/manage.py:370
 msgid ""
 "Вариант есть в заказах или в журнале склада — его можно только скрыть с сайта"
 msgstr ""

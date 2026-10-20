@@ -16,6 +16,7 @@ api_urlpatterns = [
     path("warehouse/", include("app.apps.warehouse.urls", namespace="warehouse")),
     path("imports/", include("app.apps.imports.urls", namespace="imports")),
     path("delivery/", include("app.apps.delivery.urls", namespace="delivery")),
+    path("", include("app.apps.marketing.urls", namespace="marketing")),
     path("dj-rest-auth/", include("app.apps.accounts.urls", namespace="dj-rest-auth")),
     path("dj-rest-auth/registration/", include("dj_rest_auth.registration.urls")),
     path(

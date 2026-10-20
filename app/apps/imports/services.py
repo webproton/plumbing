@@ -395,6 +395,16 @@ def publish_items(source: ImportSource, item_ids, *, category: Category | None =
             item.save(update_fields=["variant", "status", "match_method"])
         taken.add(variant.pk)
         result["created"].append((variant.pk, item.photos))
+    if visible and result["created"]:
+        from app.apps.marketing.services import announce
+
+        announce(
+            list(
+                ProductVariant.objects.filter(pk__in=[v for v, _p in result["created"]]).values_list(
+                    "product_id", flat=True
+                )
+            )
+        )
     return result
 
 
