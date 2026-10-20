@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="{{ lang }}">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f4f6f8;font-family:Arial,Helvetica,sans-serif;color:#1f2937;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f6f8;padding:24px 12px;">
+<tr><td align="center">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border-radius:12px;padding:28px;">
+  {% if shop_name %}<tr><td style="font-size:18px;font-weight:bold;color:#0f4c81;padding-bottom:18px;">{{ shop_name }}</td></tr>{% endif %}
+  <tr><td style="font-size:16px;font-weight:bold;padding-bottom:12px;">{{ greeting }}</td></tr>
+  {% for p in paragraphs %}<tr><td style="font-size:15px;line-height:1.5;padding-bottom:10px;">{{ p }}</td></tr>{% endfor %}
+  {% if items %}
+  <tr><td style="padding:8px 0 4px;font-size:14px;font-weight:bold;">{{ t.items }}</td></tr>
+  <tr><td>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="font-size:14px;border-collapse:collapse;">
+      {% for i in items %}
+      <tr>
+        <td style="padding:6px 0;border-bottom:1px solid #e5e7eb;">{{ i.name }}</td>
+        <td style="padding:6px 0 6px 8px;border-bottom:1px solid #e5e7eb;white-space:nowrap;text-align:right;color:#6b7280;">{{ i.qty }} × {{ i.price }} ₴</td>
+        <td style="padding:6px 0 6px 8px;border-bottom:1px solid #e5e7eb;white-space:nowrap;text-align:right;">{{ i.total }} ₴</td>
+      </tr>
+      {% endfor %}
+      <tr><td colspan="2" style="padding:8px 0;font-weight:bold;text-align:right;">{{ t.total }}</td><td style="padding:8px 0 8px 8px;font-weight:bold;text-align:right;white-space:nowrap;">{{ total }} ₴</td></tr>
+    </table>
+  </td></tr>
+  {% endif %}
+  {% if button %}
+  <tr><td style="padding:16px 0 4px;">
+    <a href="{{ button.1 }}" style="display:inline-block;background:#0f4c81;color:#ffffff;text-decoration:none;font-weight:bold;font-size:15px;padding:12px 20px;border-radius:8px;">{{ button.0 }}</a>
+  </td></tr>
+  {% endif %}
+  <tr><td style="padding-top:22px;border-top:1px solid #e5e7eb;font-size:12px;line-height:1.5;color:#6b7280;">
+    {% if contacts %}{{ t.contacts }}: {{ contacts|join:" · " }}<br>{% endif %}{{ t.auto }}
+  </td></tr>
+</table>
+</td></tr>
+</table>
+</body>
+</html>

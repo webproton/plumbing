@@ -2,7 +2,7 @@ from django.contrib import admin, messages
 from rest_framework.exceptions import ValidationError
 
 from . import services
-from .models import Cart, CartItems, Order, OrderItem
+from .models import Cart, CartItems, CustomerNotification, Order, OrderItem
 
 
 class CartItemsInline(admin.TabularInline):
@@ -31,6 +31,21 @@ class OrderItemInline(admin.TabularInline):
         return False
 
 
+class CustomerNotificationInline(admin.TabularInline):
+    """Письма покупателю — только просмотр (отправляются сами, повтор — из кабинета заказа)."""
+
+    model = CustomerNotification
+    extra = 0
+    fields = ("event", "status", "recipient", "ttn", "error", "created_at", "sent_at")
+    readonly_fields = fields
+
+    def has_add_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
 @admin.register(Order)
 class OrderAdmin(admin.ModelAdmin):
     list_display = [
@@ -47,7 +62,7 @@ class OrderAdmin(admin.ModelAdmin):
     list_filter = ["status_order", "payment_status", "stock_state", "manager"]
     search_fields = ["id", "customer_name", "phone_number", "email"]
     readonly_fields = ["cart", "customer", "total_price", "stock_state", "creation_date"]
-    inlines = [OrderItemInline]
+    inlines = [OrderItemInline, CustomerNotificationInline]
     date_hierarchy = "creation_date"
 
     def save_model(self, request, obj, form, change):

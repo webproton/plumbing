@@ -49,7 +49,7 @@ class ShopSettingsSerializer(serializers.ModelSerializer):
             "np_sender_city_ref", "np_sender_city_name", "np_sender_warehouse_ref", "np_sender_warehouse_name",
             "np_sender_phone",
             "ga4_id", "gtm_id", "meta_pixel_id", "tiktok_pixel_id", "feeds_enabled", "telegram_channel",
-            "telegram_autopost",
+            "telegram_autopost", "notify_customers",
         ]  # fmt: skip
         # длину проверяет строгий формат ID — так видны все ошибки сразу
         extra_kwargs = {

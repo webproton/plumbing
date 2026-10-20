@@ -1,6 +1,6 @@
 """
 Заказы в кабинете (/api/orders/manage/): список, карточка, смена статуса (склад синхронизирует
-services.change_status), оплата, менеджер, заметка.
+services.change_status), оплата, менеджер, заметка, журнал писем покупателю (+ отправить ещё раз).
 
 Администратор ведёт все заказы. Продавец видит заказы со своими товарами и меняет их, только если
 все позиции заказа — его (иначе смена статуса списала бы со склада чужие товары).
@@ -21,8 +21,9 @@ from app.apps.delivery import services as delivery
 from app.apps.warehouse.permissions import IsWarehouseStaff, get_active_seller
 from app.core.pagination import StandardPagination
 
+from . import customer_notifications
 from .invoice import generate_invoice
-from .models import Order, OrderItem
+from .models import CustomerNotification, Order, OrderItem
 from .services import change_status
 
 S = Order.STATUS
@@ -77,6 +78,12 @@ class ItemSerializer(serializers.ModelSerializer):
         return v.product.photo.url if v.product_id and v.product.photo else None
 
 
+class NotificationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CustomerNotification
+        fields = ["id", "event", "status", "recipient", "ttn", "error", "created_at", "sent_at"]
+
+
 class OrderRowSerializer(serializers.ModelSerializer):
     status_display = serializers.CharField(source="get_status_order_display", read_only=True)
     payment_status_display = serializers.CharField(source="get_payment_status_display", read_only=True)
@@ -99,13 +106,15 @@ class OrderDetailSerializer(OrderRowSerializer):
     next_statuses = serializers.SerializerMethodField()
     can_manage = serializers.SerializerMethodField()
     customer_email = serializers.CharField(source="customer.email", read_only=True, default=None)
+    notifications = NotificationSerializer(many=True, read_only=True)
+    notify_customers = serializers.SerializerMethodField()
 
     class Meta(OrderRowSerializer.Meta):
         fields = [
             *OrderRowSerializer.Meta.fields,
             "city", "department_number", "comment", "telegram", "whatsapp", "manager_note", "customer_email",
             "items", "next_statuses", "can_manage", "np_city_ref", "np_warehouse_ref", "ttn", "ttn_status",
-            "ttn_status_code", "ttn_updated_at", "delivery_tools",
+            "ttn_status_code", "ttn_updated_at", "delivery_tools", "notifications", "notify_customers", "language",
         ]  # fmt: skip
 
     def get_next_statuses(self, order):
@@ -113,6 +122,9 @@ class OrderDetailSerializer(OrderRowSerializer):
 
     def get_can_manage(self, order):
         return can_manage(self.context["request"].user, order)
+
+    def get_notify_customers(self, order):
+        return SiteSettings.current().notify_customers
 
     def get_delivery_tools(self, order):
         shop = SiteSettings.current()
@@ -150,7 +162,7 @@ class ManageOrderViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, views
                     cond |= Q(phone_number__contains=digits[-9:])
                 qs = qs.filter(cond)
             return qs.order_by("-creation_date")
-        return qs.annotate(items_count=Count("items")).prefetch_related("items__variant__product")
+        return qs.annotate(items_count=Count("items")).prefetch_related("items__variant__product", "notifications")
 
     def _managed(self):
         order = self.get_object()
@@ -181,7 +193,19 @@ class ManageOrderViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, views
         if value not in Order.PAYMENT_STATUS:
             raise ValidationError({"payment_status": _("Неизвестный статус оплаты")})
         Order.objects.filter(pk=order.pk).update(payment_status=value)
+        if value == Order.PAYMENT_STATUS.paid_for and order.payment_status != value:
+            customer_notifications.schedule(order.pk, CustomerNotification.EVENTS.paid)
         return self._respond(order)
+
+    @action(detail=True, methods=["post"], url_path=r"notifications/(?P<note_id>\d+)/resend")
+    def notification_resend(self, request, pk=None, note_id=None):
+        """Отправить письмо покупателю ещё раз (не дошло, покупатель просит повторить)."""
+        note = self._managed().notifications.filter(pk=note_id).first()
+        if note is None:
+            raise ValidationError({"detail": _("Письмо не найдено")})
+        if customer_notifications.resend(note) is None:
+            raise ValidationError({"detail": _("У покупателя нет email")})
+        return self._respond(note.order)
 
     @action(detail=True, methods=["post"])
     def note(self, request, pk=None):

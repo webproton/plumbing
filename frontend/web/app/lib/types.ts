@@ -617,6 +617,22 @@ export interface ManageOrder extends ManageOrderRow {
   ttn_status_code: string;
   ttn_updated_at: string | null;
   delivery_tools: { can_create_ttn: boolean; np_key: boolean; sender_ready: boolean; has_requisites: boolean };
+  notifications: CustomerNotification[];
+  notify_customers: boolean;
+  language: string;
+}
+
+export type NotificationEvent = "created" | "shipped" | "ttn" | "arrived" | "paid" | "canceled";
+
+export interface CustomerNotification {
+  id: number;
+  event: NotificationEvent;
+  status: "pending" | "sent" | "failed";
+  recipient: string;
+  ttn: string;
+  error: string;
+  created_at: string;
+  sent_at: string | null;
 }
 
 // ---------- Нова Пошта ----------
