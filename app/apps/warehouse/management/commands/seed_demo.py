@@ -112,7 +112,8 @@ class Command(BaseCommand):
                         code=code,
                         defaults={
                             "product": product,
-                            "variant_name": variant_name,
+                            # как в редакторе товаров: полное название (товар + вариант)
+                            "variant_name": f"{product_name}, {variant_name}" if variant_name else product_name,
                             "price": price,
                             "cost_price": Decimal(price) * COST_RATIO,
                             "available": True,
