@@ -76,4 +76,21 @@ describe("Api", () => {
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("ECONNREFUSED")));
     expect(((await api.get("/x/").catch((e: unknown) => e)) as ApiError).status).toBe(503);
   });
+
+  it("download: ошибка бэкенда — Response с его статусом и текстом, а не 500", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(json(400, { detail: "Вкажіть товари" })));
+    const { api } = await makeApi({ access: "A1" });
+    const err = (await api.download("/warehouse/labels/").catch((e: unknown) => e)) as Response;
+    expect(err).toBeInstanceOf(Response);
+    expect(err.status).toBe(400);
+    expect(await err.text()).toBe("Вкажіть товари");
+  });
+});
+
+describe("toFieldErrors — вложенные ошибки DRF", () => {
+  it("собирает текст из словаря по индексам и списков объектов", () => {
+    expect(toFieldErrors({ cart_items: { "0": { variant: ["Товар не знайдено"] } } })).toEqual({ cart_items: "Товар не знайдено" });
+    expect(toFieldErrors({ cart_items: [{ quantity: ["Забагато"] }, {}] })).toEqual({ cart_items: "Забагато" });
+    expect(toFieldErrors({ detail: "Помилка" })).toEqual({ form: "Помилка" });
+  });
 });

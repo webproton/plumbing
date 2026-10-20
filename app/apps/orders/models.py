@@ -201,7 +201,7 @@ class OrderItem(models.Model):
         verbose_name = "Позиция заказа"
         verbose_name_plural = "Позиции заказа"
         constraints = [
-            models.CheckConstraint(check=models.Q(quantity__gt=0), name="orderitem_quantity_positive"),
+            models.CheckConstraint(condition=models.Q(quantity__gt=0), name="orderitem_quantity_positive"),
         ]
 
     @property

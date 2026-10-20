@@ -15,7 +15,8 @@ def test_login_success(client: APIClient):
     data = {"email": user.email, "password": "Qwerty123!"}
     response = client.post(url, data, format="json")
     assert response.status_code == 200
-    assert "access_token" in response.data  # JWT токен
+    # dj-rest-auth ≥ 4 отдаёт access/refresh (раньше access_token/refresh_token) — витрина понимает оба
+    assert response.data.get("access") and response.data.get("refresh")
 
 
 def test_login_bad_password(client: APIClient):
