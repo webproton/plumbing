@@ -15,6 +15,8 @@ export interface SessionData {
 
 export interface FlashData {
   notice: string;
+  /** заказ для события «покупка» в аналитике (страница «Заказ принят») */
+  purchase: { id: number; value: number; items: { id: number; name: string; price: number; quantity: number }[] };
 }
 
 export type AppSession = Session<SessionData, FlashData>;

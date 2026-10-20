@@ -252,7 +252,9 @@ class ManageProductViewSet(viewsets.ModelViewSet):
         seller = get_active_seller(user)
         if seller is None and not user.is_superuser:
             raise ValidationError({"detail": _("Создавать товары может только одобренный продавец")})
-        serializer.save(seller=seller)
+        product = serializer.save(seller=seller)
+        if product.variants.filter(available=True).exists():
+            _announce([product.pk])
 
     def destroy(self, request, *args, **kwargs):
         product = self.get_object()
@@ -335,6 +337,8 @@ class ManageProductViewSet(viewsets.ModelViewSet):
             changed = products.update(category=form.validated_data.get("category"))
         else:
             changed = ProductVariant.objects.filter(product__in=products).update(available=kind == "show")
+            if kind == "show":
+                _announce(list(products.values_list("pk", flat=True)))
         return Response({"changed": changed})
 
 
@@ -347,6 +351,12 @@ class ManageVariantViewSet(mixins.UpdateModelMixin, mixins.DestroyModelMixin, vi
         return ProductVariant.objects.filter(
             product__in=editable_products(user, get_active_seller(user))
         ).select_related("product", "brand")
+
+    def perform_update(self, serializer):
+        was_visible = serializer.instance.available
+        variant = serializer.save()
+        if variant.available and not was_visible:
+            _announce([variant.product_id])
 
     def destroy(self, request, *args, **kwargs):
         variant = self.get_object()
@@ -370,3 +380,10 @@ class ManageBrandsView(viewsets.ViewSet):
             Brand.objects.exclude(name__isnull=True).exclude(name="").order_by("name").values_list("name", flat=True)
         )
         return Response(sorted(set(names), key=str.lower))
+
+
+def _announce(product_ids):
+    """Автопубликация новинок в Telegram (если включена в настройках магазина)."""
+    from app.apps.marketing.services import announce
+
+    announce(product_ids)

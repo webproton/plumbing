@@ -1,8 +1,11 @@
 import { CheckCircle2 } from "lucide-react";
+import { useEffect } from "react";
 
 import { ButtonLink } from "~/components/ui";
 import { makeT } from "~/i18n";
 import { useT } from "~/i18n/react";
+import { trackEvent } from "~/lib/analytics";
+import { sessionContext } from "~/lib/session.server";
 import { useRootData } from "~/root";
 
 import type { Route } from "./+types/order-success";
@@ -12,9 +15,18 @@ export const meta: Route.MetaFunction = ({ matches }) => {
   return [{ title: makeT(lang)("order.accepted.meta") }, { name: "robots", content: "noindex" }];
 };
 
-export default function OrderSuccess({ params }: Route.ComponentProps) {
+/** Данные заказа для события «покупка» (одноразово, из сессии после оформления) */
+export function loader({ context }: Route.LoaderArgs) {
+  return { purchase: context.get(sessionContext).get("purchase") ?? null };
+}
+
+export default function OrderSuccess({ params, loaderData }: Route.ComponentProps) {
   const user = useRootData()?.user;
   const t = useT();
+  const purchase = loaderData.purchase;
+  useEffect(() => {
+    if (purchase) trackEvent("purchase", { orderId: purchase.id, value: purchase.value, items: purchase.items });
+  }, [purchase]);
   return (
     <div className="mx-auto max-w-lg space-y-5 py-10 text-center">
       <CheckCircle2 className="mx-auto size-16 text-success" aria-hidden />

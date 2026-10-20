@@ -2,6 +2,7 @@ import { Check, ShoppingCart } from "lucide-react";
 import { useFetcher } from "react-router";
 
 import { useLocalPath, useT } from "~/i18n/react";
+import { trackEvent, type TrackItem } from "~/lib/analytics";
 
 import { Button } from "./ui";
 
@@ -13,6 +14,7 @@ export function AddToCartButton({
   disabled,
   size = "md",
   className,
+  track,
 }: {
   productId: number;
   variantId: number;
@@ -20,6 +22,8 @@ export function AddToCartButton({
   disabled?: boolean;
   size?: "sm" | "md" | "lg";
   className?: string;
+  /** данные для события add_to_cart в аналитике */
+  track?: Omit<TrackItem, "quantity">;
 }) {
   const t = useT();
   const local = useLocalPath();
@@ -27,7 +31,12 @@ export function AddToCartButton({
   const busy = fetcher.state !== "idle";
   const added = fetcher.state === "idle" && fetcher.data?.ok;
   return (
-    <fetcher.Form method="post" action={local("/cart")} className={className}>
+    <fetcher.Form
+      method="post"
+      action={local("/cart")}
+      className={className}
+      onSubmit={() => track && trackEvent("add_to_cart", { items: [{ ...track, quantity }] })}
+    >
       <input type="hidden" name="intent" value="add" />
       <input type="hidden" name="product" value={productId} />
       <input type="hidden" name="variant" value={variantId} />

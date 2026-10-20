@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { data, Form, useFetcher, useNavigation } from "react-router";
 
 import { NpPicker } from "~/components/NpPicker";
@@ -6,6 +6,7 @@ import { Alert, Button, Card, Field, Input, PageTitle, Textarea } from "~/compon
 import { langFromRequest, makeT } from "~/i18n";
 import { useLang, useLocalPath, useT } from "~/i18n/react";
 import { localRedirect } from "~/i18n/server";
+import { trackEvent } from "~/lib/analytics";
 import { ApiError } from "~/lib/api.server";
 import { cartTotal, getCart } from "~/lib/cart.server";
 import { apiContext } from "~/lib/context.server";
@@ -66,6 +67,16 @@ export async function action({ request, context }: Route.ActionArgs) {
       payment_type: f.payment_type,
     });
     session.unset("cartUuid");
+    session.flash("purchase", {
+      id: order.id,
+      value: Number(order.total_price),
+      items: cart.cart_items.slice(0, 20).map((i) => ({
+        id: i.variant ?? i.product,
+        name: (i.product_name ?? "").slice(0, 60),
+        price: Number(i.price ?? 0),
+        quantity: i.quantity,
+      })),
+    });
     return localRedirect(request, `/order/${order.id}/success`);
   } catch (e) {
     if (!(e instanceof ApiError)) throw e;
@@ -91,6 +102,12 @@ export default function Checkout({ loaderData, actionData }: Route.ComponentProp
     if (ref) estimate.load(local(`/np/estimate?city=${ref}&cost=${Math.round(total)}`));
   };
   const est = estimate.data?.cost ? estimate.data : null;
+  useEffect(() => {
+    trackEvent("begin_checkout", {
+      value: total,
+      items: items.map((i) => ({ id: i.variant ?? i.product, name: i.product_name ?? "", price: Number(i.price ?? 0), quantity: i.quantity })),
+    });
+  }, [items, total]);
   const v = (name: string, fallback = "") => values[name] ?? fallback;
 
   return (

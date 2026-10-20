@@ -33,6 +33,7 @@ ALLOWED_HOSTS = env.list("DJANGO_ALLOWED_HOSTS", default=["localhost", "127.0.0.
 ALLOWED_HOSTS += env.list("DJANGO_INTERNAL_HOSTS", default=[])
 
 FRONTEND_URL = env("FRONTEND_URL", default="") or "http://localhost:3000"
+SITE_NAME = env("SITE_NAME", default="")
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 ROOT_URLCONF = "config.urls"
@@ -67,6 +68,7 @@ INSTALLED_APPS = [
     "app.apps.warehouse",
     "app.apps.imports",
     "app.apps.delivery",
+    "app.apps.marketing",
 ]
 
 MIDDLEWARE = [

@@ -9,7 +9,8 @@ from .models import SiteSettings
 class SiteSettingsSerializer(serializers.ModelSerializer):
     class Meta:
         model = SiteSettings
-        fields = ("phone", "email", "telegram", "whatsapp")
+        # ID пикселей — публичные (видны в коде любой страницы), нужны витрине для подключения аналитики
+        fields = ("phone", "email", "telegram", "whatsapp", "ga4_id", "gtm_id", "meta_pixel_id", "tiktok_pixel_id")
         read_only_fields = fields
 
 
@@ -23,6 +24,20 @@ class CallbackSerializer(serializers.Serializer):
         return validate_phone_number(value)
 
 
+def _id_validator(field):
+    """ID пикселей и канал — строгий формат (вставляются в скрипт на странице)."""
+
+    def validate(self, value):
+        from app.apps.marketing.validators import clean_id
+
+        cleaned = clean_id(field, value)
+        if cleaned is None:
+            raise serializers.ValidationError(_("Неверный формат"))
+        return cleaned
+
+    return validate
+
+
 class ShopSettingsSerializer(serializers.ModelSerializer):
     """Настройки магазина для кабинета администратора: контакты, реквизиты для счёта, отправитель НП."""
 
@@ -33,8 +48,17 @@ class ShopSettingsSerializer(serializers.ModelSerializer):
             "legal_name", "tax_id", "iban", "bank_name", "legal_address", "vat_payer", "invoice_note",
             "np_sender_city_ref", "np_sender_city_name", "np_sender_warehouse_ref", "np_sender_warehouse_name",
             "np_sender_phone",
+            "ga4_id", "gtm_id", "meta_pixel_id", "tiktok_pixel_id", "feeds_enabled", "telegram_channel",
+            "telegram_autopost",
         ]  # fmt: skip
-        extra_kwargs = {"phone": {"required": False}}
+        # длину проверяет строгий формат ID — так видны все ошибки сразу
+        extra_kwargs = {
+            "phone": {"required": False},
+            **{
+                f: {"max_length": None}
+                for f in ("ga4_id", "gtm_id", "meta_pixel_id", "tiktok_pixel_id", "telegram_channel")
+            },
+        }
 
     def validate_iban(self, value):
         value = value.replace(" ", "").upper()
@@ -47,6 +71,12 @@ class ShopSettingsSerializer(serializers.ModelSerializer):
         if value and not (value.isdigit() and len(value) in (8, 10)):
             raise serializers.ValidationError(_("ЄДРПОУ — 8 цифр, ІПН — 10 цифр"))
         return value
+
+    validate_ga4_id = _id_validator("ga4_id")
+    validate_gtm_id = _id_validator("gtm_id")
+    validate_meta_pixel_id = _id_validator("meta_pixel_id")
+    validate_tiktok_pixel_id = _id_validator("tiktok_pixel_id")
+    validate_telegram_channel = _id_validator("telegram_channel")
 
     def validate_np_sender_phone(self, value):
         return validate_phone_number(value) if value else value

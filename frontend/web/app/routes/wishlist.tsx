@@ -74,7 +74,14 @@ function WishlistCard({ item }: { item: WishlistItem }) {
         </Link>
         <Price value={v.price} original={v.original_price} />
         <div className="mt-auto flex gap-2">
-          <AddToCartButton productId={v.product.id} variantId={v.id} disabled={!v.in_stock} size="sm" className="flex-1" />
+          <AddToCartButton
+            productId={v.product.id}
+            variantId={v.id}
+            disabled={!v.in_stock}
+            size="sm"
+            className="flex-1"
+            track={{ id: v.id, name: v.product_name ?? v.product.name ?? "", price: Number(v.price ?? 0) }}
+          />
           <fetcher.Form method="post" action={local("/wishlist")}>
             <input type="hidden" name="intent" value="remove" />
             <input type="hidden" name="id" value={item.id} />

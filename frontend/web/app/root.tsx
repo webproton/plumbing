@@ -13,6 +13,7 @@ import {
 
 import type { Route } from "./+types/root";
 import "./app.css";
+import { AnalyticsHead, usePageViews } from "./components/Analytics";
 import { Footer } from "./components/Footer";
 import { Header } from "./components/Header";
 import { ButtonLink, EmptyState } from "./components/ui";
@@ -87,6 +88,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         ))}
         <link rel="alternate" hrefLang="x-default" href={`${origin}${base}${search}`} />
         <Links />
+        <AnalyticsHead settings={data?.settings ?? null} />
       </head>
       <body className="flex min-h-dvh flex-col">
         <Header
@@ -120,6 +122,7 @@ function NavigationProgress() {
 }
 
 export default function App() {
+  usePageViews();
   return <Outlet />;
 }
 

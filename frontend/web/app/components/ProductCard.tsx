@@ -40,7 +40,15 @@ export function ProductCard({ product }: { product: ProductListItem }) {
           <Price value={product.price} original={variant?.original_price} from />
           <Badge tone={inStock ? "success" : "muted"}>{inStock ? t("product.inStock") : t("product.onOrder")}</Badge>
         </div>
-        {variant && <AddToCartButton productId={product.id} variantId={variant.id} disabled={!inStock} size="sm" />}
+        {variant && (
+          <AddToCartButton
+            productId={product.id}
+            variantId={variant.id}
+            disabled={!inStock}
+            size="sm"
+            track={{ id: variant.id, name: product.name, price: Number(variant.price ?? product.price ?? 0) }}
+          />
+        )}
       </div>
     </article>
   );

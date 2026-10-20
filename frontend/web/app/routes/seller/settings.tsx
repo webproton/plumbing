@@ -3,7 +3,7 @@ import { data, Form, useNavigation } from "react-router";
 
 import { NpPicker } from "~/components/NpPicker";
 import { Alert, Button, Card, Field, Input, PageTitle, Textarea } from "~/components/ui";
-import { langFromRequest, makeT, tFromMatches } from "~/i18n";
+import { langFromRequest, makeT, tFromMatches, type TKey } from "~/i18n";
 import { useT } from "~/i18n/react";
 import { ApiError } from "~/lib/api.server";
 import { requireSeller } from "~/lib/seller.server";
@@ -30,6 +30,15 @@ interface ShopSettings {
   np_sender_warehouse_name: string;
   np_sender_phone: string;
   np_key_configured: boolean;
+  ga4_id: string;
+  gtm_id: string;
+  meta_pixel_id: string;
+  tiktok_pixel_id: string;
+  feeds_enabled: boolean;
+  telegram_channel: string;
+  telegram_autopost: boolean;
+  telegram_bot_configured: boolean;
+  feed_urls: Record<string, string>;
 }
 
 export async function loader({ request, context }: Route.LoaderArgs) {
@@ -45,14 +54,19 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 const TEXT_FIELDS = [
   "phone", "email", "telegram", "whatsapp", "legal_name", "tax_id", "iban", "bank_name", "legal_address",
   "invoice_note", "np_sender_city_ref", "np_sender_city_name", "np_sender_warehouse_ref", "np_sender_warehouse_name",
-  "np_sender_phone",
+  "np_sender_phone", "ga4_id", "gtm_id", "meta_pixel_id", "tiktok_pixel_id", "telegram_channel",
 ] as const; // prettier-ignore
 
 export async function action({ request, context }: Route.ActionArgs) {
   const api = requireSeller(request, context);
   const t = makeT(langFromRequest(request));
   const form = await request.formData();
-  const body: Record<string, unknown> = { vat_payer: form.get("vat_payer") === "1" };
+  const body: Record<string, unknown> = {
+    vat_payer: form.get("vat_payer") === "1",
+    feeds_enabled: form.get("feeds_enabled") === "1",
+    telegram_autopost: form.get("telegram_autopost") === "1",
+    regenerate_feeds_token: form.get("regenerate_feeds_token") === "1",
+  };
   for (const f of TEXT_FIELDS) body[f] = String(form.get(f) ?? "").trim();
   for (const f of ["email", "telegram", "whatsapp"]) if (!body[f]) body[f] = null;
   if (!body.np_sender_city_ref)
@@ -147,6 +161,73 @@ export default function Settings({ loaderData, actionData }: Route.ComponentProp
           <p className={`text-sm ${s.np_key_configured ? "text-success" : "text-muted"}`}>
             {s.np_key_configured ? t("set.npKeyOn") : t("set.npKeyOff")}
           </p>
+        </Card>
+        <Card className="space-y-4 p-5">
+          <h2 className="font-semibold">{t("mkt.feeds")}</h2>
+          <p className="text-muted text-sm">{t("mkt.feedsHint")}</p>
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              name="feeds_enabled"
+              value="1"
+              defaultChecked={s.feeds_enabled}
+              className="accent-brand-600 size-4"
+            />
+            {t("mkt.feedsEnabled")}
+          </label>
+          {Object.entries(s.feed_urls).map(([name, url]) => (
+            <Field key={name} label={t(`mkt.feed.${name.replace(".", "_")}` as TKey)}>
+              {(p) => (
+                <Input
+                  {...p}
+                  readOnly
+                  value={url}
+                  onFocus={(e) => e.currentTarget.select()}
+                  className="font-mono text-xs"
+                />
+              )}
+            </Field>
+          ))}
+          {Object.keys(s.feed_urls).length > 0 && (
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                name="regenerate_feeds_token"
+                value="1"
+                className="accent-brand-600 size-4"
+              />
+              {t("mkt.regenerate")}
+            </label>
+          )}
+        </Card>
+        <Card className="space-y-4 p-5">
+          <h2 className="font-semibold">{t("mkt.pixels")}</h2>
+          <p className="text-muted text-sm">{t("mkt.pixelsHint")}</p>
+          <div className="grid gap-4 sm:grid-cols-2">
+            {text("ga4_id", "Google Analytics 4", "G-XXXXXXXXXX")}
+            {text("gtm_id", "Google Tag Manager", "GTM-XXXXXXX")}
+            {text("meta_pixel_id", "Meta (Facebook / Instagram) Pixel", "1234567890")}
+            {text("tiktok_pixel_id", "TikTok Pixel", "C1A2B3…")}
+          </div>
+        </Card>
+        <Card className="space-y-4 p-5">
+          <h2 className="font-semibold">Telegram</h2>
+          <p className="text-muted text-sm">
+            {s.telegram_bot_configured ? t("mkt.tgHint") : t("mkt.tgNoBot")}
+          </p>
+          <div className="grid gap-4 sm:grid-cols-2">
+            {text("telegram_channel", t("mkt.tgChannel"), "@my_shop / -100…")}
+          </div>
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              name="telegram_autopost"
+              value="1"
+              defaultChecked={s.telegram_autopost}
+              className="accent-brand-600 size-4"
+            />
+            {t("mkt.tgAutopost")}
+          </label>
         </Card>
         <Button type="submit" size="lg" loading={busy}>
           <Save className="size-4" aria-hidden /> {t("prod.save")}
