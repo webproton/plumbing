@@ -70,12 +70,14 @@ API: `/api/products/`, `/api/products/{slug}/`, `/api/category/`, `/api/new_prod
 
 | Файл | Что внутри |
 |---|---|
-| `models.py` | `Cart`, `CartItems`, `Order` (+`stock_state`), `OrderItem` (снимок названия/артикула/цены) |
+| `models.py` | `Cart`, `CartItems`, `Order` (+`stock_state`, `language`), `OrderItem` (снимок названия/артикула/цены), `CustomerNotification` (журнал писем покупателю, ключ события уникален в заказе) |
 | `services.py` | `create_order_from_cart` (блокировка корзины, резерв, позиции), `change_status` (отмена → снять резерв; доставлен/завершён → списать), `cancel_by_customer` |
 | `serializers.py` | Корзина «заменить содержимое» (`CartCreateSerializer`), «установить количества» (`CartDetailSerializer`), оформление `OrderCreateSerializer` (только по `cart_uuid`), список/детали заказа |
-| `notifications.py` | Письмо клиенту и сообщение менеджеру в Telegram после коммита |
-| `tasks.py` | `notify_order_created_task` — отправка уведомлений в фоне |
-| `manage.py` | Заказы в кабинете `/api/orders/manage/`: список, карточка, статус, оплата, заметка, менеджер, счётчики, ТТН, счёт PDF и email |
+| `notifications.py` | Новый заказ: письмо покупателю (через `customer_notifications`) и сообщение менеджеру в Telegram |
+| `customer_notifications.py` | Письма покупателю (uk/ru): `schedule` (после коммита, в фоне), `notify` (событие — один раз), `resend`; тексты `TEXTS` |
+| `templates/orders/email/customer.{txt,html}` | Письмо покупателю: текст и HTML |
+| `tasks.py` | `notify_order_created_task`, `notify_customer_task` — уведомления в фоне |
+| `manage.py` | Заказы в кабинете `/api/orders/manage/`: список, карточка, статус, оплата, заметка, менеджер, счётчики, ТТН, счёт PDF и email, журнал писем покупателю (`notifications/{id}/resend/`) |
 | `invoice.py` | Счёт на оплату PDF, `amount_in_words` (сумма прописью по-украински) |
 | `validators.py` | `validate_phone_number` (+380…), `validate_person_name` (буквы, пробел, дефис, апостроф) |
 | `permissions.py` | `IsCartOwnerOrAnonWithUUID` |

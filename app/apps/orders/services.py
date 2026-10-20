@@ -17,7 +17,8 @@ from rest_framework.exceptions import ValidationError
 from app.apps.warehouse import stock
 from app.core.tasks import enqueue
 
-from .models import Cart, Order, OrderItem
+from . import customer_notifications
+from .models import Cart, CustomerNotification, Order, OrderItem
 from .tasks import notify_order_created_task
 
 logger = logging.getLogger(__name__)
@@ -62,6 +63,7 @@ def create_order_from_cart(cart: Cart, *, user=None, **order_fields) -> Order:
 
     stock.reserve([(variant, ci.quantity) for ci, variant in lines])
 
+    order_fields.setdefault("language", customer_notifications.order_language())
     order = Order.objects.create(
         cart=cart,
         customer=user if user is not None and user.is_authenticated else None,
@@ -122,6 +124,12 @@ def change_status(order: Order, new_status: str, *, user=None) -> Order:
 
     order.status_order = new_status
     order.save(update_fields=["status_order", "payment_status", "stock_state"])
+    event = {
+        Order.STATUS.delivering: CustomerNotification.EVENTS.shipped,
+        Order.STATUS.canceled: CustomerNotification.EVENTS.canceled,
+    }.get(new_status)
+    if event:
+        customer_notifications.schedule(order.pk, event)
     return order
 
 

@@ -1,0 +1,15 @@
+{% autoescape off %}{{ greeting }}
+
+{% for p in paragraphs %}{{ p }}
+{% endfor %}{% if items %}
+{{ t.items }}:
+{% for i in items %}- {{ i.name }} — {{ i.qty }} × {{ i.price }} ₴ = {{ i.total }} ₴
+{% endfor %}{{ t.total }}: {{ total }} ₴
+{% endif %}{% if button %}
+{{ button.0 }}: {{ button.1 }}
+{% endif %}
+--
+{% if shop_name %}{{ shop_name }}
+{% endif %}{% if contacts %}{{ t.contacts }}: {{ contacts|join:" · " }}
+{% endif %}{{ t.auto }}
+{% endautoescape %}

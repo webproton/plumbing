@@ -53,6 +53,10 @@ export async function action({ request, params, context }: Route.ActionArgs) {
     if (intent === "assign") await api.post(`${base}/assign/`);
     if (intent === "ttn") await api.post(`${base}/ttn/`, { ttn: form.get("ttn") ?? "" });
     if (intent === "ttn_refresh") await api.post(`${base}/ttn/refresh/`);
+    if (intent === "mail_resend")
+      await api.post(`${base}/notifications/${Number(form.get("id"))}/resend/`, undefined, {
+        timeoutMs: LONG_TIMEOUT,
+      });
     if (intent === "ttn_create")
       await api.post(
         `${base}/ttn/create/`,
@@ -104,6 +108,7 @@ export default function OrderPage({ loaderData, actionData }: Route.ComponentPro
         <span className="text-muted text-sm">{t(`ord.stock.${order.stock_state}` as TKey)}</span>
       </div>
       {actionData && !actionData.ok && <Alert tone="danger">{actionData.error}</Alert>}
+      {saved("mail_resend") && <Alert tone="success">{t("ord.mail.resent")}</Alert>}
       {actionData?.ok && "sentTo" in actionData && (
         <Alert tone="success">{t("ord.invoice.sent", { email: actionData.sentTo ?? "" })}</Alert>
       )}
@@ -212,6 +217,7 @@ export default function OrderPage({ loaderData, actionData }: Route.ComponentPro
       </section>
 
       <DeliveryCard order={order} />
+      <MailCard order={order} />
 
       {order.can_manage && (
         <Card className="space-y-4 p-5">
@@ -316,6 +322,62 @@ export default function OrderPage({ loaderData, actionData }: Route.ComponentPro
         </Card>
       )}
     </div>
+  );
+}
+
+const MAIL_TONE = { sent: "success", failed: "danger", pending: "muted" } as const;
+
+/** Письма покупателю: что и когда ушло, ошибки отправки, «Надіслати ще раз» */
+function MailCard({ order }: { order: ManageOrder }) {
+  const t = useT();
+  const lang = useLang();
+  const nav = useNavigation();
+  const hasEmail = Boolean(order.email || order.customer_email);
+  const customerLang = t(`ord.mail.lang.${order.language === "ru" ? "ru" : "uk"}` as TKey);
+
+  return (
+    <Card className="space-y-3 p-5 text-sm">
+      <h2 className="flex items-center gap-2 font-semibold">
+        <Mail className="size-4" aria-hidden /> {t("ord.mail.title")}
+      </h2>
+      <p className="text-muted">{t("ord.mail.hint", { lang: customerLang })}</p>
+      {!order.notify_customers && <Alert>{t("ord.mail.off")}</Alert>}
+      {!hasEmail ? (
+        <p className="text-muted">{t("ord.mail.noEmail")}</p>
+      ) : order.notifications.length === 0 ? (
+        <p className="text-muted">{t("ord.mail.empty")}</p>
+      ) : (
+        <ul className="divide-line divide-y">
+          {order.notifications.map((n) => (
+            <li key={n.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2">
+              <span className="font-medium">{t(`ord.mail.event.${n.event}` as TKey)}</span>
+              {n.ttn && (n.event === "ttn" || n.event === "shipped") && (
+                <span className="text-muted">{n.ttn}</span>
+              )}
+              <Badge tone={MAIL_TONE[n.status]}>{t(`ord.mail.status.${n.status}` as TKey)}</Badge>
+              <span className="text-muted">
+                {n.recipient} · {formatDateTime(n.sent_at ?? n.created_at, lang)}
+              </span>
+              {n.error && <span className="text-danger w-full text-xs">{n.error}</span>}
+              {order.can_manage && (
+                <Form method="post" className="ml-auto">
+                  <input type="hidden" name="intent" value="mail_resend" />
+                  <input type="hidden" name="id" value={n.id} />
+                  <Button
+                    type="submit"
+                    size="sm"
+                    variant="ghost"
+                    loading={nav.state !== "idle" && nav.formData?.get("id") === String(n.id)}
+                  >
+                    <RefreshCw className="size-4" aria-hidden /> {t("ord.mail.resend")}
+                  </Button>
+                </Form>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+    </Card>
   );
 }
 

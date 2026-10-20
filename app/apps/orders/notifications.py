@@ -1,18 +1,17 @@
 """
-Уведомления о заказах: письмо клиенту и сообщение менеджеру в Telegram.
+Уведомления о новом заказе: письмо покупателю (customer_notifications) и сообщение менеджеру в Telegram.
 Вызываются после коммита транзакции; ошибки доставки логируются и не влияют на заказ.
-TODO(шаг 5): перенести в Celery-задачи с retry.
 """
 
 import logging
 
-from django.conf import settings
 from django.contrib.auth import get_user_model
-from django.core.mail import send_mail
 
 from app.core import telegram
 
-from .models import Order
+from . import customer_notifications
+from .customer_notifications import format_qty
+from .models import CustomerNotification, Order
 
 logger = logging.getLogger(__name__)
 User = get_user_model()
@@ -20,26 +19,9 @@ User = get_user_model()
 
 def _items_text(order):
     return "\n".join(
-        f"{item.name} — {item.quantity.normalize()} × {item.unit_price} ₴ = {item.line_total} ₴"
+        f"{item.name} — {format_qty(item.quantity)} × {item.unit_price} ₴ = {item.line_total} ₴"
         for item in order.items.all()
     )
-
-
-def send_customer_email(order: Order):
-    recipient = order.email or (order.customer.email if order.customer_id else None)
-    if not recipient:
-        return
-    message = (
-        f"Здравствуйте, {order.customer_name or 'уважаемый клиент'}!\n\n"
-        f"Ваш заказ №{order.pk} принят.\n\n"
-        f"{_items_text(order)}\n\n"
-        f"Итого: {order.total_price} ₴\n\n"
-        "Мы свяжемся с вами для подтверждения.\n"
-    )
-    try:
-        send_mail(f"Заказ №{order.pk} принят", message, settings.DEFAULT_FROM_EMAIL, [recipient])
-    except Exception as exc:  # SMTP недоступен — заказ уже создан, только логируем
-        logger.error("Не удалось отправить письмо по заказу %s: %s", order.pk, exc)
 
 
 def send_manager_telegram(order: Order):
@@ -68,6 +50,5 @@ def send_manager_telegram(order: Order):
 
 
 def notify_order_created(order_id: int):
-    order = Order.objects.select_related("customer").prefetch_related("items").get(pk=order_id)
-    send_customer_email(order)
-    send_manager_telegram(order)
+    customer_notifications.notify(order_id, CustomerNotification.EVENTS.created)
+    send_manager_telegram(Order.objects.prefetch_related("items").get(pk=order_id))

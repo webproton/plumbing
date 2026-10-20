@@ -38,6 +38,7 @@ interface ShopSettings {
   telegram_channel: string;
   telegram_autopost: boolean;
   telegram_bot_configured: boolean;
+  notify_customers: boolean;
   feed_urls: Record<string, string>;
 }
 
@@ -65,6 +66,7 @@ export async function action({ request, context }: Route.ActionArgs) {
     vat_payer: form.get("vat_payer") === "1",
     feeds_enabled: form.get("feeds_enabled") === "1",
     telegram_autopost: form.get("telegram_autopost") === "1",
+    notify_customers: form.get("notify_customers") === "1",
     regenerate_feeds_token: form.get("regenerate_feeds_token") === "1",
   };
   for (const f of TEXT_FIELDS) body[f] = String(form.get(f) ?? "").trim();
@@ -161,6 +163,20 @@ export default function Settings({ loaderData, actionData }: Route.ComponentProp
           <p className={`text-sm ${s.np_key_configured ? "text-success" : "text-muted"}`}>
             {s.np_key_configured ? t("set.npKeyOn") : t("set.npKeyOff")}
           </p>
+        </Card>
+        <Card className="space-y-4 p-5">
+          <h2 className="font-semibold">{t("set.mail")}</h2>
+          <p className="text-muted text-sm">{t("set.mailHint")}</p>
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              name="notify_customers"
+              value="1"
+              defaultChecked={s.notify_customers}
+              className="accent-brand-600 size-4"
+            />
+            {t("set.notifyCustomers")}
+          </label>
         </Card>
         <Card className="space-y-4 p-5">
           <h2 className="font-semibold">{t("mkt.feeds")}</h2>
