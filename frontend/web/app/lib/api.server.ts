@@ -27,6 +27,14 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+/** Все тексты из ошибки DRF любой вложенности: ["…"], {"0": {"variant": ["…"]}}, [{…}] */
+function messagesOf(value: unknown): string[] {
+  if (value === null || value === undefined) return [];
+  if (Array.isArray(value)) return value.flatMap(messagesOf);
+  if (isRecord(value)) return Object.values(value).flatMap(messagesOf);
+  return [String(value)];
+}
+
 export function toFieldErrors(body: unknown, fallback = "Не вдалося виконати запит. Спробуйте ще раз."): FieldErrors {
   if (typeof body === "string") return { form: body };
   if (Array.isArray(body)) return { form: body.map(String).join(" ") };
@@ -34,7 +42,7 @@ export function toFieldErrors(body: unknown, fallback = "Не вдалося в�
   const errors: FieldErrors = {};
   for (const [key, value] of Object.entries(body)) {
     if (key === "code") continue;
-    const message = Array.isArray(value) ? value.map(String).join(" ") : String(value);
+    const message = messagesOf(value).join(" ");
     const field = key === "detail" || key === "non_field_errors" ? "form" : key;
     errors[field] = errors[field] ? `${errors[field]} ${message}` : message;
   }
@@ -159,7 +167,12 @@ export class Api {
       signal: AbortSignal.timeout(timeoutMs),
     });
     if (response.status === 401 && token && !retried && (await this.refresh())) return this.download(path, true, timeoutMs);
-    if (!response.ok) throw new ApiError(response.status, null, this.lang);
+    if (!response.ok) {
+      // ресурсные маршруты (PDF, файлы): отдаём статус и текст ошибки бэкенда, а не 500
+      const body: unknown = await response.json().catch(() => null);
+      const message = messagesOf(body).join(" ") || makeT(this.lang)("error.generic");
+      throw new Response(message, { status: response.status, headers: { "Content-Type": "text/plain; charset=utf-8" } });
+    }
     return response;
   }
 

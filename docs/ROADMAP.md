@@ -81,7 +81,8 @@
 - [x] 8.1 Multi-stage Dockerfile, non-root, gunicorn config
 - [x] 8.2 `docker-compose.dev.yml` / `docker-compose.prod.yml`, healthchecks, restart, migrate/collectstatic
 - [~] 8.3 nginx: приватные media, логи в stdout — сделано; TLS — терминировать перед nginx (см. PROJECT_STRUCTURE §8)
-- [ ] 8.4 Обновление Django 4.2 → 5.2 LTS (4.2 вне поддержки с апреля 2026)
+- [x] 8.4 Обновление Django 4.2 → 5.2 LTS (поддержка до апреля 2028), DRF 3.18, allauth 65, dj-rest-auth 7 —
+      порядок выкатки: PROJECT_STRUCTURE §8 «Обновление на сервере»
 
 ## Известные проблемы парсеров (из заметок разработчика, перенесены из `parsers/run.py`)
 - [ ] Накладная №12, 2538.xls: в поле «банк» попадает мусор, `supplier: null`

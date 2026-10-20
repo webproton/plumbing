@@ -77,7 +77,9 @@ def test_cart_item_validation_invalid_variant(api_client, user, product):
     payload = {"cart_items": [{"product": product.id, "variant": 9999, "quantity": 1}]}
     response = api_client.post(url, payload, format="json")
     assert response.status_code == 400
-    errors = response.json()["cart_items"][0]["variant"][0]
+    items = response.json()["cart_items"]
+    # DRF ≥ 3.16: ошибки элементов списка — словарь {"индекс": {...}}
+    errors = (items["0"] if isinstance(items, dict) else items[0])["variant"][0]
     assert "does not exist" in errors
 
 

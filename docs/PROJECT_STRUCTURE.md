@@ -13,7 +13,7 @@
 
 | Слой | Технологии |
 |---|---|
-| Backend | Python 3.12, Django 4.2, DRF 3.15, SimpleJWT, allauth + dj-rest-auth |
+| Backend | Python 3.12, Django 5.2 LTS, DRF 3.18, SimpleJWT 5.5, allauth 65 + dj-rest-auth 7 |
 | БД / кэш / очередь | PostgreSQL 14, Redis (кэш Django; очередь Celery — отдельная БД Redis) |
 | Фоновые задачи | Celery 5 (`worker` + `beat`) |
 | Парсеры | openpyxl, pandas, rapidfuzz |
@@ -383,6 +383,28 @@ TLS: терминировать перед `web` (Cloudflare / certbot / бал�
 docker compose -f docker-compose.prod.yml run --rm migrate python app/manage.py migrate products 0014 --fake
 ```
 
+**Обновление на сервере** (новая версия кода; особенно — переход на Django 5.2, там новые миграции allauth):
+```bash
+git pull
+# 1. бэкап БД (обязательно)
+docker compose -f docker-compose.prod.yml exec db sh -c 'pg_dump -U "$POSTGRES_USER" -Fc "$POSTGRES_DB"' > backup-$(date +%F).dump
+# 2. только для перехода на Django 5.2: обе проверки должны вернуть 0 строк
+docker compose -f docker-compose.prod.yml exec db sh -c 'psql -U "$POSTGRES_USER" "$POSTGRES_DB" -c "
+  SELECT lower(email), count(*) FROM account_emailaddress WHERE verified GROUP BY lower(email) HAVING count(*) > 1;"'
+docker compose -f docker-compose.prod.yml exec db sh -c 'psql -U "$POSTGRES_USER" "$POSTGRES_DB" -c "
+  SELECT user_id, count(*) FROM account_emailaddress WHERE \"primary\" GROUP BY user_id HAVING count(*) > 1;"'
+# 3. сборка и запуск (сервис migrate применит миграции сам)
+docker compose -f docker-compose.prod.yml up -d --build
+docker compose -f docker-compose.prod.yml logs migrate | tail -20
+```
+Первая проверка нашла строки — один и тот же email подтверждён дважды (например, `Ivan@…` и `ivan@…`): лишнюю
+запись удалить в Django admin («Email addresses») **до** обновления, иначе миграция allauth упадёт. Вторая —
+не страшно, allauth исправит сам (миграция `0008…fixup`), но лучше знать заранее.
+**Откат:** `git checkout <прошлый коммит>`, `docker compose -f docker-compose.prod.yml down`, восстановить БД
+`docker compose -f docker-compose.prod.yml up -d db` → `docker compose -f docker-compose.prod.yml exec -T db sh -c
+'pg_restore -U "$POSTGRES_USER" -d "$POSTGRES_DB" --clean --if-exists' < backup-….dump` → `up -d --build`.
+После обновления: вход в магазин и в `/admin/`, «Забули пароль?», кабинет продавца.
+
 **Локальная разработка:** `docker compose -f docker-compose.dev.yml up -d` (БД и Redis), в `.env`:
 `DEBUG=True`, `POSTGRES_HOST=localhost`, `REDIS_URL=redis://localhost:6379/1`; затем
 `python app/manage.py migrate && python app/manage.py runserver`; витрина — `cd frontend/web && npm install &&
@@ -691,3 +713,30 @@ ID, ID с попыткой внедрить код отклоняется; со�
 ⚠️ Не проверено: публикация в настоящий канал Telegram (нужны TOKEN_BOT и бот-администратор канала) и приём фидов
 самими площадками (Prom/Rozetka/Google проверяют фид при подключении — первые замечания поправим по их отчёту).
 
+### 2026-10-20 — Обновление Django 4.2 → 5.2 LTS (этап 8.4)
+Django 4.2 больше не получает исправлений безопасности (с апреля 2026). Обновлено: **Django 5.2 LTS** (поддержка
+до апреля 2028), DRF 3.18, django-allauth 65, dj-rest-auth 7, SimpleJWT 5.5, django-filter 26, django-redis 7.
+Порядок выкатки на сервер, проверка БД и откат — §8 «Обновление на сервере».
+
+**Что поменялось в коде:**
+- allauth 65 требует `allauth.account.middleware.AccountMiddleware`; старые настройки
+  `ACCOUNT_AUTHENTICATION_METHOD` / `ACCOUNT_EMAIL_REQUIRED` / `ACCOUNT_USERNAME_REQUIRED` заменены на
+  `ACCOUNT_LOGIN_METHODS = {"email"}` и `ACCOUNT_SIGNUP_FIELDS`.
+- `CheckConstraint(check=…)` → `condition=…` (в Django 6 старое имя удалят); схема БД не меняется, новых миграций
+  у проекта нет. Новые миграции только у allauth (`account 0003–0009`: уникальный подтверждённый email, email в
+  нижнем регистре, один основной адрес) — отсюда проверка перед выкаткой.
+- dj-rest-auth 7 отдаёт токены как `access`/`refresh` (было `access_token`/`refresh_token`) — витрина уже понимает
+  оба варианта.
+- DRF 3.16+ отдаёт ошибки вложенных списков словарём `{"0": {...}}` — витрина показывала «[object Object]»,
+  теперь собирает текст из любой вложенности.
+- Ранее (коммит перед обновлением): **«Забули пароль?» не работал** — dj-rest-auth падал на построении ссылки
+  (`NoReverseMatch`), письмо не уходило, а витрина писала «перевірте пошту». Теперь письмо со ссылкой на
+  `/reset-password/confirm` строит своя форма. Плюс контрактные тесты всего пути входа — они прошли без изменений
+  до и после обновления.
+- PDF/файлы из кабинета (этикетки, счёт, накладная, шаблон импорта) при ошибке бэкенда отдавали «500»; теперь —
+  его статус и понятный текст («Оберіть товари для друку», 404 и т. п.).
+
+**Проверено вживую** (чистое окружение из `requirements-dev.txt`, временная БД): регистрация → письмо → вход до
+подтверждения отклоняется → подтверждение → вход → кабинет → выход (refresh отозван); сброс пароля по ссылке из
+письма, старый пароль не подходит, новый — да; кабинет продавца (14 страниц); Django admin — вход, 41 список,
+страницы редактирования; ни одного 500 в логах. Тесты: backend 228, frontend 32 (+1).

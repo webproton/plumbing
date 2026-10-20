@@ -2,24 +2,24 @@
 # Dev/test-инструменты — в requirements-dev.txt.
 
 # --- core ---
-Django>=4.2,<5.0
-djangorestframework>=3.15,<3.16
+Django>=5.2,<5.3  # LTS, поддержка до апреля 2028
+djangorestframework>=3.16,<3.19
 django-environ>=0.11
 gunicorn>=22
 psycopg2-binary>=2.9.9
 
 # --- auth ---
-django-allauth==0.52.0
-dj-rest-auth==3.0.0
-djangorestframework-simplejwt>=5.3,<5.4
+django-allauth>=65,<66
+dj-rest-auth>=7,<8
+djangorestframework-simplejwt>=5.5,<6
 django-axes>=8.0,<9
 django-cors-headers>=4.3
 django-ratelimit>=4.1
 
 # --- utils ---
-django-filter>=23.5
+django-filter>=25
 django-model-utils>=4.4
-django-redis>=5.4
+django-redis>=6
 redis>=5
 celery[redis]>=5.4,<6
 cryptography>=42

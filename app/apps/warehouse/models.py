@@ -130,7 +130,7 @@ class StockMovement(models.Model):
             models.Index(fields=["-created_at"], name="stockmove_created_idx"),
         ]
         constraints = [
-            models.CheckConstraint(check=Q(quantity__gt=0), name="stockmove_quantity_positive"),
+            models.CheckConstraint(condition=Q(quantity__gt=0), name="stockmove_quantity_positive"),
         ]
 
     def __str__(self):

@@ -172,7 +172,7 @@ React Router 8 (SSR) · React 19 · TypeScript strict · Tailwind CSS 4 · zod �
 |---|---|
 | `app/root.tsx` | Каркас документа, корневой middleware сессии, общий loader (пользователь, счётчик корзины, категории, контакты), страница ошибки |
 | `app/routes.ts` | Карта маршрутов (включая 301 со старых адресов SPA) |
-| `app/lib/api.server.ts` | `Api` — клиент Django: Bearer-токен, авто-refresh, откат к гостю, `X-Real-IP`, `ApiError.fieldErrors` |
+| `app/lib/api.server.ts` | `Api` — клиент Django: Bearer-токен, авто-refresh, откат к гостю, `X-Real-IP`, `ApiError.fieldErrors`; `download()` для PDF/файлов — ошибка бэкенда уходит пользователю с его статусом |
 | `app/lib/session.server.ts` | Подписанная HttpOnly-cookie сессия: токены, корзина гостя, пользователь |
 | `app/lib/context.server.ts` | `sessionMiddleware`: сессия и API в `context`, запись cookie при изменении |
 | `app/lib/cart.server.ts` | `getCart` / `saveCart` (корзина целиком), итоги |
