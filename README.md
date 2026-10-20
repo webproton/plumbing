@@ -141,6 +141,7 @@ Requirements: Docker with Compose.
 cp .env.example .env    # set SECRET_KEY, SESSION_SECRET, POSTGRES_*, DJANGO_ALLOWED_HOSTS, EMAIL_*
 docker compose -f docker-compose.prod.yml up -d --build
 docker compose -f docker-compose.prod.yml exec app python app/manage.py createsuperuser
+docker compose -f docker-compose.prod.yml exec app python app/manage.py seed_demo --force   # demo catalog + stock, test DBs only
 ```
 
 The store is served at `http://localhost` (port `HTTP_PORT`), the Django admin at `/admin/`. Migrations and
@@ -160,7 +161,7 @@ All configuration is done through environment variables — see `.env.example`.
 ## Tests
 
 ```bash
-pytest                                   # backend: 228 tests (needs PostgreSQL)
+pytest                                   # backend: 231 tests (needs PostgreSQL)
 cd frontend/web && npm run check         # types, ESLint, 32 Vitest tests
 ruff check app config
 ```

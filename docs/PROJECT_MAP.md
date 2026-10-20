@@ -97,6 +97,7 @@ API: `/api/orders/cart/` (+`by-uuid/`), `/api/orders/order-create/`, `/api/order
 | `permissions.py` | `get_active_seller`, `IsWarehouseStaff` (одобренный продавец / суперпользователь, только свои объекты) |
 | `views.py`, `serializers.py`, `admin.py` | API склада, сканер, админка (журнал — только чтение, «Провести», «Сверить остатки») |
 | `templates/warehouse/scanner_mock.html` | Тестовая страница сканера (только staff) |
+| `management/commands/seed_demo.py` | Демо-данные для ручной проверки: приход остатков от «Демо-постачальника» по товарам без остатка, пустой каталог — 10 демо-вариантов сантехники; при `DEBUG=False` только с `--force` |
 
 API (`/api/warehouse/`): `me/`, `dashboard/`, `balances/`, `variants/search/`, `warehouses/` (+`{id}/balances/`), `suppliers/`, `stock-movements/` (+`transfer/`, `return_supplier/`, `inventory/`, `summary/`), `inventory-documents/` (+`{id}/parse/`, `{id}/lines/{n}/`, `{id}/process/`, `{id}/scan/`, `{id}/print/`, `{id}/file/`, `variant-search/`), сканер: `stock-movements/find_by_barcode_or_sku/`, `stock-movements/create_and_add/`.
 
