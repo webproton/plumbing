@@ -1,7 +1,8 @@
 import logging
 
+from dj_rest_auth.forms import AllAuthPasswordResetForm
 from dj_rest_auth.registration.serializers import RegisterSerializer
-from dj_rest_auth.serializers import LoginSerializer, UserDetailsSerializer
+from dj_rest_auth.serializers import LoginSerializer, PasswordResetSerializer, UserDetailsSerializer
 from django.contrib.auth import get_user_model
 from django.utils.translation import gettext as _
 from rest_framework import serializers
@@ -108,3 +109,36 @@ class UserSerializer(UserDetailsSerializer):
         extra_kwargs = {
             "email": {"read_only": True},  # изменение email идёт отдельно
         }
+
+
+class FrontendPasswordResetForm(AllAuthPasswordResetForm):
+    """
+    Письмо сброса пароля со ссылкой на страницу витрины /reset-password/confirm?uid=…&token=….
+    Стандартная форма строила ссылку через несуществующий маршрут Django (password_reset_confirm) и падала.
+    """
+
+    def save(self, request, **kwargs):
+        from allauth.account.adapter import get_adapter
+        from allauth.account.forms import default_token_generator
+        from allauth.account.utils import user_pk_to_url_str
+        from django.conf import settings
+        from django.contrib.sites.shortcuts import get_current_site
+
+        token_generator = kwargs.get("token_generator", default_token_generator)
+        for user in self.users:
+            uid, token = user_pk_to_url_str(user), token_generator.make_token(user)
+            url = f"{settings.FRONTEND_URL.rstrip('/')}/reset-password/confirm?uid={uid}&token={token}"
+            context = {
+                "current_site": get_current_site(request),
+                "user": user,
+                "password_reset_url": url,
+                "request": request,
+            }
+            get_adapter(request).send_mail("account/email/password_reset_key", self.cleaned_data["email"], context)
+        return self.cleaned_data["email"]
+
+
+class CustomPasswordResetSerializer(PasswordResetSerializer):
+    @property
+    def password_reset_form_class(self):
+        return FrontendPasswordResetForm

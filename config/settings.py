@@ -178,6 +178,7 @@ REST_AUTH = {
     "JWT_AUTH_REFRESH_COOKIE": None,
     "JWT_AUTH_HTTPONLY": False,
     "REGISTER_SERIALIZER": "app.apps.accounts.serializers.CustomRegisterSerializer",
+    "PASSWORD_RESET_SERIALIZER": "app.apps.accounts.serializers.CustomPasswordResetSerializer",
     "PASSWORD_RESET_CONFIRM_URL": f"{FRONTEND_URL}/reset-password/confirm?uid={{uid}}&token={{token}}",
     "EMAIL_VERIFICATION_URL": f"{FRONTEND_URL}/confirm-email/{{key}}/",
 }
