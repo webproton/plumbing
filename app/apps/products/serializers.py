@@ -257,6 +257,7 @@ class ProductVariantSerializer(serializers.ModelSerializer):
             "mechanism",
             "color_options",
             "features",
+            "attributes",
             "custom_size_available",
             "bed_length",
             "bed_width",

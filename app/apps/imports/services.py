@@ -19,6 +19,7 @@ from django.db.models import Count, Q
 from django.utils import timezone
 from django.utils.translation import gettext as _
 
+from app.apps.products.catalog.services import CategoryResolver
 from app.apps.products.models import Brand, Category, Product, ProductVariant
 from app.apps.products.services import discount_fields, editable_variants
 from app.apps.warehouse.models import CurrencyRate, ProductBarcode
@@ -351,7 +352,8 @@ def publish_items(source: ImportSource, item_ids, *, category: Category | None =
     """
     pricing = Pricing(source)
     visible = source.publish_new if visible is None else visible
-    category = category or source.category
+    # корень/раздел направления → товары раскладываются по подкатегориям (products/catalog/taxonomy.py)
+    categories = CategoryResolver(category or source.category)
     by_barcode, by_sku = _variant_index(source.seller)
     taken = set(source.items.filter(variant__isnull=False).values_list("variant_id", flat=True))
     brands: dict = {}
@@ -373,7 +375,10 @@ def publish_items(source: ImportSource, item_ids, *, category: Category | None =
             continue
         with transaction.atomic():
             product = Product.objects.create(
-                name=item.name[:255], seller=source.seller, category=category, description=item.description or None
+                name=item.name[:255],
+                seller=source.seller,
+                category=categories.category_for(item.name, item.category_name, item.params),
+                description=item.description or None,
             )
             code_free = (
                 item.sku and len(item.sku) <= 50 and not ProductVariant.objects.filter(code__iexact=item.sku).exists()
@@ -387,6 +392,7 @@ def publish_items(source: ImportSource, item_ids, *, category: Category | None =
                 cost_price=pricing.cost(item),
                 brand=_brand(item.brand[:255], brands),
                 description=item.description or None,
+                attributes=categories.attributes(item.name, item.description, item.params),
                 available=visible,
                 **discount_fields(sale, pricing.old(item, sale)),
             )
