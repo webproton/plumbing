@@ -145,6 +145,18 @@ class Category(TimeStampedModel):
     barcode_image = models.ImageField(upload_to="categories/barcodes/", blank=True, null=True)
     barcode = models.CharField(max_length=50, unique=True, blank=True, null=True, verbose_name="Штрихкод")
 
+    # Направления магазина (catalog/taxonomy.py): дерево «направление → раздел → категория»
+    VERTICALS = [
+        ("furniture", "Меблі"),
+        ("plumbing", "Сантехніка та опалення"),
+        ("tools", "Інструмент"),
+        ("bikes", "Велосипеди"),
+    ]
+    parent = models.ForeignKey("self", on_delete=models.SET_NULL, blank=True, null=True,
+                               related_name="children", verbose_name="Батьківська категорія")
+    vertical = models.CharField(max_length=20, choices=VERTICALS, default="furniture", db_index=True,
+                                verbose_name="Напрям")
+
     def save(self, *args, **kwargs):
         if not self.slug and self.name:
             self.slug = unique_slug(Category, self.name, fallback="category", exclude_pk=self.pk)
@@ -697,6 +709,9 @@ class ProductVariant(TimeStampedModel):
     has_3d_constructor = models.BooleanField(default=False, blank=True, null=True, verbose_name="Конструктор 3D")
 
     is_color_customizable = models.BooleanField(default=False, verbose_name="Цвет по заказу")
+
+    # Характеристики без отдельных колонок (різьба, DN, потужність, об'єм, розмір колеса…) — import_catalog
+    attributes = models.JSONField(default=dict, blank=True, verbose_name="Характеристики")
 
     # 💲 Цена и наличие
     price = models.DecimalField(

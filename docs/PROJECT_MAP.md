@@ -63,6 +63,13 @@
 | `management/commands/import_products.py` | Импорт каталога из папок с фото/описаниями (общие функции — из `color_utils`) |
 | `management/commands/load_catalog_products.py` | Загрузка каталога из структуры папок |
 | `management/commands/fix_product_slugs.py` | Пересоздание slug'ов |
+| `catalog/taxonomy.py` | **Направления магазина** (`Category.vertical`): `plumbing` — сантехніка та опалення, `tools` — інструмент, `bikes` — велосипеди, `furniture` — меблі. Дерево «направление → раздел → категория» + слова для автоклассификации (`classify`: побеждает самое конкретное совпадение, «общие» категории — последними) |
+| `catalog/attributes.py` | `extract`: характеристики из названия — різьба, DN/PN, діаметр, потужність, об'єм, тиск, секції, матеріал, колір; для велосипедов — колесо и рама → `ProductVariant.attributes` |
+| `catalog/services.py` | `ensure_taxonomy` (создать/обновить дерево, мебельные слаги совпадают со старыми), `CategoryResolver` (для импорта: корень/раздел направления → категория по названию) |
+| `management/commands/load_taxonomy.py` | `load_taxonomy plumbing\|tools\|bikes\|furniture\|all` — создать дерево категорий направления |
+
+Категории: `Category.parent` (дерево) и `Category.vertical` (направление). Свободные характеристики варианта — `ProductVariant.attributes` (JSON).
+Новое направление или категория — правка `catalog/taxonomy.py` → `load_taxonomy <направление>`; слова для автораспознавания — там же.
 
 API: `/api/products/`, `/api/products/{slug}/`, `/api/category/`, `/api/new_products/`, `/api/wishlist/` (+`bulk-update/`, `merge/`, `clear/`).
 
@@ -131,7 +138,7 @@ API (`/api/warehouse/`): `me/`, `dashboard/`, `balances/`, `variants/search/`, `
 | `fields.py` | Синонимы колонок/тегов (`FIELD_SYNONYMS`), `detect_columns`, разбор чисел, количеств («>10»), да/нет, ссылок на фото |
 | `formats.py` | `parse_items`: YML, XML (тег товара определяется сам), CSV (кодировка/разделитель), Excel (строка заголовков среди первых 30), JSON (путь к списку, вложенные поля) → `SourceItem` |
 | `connectors/` | `feed.py` (ссылка/файл), `api.py` (JSON, страницы), `web.py` (`SiteAdapter`, `@register`, `FormLoginAdapter`, `WebConnector`), `base.py` (авторизация запросов) |
-| `services.py` | `sync_source`, `upsert_items`, `auto_link`, `apply_updates`, `Pricing` (РРЦ / наценка, курс, округление), `link_item`, `publish_items`, `set_status`, `editable_variants` |
+| `services.py` | `sync_source`, `upsert_items`, `auto_link`, `apply_updates`, `Pricing` (РРЦ / наценка, курс, округление), `link_item`, `publish_items` (если выбрана корневая категория/раздел направления — товары раскладываются по подкатегориям через `products.catalog.CategoryResolver`, параметры фида + извлечённые из названия → `attributes`), `set_status`, `editable_variants` |
 | `template.py` | Шаблон: `build_template`, `read_rows`, `plan` (создать/обновить/ошибка), `apply` (группы → варианты, остатки инвентаризацией) |
 | `photos.py` | Загрузка фото товара по ссылкам (проверка Pillow, только если у товара нет фото) |
 | `tasks.py` | Celery: `sync_source_task` (с блокировкой), `sync_due_sources` (beat), `apply_template_task`, `download_photos_task` |
