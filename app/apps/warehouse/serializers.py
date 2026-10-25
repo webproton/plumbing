@@ -6,6 +6,7 @@ from rest_framework import serializers
 
 from app.apps.products.models import ProductVariant
 
+from .duplicates import find_duplicates
 from .models import InventoryDocument, StockBalance, StockMovement, Supplier, Warehouse
 
 ALLOWED_INVOICE_EXTENSIONS = {".xlsx", ".xls", ".xml", ".yml", ".pdf", ".jpg", ".jpeg", ".png", ".webp"}
@@ -147,6 +148,9 @@ class InventoryDocumentSerializer(serializers.ModelSerializer):
         help_text="Названия товаров из строк: {id: {name, sku}} (только в карточке)"
     )
     ai = serializers.SerializerMethodField(help_text="Разбор через ИИ: включён ли, статус, ошибка")
+    duplicates = serializers.SerializerMethodField(
+        help_text="Похожие накладные (та же поставка?) — только в карточке непроведённого документа"
+    )
 
     class Meta:
         model = InventoryDocument
@@ -167,6 +171,7 @@ class InventoryDocumentSerializer(serializers.ModelSerializer):
             "seller_name",
             "column_map",
             "ai",
+            "duplicates",
         ]
         read_only_fields = ["uploaded_at", "extracted_data", "processed", "processed_at", "column_map"]
         extra_kwargs = {"file": {"write_only": True}}
@@ -183,6 +188,11 @@ class InventoryDocumentSerializer(serializers.ModelSerializer):
 
     def get_summary(self, obj):
         return (obj.extracted_data or {}).get("summary")
+
+    def get_duplicates(self, obj):
+        if obj.processed or getattr(self.context.get("view"), "action", None) == "list":
+            return []
+        return find_duplicates(obj)
 
     def get_variants(self, obj):
         """Названия товаров, на которые ссылаются строки (id и кандидаты); в списке не считаем — N+1."""

@@ -59,6 +59,7 @@ export async function action({ request, context }: Route.ActionArgs) {
 export function DocStatus({ doc }: { doc: Pick<InvoiceDoc, "processed" | "summary" | "extracted_data"> }) {
   const t = useT();
   if (doc.processed) return <Badge tone="success">{t("wh.doc.status.processed")}</Badge>;
+  if (doc.extracted_data?.reversals?.length) return <Badge tone="muted">{t("wh.doc.status.reversed")}</Badge>;
   if (doc.extracted_data?.error) return <Badge tone="danger">{t("wh.doc.status.error")}</Badge>;
   if ((doc.summary?.needs_review ?? 0) > 0) return <Badge tone="danger">{t("wh.doc.status.review", { n: doc.summary?.needs_review ?? 0 })}</Badge>;
   return <Badge>{t("wh.doc.status.ready")}</Badge>;

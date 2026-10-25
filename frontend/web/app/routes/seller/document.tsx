@@ -1,11 +1,11 @@
-import { Check, ChevronDown, Columns3, Download, FileDown, Loader2, PackagePlus, RefreshCw, Sparkles } from "lucide-react";
+import { Check, ChevronDown, Columns3, Download, FileDown, Loader2, PackagePlus, RefreshCw, Sparkles, Undo2 } from "lucide-react";
 import { useState } from "react";
 import { data, Form, useFetcher, useNavigation } from "react-router";
 
 import { usePolling } from "~/components/seller/imports";
 import { Table, TableWrap, Td, Th } from "~/components/seller/Table";
 import { VariantPicker } from "~/components/seller/VariantPicker";
-import { Alert, Badge, Button, buttonClass, Card, Field, PageTitle, Select } from "~/components/ui";
+import { Alert, Badge, Button, buttonClass, Card, Field, Input, PageTitle, Select } from "~/components/ui";
 import { langFromRequest, makeT, tFromMatches, type TFunction } from "~/i18n";
 import { Link, useLang, useLocalPath, useT } from "~/i18n/react";
 import { ApiError } from "~/lib/api.server";
@@ -66,9 +66,13 @@ export async function action({ request, params, context }: Route.ActionArgs) {
       const report = await api.post<ProcessingReport>(`${base}/process/`, {
         warehouse: Number(form.get("warehouse")) || undefined,
         accept_suggestions: form.get("accept_suggestions") === "1",
-        allow_duplicate_number: form.get("allow_duplicate_number") === "1",
+        allow_duplicate: form.get("allow_duplicate") === "1",
       });
       return { ok: true as const, intent, report };
+    }
+    if (intent === "reverse") {
+      await api.post(`${base}/reverse/`, { reason: String(form.get("reason") ?? "") });
+      return { ok: true as const, intent };
     }
   } catch (e) {
     if (!(e instanceof ApiError)) throw e;
@@ -148,6 +152,70 @@ function ParseCheck({ doc, busy }: { doc: InvoiceDoc; busy: boolean }) {
   );
 }
 
+/** Та же поставка уже загружена или проведена: с чем совпало и почему */
+function Duplicates({ doc }: { doc: InvoiceDoc }) {
+  const t = useT();
+  const lang = useLang();
+  if (doc.processed || doc.duplicates.length === 0) return null;
+  const blocking = doc.duplicates.some((d) => d.processed);
+  return (
+    <Alert tone={blocking ? "danger" : "info"}>
+      <p className="font-semibold">{t("wh.dup.title")}</p>
+      <ul className="mt-1 space-y-0.5">
+        {doc.duplicates.map((d) => (
+          <li key={d.id}>
+            <Link to={`/seller/documents/${d.id}`} className="font-semibold underline">
+              {t(d.processed ? "wh.dup.processed" : "wh.dup.draft", { id: d.id, date: formatDate(d.processed_at ?? d.uploaded_at, lang) })}
+            </Link>
+            {d.document_number && ` · №${d.document_number}`}
+            {d.supplier_name && ` · ${d.supplier_name}`}
+            {" — "}
+            {d.reasons.map((r) => t(`wh.dup.reason.${r}` as const, { same: d.same_lines, lines: d.lines })).join(", ")}
+          </li>
+        ))}
+      </ul>
+      {blocking && <p className="mt-2">{t("wh.dup.hint")}</p>}
+    </Alert>
+  );
+}
+
+/** Отмена проведения (сторно) и история отмен */
+function Reversal({ doc, busy, error }: { doc: InvoiceDoc; busy: boolean; error: string | null }) {
+  const t = useT();
+  const lang = useLang();
+  const reversals = doc.extracted_data?.reversals ?? [];
+  return (
+    <>
+      {reversals.map((r) => (
+        <Alert key={r.at}>
+          {t("wh.rev.done", { date: formatDate(r.at, lang), by: r.by || "—" })}
+          {r.reason && ` — ${r.reason}`}
+        </Alert>
+      ))}
+      {doc.processed && (
+        <details className="rounded-2xl border border-line bg-white p-4">
+          <summary className="cursor-pointer text-sm font-semibold text-danger">{t("wh.rev.title")}</summary>
+          <Form
+            method="post"
+            className="mt-3 space-y-3"
+            onSubmit={(e) => !confirm(t("wh.rev.confirm")) && e.preventDefault()}
+          >
+            <input type="hidden" name="intent" value="reverse" />
+            <p className="text-sm text-muted">{t("wh.rev.hint")}</p>
+            {error && <Alert tone="danger">{error}</Alert>}
+            <Field label={t("wh.rev.reason")}>
+              {(p) => <Input {...p} name="reason" maxLength={500} placeholder={t("wh.rev.reasonPlaceholder")} />}
+            </Field>
+            <Button type="submit" variant="secondary" loading={busy}>
+              <Undo2 className="size-4" aria-hidden /> {t("wh.rev.title")}
+            </Button>
+          </Form>
+        </details>
+      )}
+    </>
+  );
+}
+
 export default function Document({ loaderData, actionData }: Route.ComponentProps) {
   const { doc, suppliers } = loaderData;
   const me = useSellerMe();
@@ -200,6 +268,7 @@ export default function Document({ loaderData, actionData }: Route.ComponentProp
         <Alert tone="danger">{t("wh.doc.parseError", { error: doc.extracted_data.error })}</Alert>
       )}
       <ParseCheck doc={doc} busy={busy} />
+      <Duplicates doc={doc} />
       {!doc.processed && !doc.supplier && (
         <Alert tone="info">
           <Form method="post" className="flex flex-wrap items-center gap-3">
@@ -220,7 +289,9 @@ export default function Document({ loaderData, actionData }: Route.ComponentProp
         </Alert>
       )}
       {/* ошибка «Провести» показывается в панели проведения; если панели уже нет (документ проведён) — здесь */}
-      {failed && (failed.intent !== "process" || doc.processed) && <Alert tone="danger">{failed.error}</Alert>}
+      {failed && failed.intent !== "reverse" && (failed.intent !== "process" || doc.processed) && (
+        <Alert tone="danger">{failed.error}</Alert>
+      )}
 
       {lines.length > 0 && (
         <>
@@ -266,17 +337,35 @@ export default function Document({ loaderData, actionData }: Route.ComponentProp
           <Link to={`/seller/movements?document=${doc.id}`} className="font-semibold underline">
             {t("wh.nav.movements")}
           </Link>
-          {report.skipped.length > 0 && (
+          {(report.skipped.length > 0 ||
+            (report.already_received?.length ?? 0) > 0 ||
+            (report.scanner_extra?.length ?? 0) > 0 ||
+            report.duplicate_confirmed) && (
             <ul className="mt-2 list-disc pl-5">
               {report.skipped.map((s) => (
-                <li key={s.row}>
+                <li key={`s${s.row}`}>
                   {t("wh.doc.skippedRow", { row: s.row })}: {s.reason}
                 </li>
               ))}
+              {report.already_received?.map((a) => (
+                <li key={`a${a.row}`}>{t("wh.doc.alreadyReceived", { row: a.row, qty: formatQty(a.qty) })}</li>
+              ))}
+              {report.scanner_extra?.map((x) => (
+                <li key={`x${x.variant_id}`}>{t("wh.doc.scannerExtra", { name: x.name, qty: formatQty(x.qty) })}</li>
+              ))}
+              {report.duplicate_confirmed && (
+                <li>
+                  {t("wh.doc.duplicateConfirmed", {
+                    ids: report.duplicate_confirmed.documents.map((id) => `#${id}`).join(", "),
+                    by: report.duplicate_confirmed.by || "—",
+                  })}
+                </li>
+              )}
             </ul>
           )}
         </Alert>
       )}
+      <Reversal doc={doc} busy={busy} error={failed?.intent === "reverse" ? failed.error : null} />
 
       {!doc.processed && lines.length > 0 && (
         <Card className="sticky bottom-3 space-y-3 p-4 shadow-lg">
@@ -306,9 +395,9 @@ export default function Document({ loaderData, actionData }: Route.ComponentProp
                   {t("wh.doc.acceptSuggestions", { n: needsReview })}
                 </label>
               )}
-              {failed?.code === "duplicate_document" && (
-                <label className="flex items-center gap-2">
-                  <input type="checkbox" name="allow_duplicate_number" value="1" className="size-4 accent-brand-600" />
+              {(failed?.code === "duplicate_document" || doc.duplicates.some((d) => d.processed)) && (
+                <label className="flex items-center gap-2 font-medium text-danger">
+                  <input type="checkbox" name="allow_duplicate" value="1" className="size-4 accent-brand-600" />
                   {t("wh.doc.allowDuplicate")}
                 </label>
               )}

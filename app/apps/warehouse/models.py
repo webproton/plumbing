@@ -78,6 +78,7 @@ class StockMovement(models.Model):
     ADJUSTMENT_OUT = "adjustment_out"
     TRANSFER_OUT = "transfer_out"
     TRANSFER_IN = "transfer_in"
+    IN_REVERSAL = "in_reversal"  # отмена ошибочного прихода (дубль накладной): товар физически не двигался
 
     TYPE_CHOICES = [
         (IN, "Приход (поставка)"),
@@ -88,9 +89,10 @@ class StockMovement(models.Model):
         (ADJUSTMENT_OUT, "Инвентаризация: недостача"),
         (TRANSFER_OUT, "Перемещение (убытие)"),
         (TRANSFER_IN, "Перемещение (прибытие)"),
+        (IN_REVERSAL, "Сторно прихода"),
     ]
     INCOMING_TYPES = (IN, RETURN_IN, ADJUSTMENT, TRANSFER_IN)
-    OUTGOING_TYPES = (OUT, RETURN_OUT, ADJUSTMENT_OUT, TRANSFER_OUT)
+    OUTGOING_TYPES = (OUT, RETURN_OUT, ADJUSTMENT_OUT, TRANSFER_OUT, IN_REVERSAL)
 
     inventory_document = models.ForeignKey(
         "InventoryDocument",
@@ -190,6 +192,11 @@ class InventoryDocument(models.Model):
     extracted_data = models.JSONField(blank=True, null=True, verbose_name="Распознанные данные и строки приёмки")
     processed = models.BooleanField(default=False, verbose_name="Проведён")
     processed_at = models.DateTimeField(null=True, blank=True, verbose_name="Дата проведения")
+    # Защита от повторного проведения той же накладной (пересохранённый файл, фото вместо Excel,
+    # другой поставщик): ключи заполняет разбор, сравнивает warehouse/duplicates.py
+    number_key = models.CharField(max_length=100, blank=True, default="", db_index=True)
+    fingerprint = models.CharField(max_length=64, blank=True, default="", db_index=True)
+    lines_total = models.DecimalField(max_digits=14, decimal_places=2, null=True, blank=True)
     # Колонки, указанные оператором для ЭТОЙ накладной: {"header_row": i | null, "columns": {"name": i, ...}}
     column_map = models.JSONField(blank=True, null=True, verbose_name="Колонки, заданные вручную")
     # Разбор через ИИ (запасной вариант): результат хранится отдельно, при разборе сравнивается с остальными

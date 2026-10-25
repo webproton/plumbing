@@ -11,8 +11,11 @@
 2. set_line_variant — оператор подтверждает/исправляет сопоставление строки (или «создать новый»).
 3. process_inventory_document — приход всех строк на склад (через stock.receive) одной транзакцией.
    Пока есть строки needs_review, проведение запрещено (если явно не accept_suggestions=True).
+   Похожая уже проведённая накладная (duplicates.py) — тоже, пока оператор не подтвердит.
+   Уже принятое сканером по этому документу не приходуется второй раз.
    Подтверждённые сопоставления запоминаются (VariantMatchMemory) — следующая накладная того же
    поставщика сопоставится автоматически.
+4. reverse_inventory_document — отмена проведения (сторно): встречные движения, документ снова черновик.
 """
 
 import hashlib
@@ -21,17 +24,19 @@ from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 
 from django.conf import settings
 from django.db import transaction
-from django.db.models import F, Q
+from django.db.models import F, Max, Q, Sum
 from django.utils import timezone
 from django.utils.translation import gettext as _
 from rapidfuzz import fuzz, process
 
 from app.apps.products.models import Product, ProductVariant
-from app.apps.warehouse import stock
+from app.apps.sellers.models import Seller
+from app.apps.warehouse import duplicates, stock
 from app.apps.warehouse.models import (
     InventoryDocument,
     InvoiceColumnProfile,
     ProductBarcode,
+    StockMovement,
     Supplier,
     VariantMatchMemory,
     Warehouse,
@@ -215,7 +220,11 @@ def parse_document(document: InventoryDocument) -> dict:
         s: sum(1 for ln in parsed["lines"] if ln["status"] == s) for s in (MATCHED, NEEDS_REVIEW, NEW, INVALID)
     }
     document.extracted_data = parsed
-    document.save(update_fields=["extracted_data", "document_number", "supplier"])
+    for field, value in duplicates.document_keys(document).items():
+        setattr(document, field, value)
+    document.save(
+        update_fields=["extracted_data", "document_number", "supplier", "number_key", "fingerprint", "lines_total"]
+    )
     return parsed
 
 
@@ -369,16 +378,50 @@ def _learn(supplier, line, variant_id):
         )
 
 
+def _lock_seller_and_document(document) -> InventoryDocument:
+    """
+    Накладные одного продавца проводятся и отменяются по очереди: две копии одной поставки,
+    проводимые одновременно, иначе обе прошли бы проверку дублей. Порядок блокировок:
+    продавец → документ → товары → остатки (как в stock.py).
+    """
+    Seller.objects.select_for_update().filter(pk=document.seller_id).first()
+    return InventoryDocument.objects.select_for_update().get(pk=document.pk)
+
+
+def _received_by_document(document) -> dict[int, Decimal]:
+    """Сколько товара уже оприходовано по документу (сканером при приёмке) за вычетом сторно."""
+    rows = (
+        StockMovement.objects.filter(inventory_document=document)
+        .values("variant_id")
+        .annotate(
+            got=Sum("quantity", filter=Q(movement_type=StockMovement.IN)),
+            back=Sum("quantity", filter=Q(movement_type=StockMovement.IN_REVERSAL)),
+        )
+    )
+    net = {r["variant_id"]: (r["got"] or Decimal("0")) - (r["back"] or Decimal("0")) for r in rows}
+    return {vid: qty for vid, qty in net.items() if qty > 0}
+
+
+def _variant_names(ids) -> dict[int, str]:
+    return {
+        v.pk: v.variant_name or (v.product.name if v.product_id else "") or f"#{v.pk}"
+        for v in ProductVariant.objects.filter(pk__in=ids).select_related("product")
+    }
+
+
 @transaction.atomic
 def process_inventory_document(
     document: InventoryDocument,
     warehouse: Warehouse,
     created_by,
     accept_suggestions=False,
-    allow_duplicate_number=False,
+    allow_duplicate=False,
 ) -> dict:
-    """Проводит документ. Возвращает отчёт {"received": n, "created": n, "skipped": [...]}."""
-    document = InventoryDocument.objects.select_for_update().get(pk=document.pk)
+    """
+    Проводит документ. Возвращает отчёт {"received": n, "created": n, "skipped": [...],
+    "already_received": [...], "scanner_extra": [...], "duplicate_confirmed": {...}?}.
+    """
+    document = _lock_seller_and_document(document)
     if document.processed:
         raise stock.StockError(_("Документ уже проведён"))
     if warehouse.seller_id != document.seller_id:
@@ -397,26 +440,22 @@ def process_inventory_document(
             positions=review,
         )
 
-    if document.document_number and not allow_duplicate_number:
-        dup = (
-            InventoryDocument.objects.filter(
-                seller_id=document.seller_id,
-                supplier_id=document.supplier_id,
-                document_number=document.document_number,
-                processed=True,
-            )
-            .exclude(pk=document.pk)
-            .first()
+    report = {"received": 0, "created": 0, "skipped": [], "already_received": [], "scanner_extra": []}
+    processed_twins = [d for d in duplicates.find_duplicates(document) if d["processed"]]
+    if processed_twins and not allow_duplicate:
+        raise DuplicateDocumentError(
+            _("Похоже, эта накладная уже проведена (документ #{pk}). Если это другая поставка — подтвердите").format(
+                pk=processed_twins[0]["id"]
+            ),
+            document_id=processed_twins[0]["id"],
         )
-        if dup:
-            raise DuplicateDocumentError(
-                _("Накладная №{document_number} этого поставщика уже проведена (документ #{pk})").format(
-                    document_number=document.document_number, pk=dup.pk
-                ),
-                document_id=dup.pk,
-            )
+    if processed_twins:
+        report["duplicate_confirmed"] = {
+            "by": getattr(created_by, "email", "") or "",
+            "documents": [d["id"] for d in processed_twins],
+        }
 
-    report = {"received": 0, "created": 0, "skipped": []}
+    received = _received_by_document(document)  # принятое сканером не приходуем второй раз
     created = {}  # одинаковые новые позиции в одной накладной → один товар
     for line in lines:
         if line["status"] == INVALID:
@@ -439,10 +478,18 @@ def process_inventory_document(
             ProductBarcode.objects.get_or_create(code=line["barcode"], defaults={"variant": variant})
         _learn(document.supplier, line, variant.pk)
 
+        qty = Decimal(line["qty"])
+        already = min(received.get(variant.pk, Decimal("0")), qty)
+        if already:
+            received[variant.pk] -= already
+            report["already_received"].append({"row": line["position"], "qty": str(already)})
+        line["status"] = MATCHED
+        if qty - already <= 0:
+            continue
         stock.receive(
             variant,
             warehouse,
-            line["qty"],
+            qty - already,
             user=created_by,
             supplier=document.supplier,
             inventory_document=document,
@@ -450,8 +497,13 @@ def process_inventory_document(
             price_per_unit=Decimal(line["price"]),
             comment=f"Накладная, строка {line['position']} ({line['method'] or 'новый товар'})",
         )
-        line["status"] = MATCHED
         report["received"] += 1
+
+    # отсканировано больше, чем есть в накладной (или товар, которого в ней нет) — показать оператору
+    names = _variant_names([vid for vid, qty in received.items() if qty > 0])
+    report["scanner_extra"] = [
+        {"variant_id": vid, "name": names.get(vid, ""), "qty": str(qty)} for vid, qty in received.items() if qty > 0
+    ]
 
     data["processing_report"] = report
     document.extracted_data = data
@@ -459,6 +511,79 @@ def process_inventory_document(
     document.processed_at = timezone.now()
     document.save(update_fields=["extracted_data", "processed", "processed_at"])
     return report
+
+
+def _qty_text(value) -> str:
+    return f"{Decimal(value).quantize(Decimal('0.001')):f}".rstrip("0").rstrip(".")
+
+
+@transaction.atomic
+def reverse_inventory_document(document: InventoryDocument, *, user, reason="") -> dict:
+    """
+    Отмена проведения (сторно): встречное движение «Сторно прихода» на всё, что документ оприходовал
+    (строками и сканером). Журнал не правится — видны и приход, и отмена. Проданный или зарезервированный
+    товар отменить нельзя. После отмены документ снова черновик: его можно исправить и провести.
+    """
+    document = _lock_seller_and_document(document)
+    if not document.processed:
+        raise stock.StockError(_("Документ не проведён"))
+    rows = (
+        StockMovement.objects.filter(inventory_document=document)
+        .values("variant_id", "warehouse_id")
+        .annotate(
+            got=Sum("quantity", filter=Q(movement_type=StockMovement.IN)),
+            back=Sum("quantity", filter=Q(movement_type=StockMovement.IN_REVERSAL)),
+            price=Max("price_per_unit", filter=Q(movement_type=StockMovement.IN)),
+        )
+    )
+    warehouses = Warehouse.objects.in_bulk({r["warehouse_id"] for r in rows})
+    lines = [
+        (r["variant_id"], warehouses[r["warehouse_id"]], net, r["price"])
+        for r in rows
+        if (net := (r["got"] or Decimal("0")) - (r["back"] or Decimal("0"))) > 0
+    ]
+    if not lines:
+        raise stock.StockError(_("По документу нет оприходованного товара"))
+
+    reason = str(reason or "").strip()[:500]
+    try:
+        stock.reverse_receipts(
+            lines,
+            user=user,
+            supplier=document.supplier,
+            inventory_document=document,
+            document_number=document.document_number,
+            comment=_("Сторно накладной #{pk}").format(pk=document.pk) + (f": {reason}" if reason else ""),
+        )
+    except stock.InsufficientStockError as exc:
+        shortages = exc.context.get("shortages") or []
+        names = _variant_names([s["variant_id"] for s in shortages])
+        details = "; ".join(
+            _("«{name}»: нужно {required}, свободно {available}").format(
+                name=names.get(s["variant_id"], ""),
+                required=_qty_text(s["required"]),
+                available=_qty_text(s["available"]),
+            )
+            for s in shortages
+        )
+        raise stock.InsufficientStockError(
+            _("Отменить проведение нельзя: часть товара уже продана или в резерве — {details}").format(details=details)
+        ) from None
+
+    data = document.extracted_data or {}
+    reversal = {
+        "at": timezone.now().isoformat(),
+        "by": getattr(user, "email", "") or "",
+        "reason": reason,
+        "positions": len(lines),
+        "report": data.pop("processing_report", None),
+    }
+    data.setdefault("reversals", []).append(reversal)
+    document.extracted_data = data
+    document.processed = False
+    document.processed_at = None
+    document.save(update_fields=["extracted_data", "processed", "processed_at"])
+    return reversal
 
 
 def suggest_variants(query, limit=10):
