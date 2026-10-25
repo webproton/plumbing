@@ -10,7 +10,6 @@ import type { Route } from "./+types/reset-password";
 
 export const meta: Route.MetaFunction = ({ matches }) => [
   { title: tFromMatches(matches)("auth.reset.title") },
-  { name: "robots", content: "noindex" },
 ];
 
 export async function action({ request, context }: Route.ActionArgs) {

@@ -15,7 +15,7 @@ import type { Route } from "./+types/cart";
 
 export const meta: Route.MetaFunction = ({ matches }) => {
   const lang = (matches[0]?.loaderData as { lang?: "uk" | "ru" } | undefined)?.lang ?? "uk";
-  return [{ title: makeT(lang)("cart.title") }, { name: "robots", content: "noindex" }];
+  return [{ title: makeT(lang)("cart.title") }];
 };
 
 export async function loader({ context }: Route.LoaderArgs) {

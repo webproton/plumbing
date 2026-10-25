@@ -15,7 +15,6 @@ import type { Route } from "./+types/login";
 
 export const meta: Route.MetaFunction = ({ matches }) => [
   { title: tFromMatches(matches)("auth.login.title") },
-  { name: "robots", content: "noindex" },
 ];
 
 export function loader({ request, context }: Route.LoaderArgs) {

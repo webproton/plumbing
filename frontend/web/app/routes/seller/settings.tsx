@@ -39,6 +39,10 @@ interface ShopSettings {
   telegram_autopost: boolean;
   telegram_bot_configured: boolean;
   notify_customers: boolean;
+  google_site_verification: string;
+  pickup_address: string;
+  opening_hours: string;
+  google_business_url: string;
   feed_urls: Record<string, string>;
 }
 
@@ -56,6 +60,7 @@ const TEXT_FIELDS = [
   "phone", "email", "telegram", "whatsapp", "legal_name", "tax_id", "iban", "bank_name", "legal_address",
   "invoice_note", "np_sender_city_ref", "np_sender_city_name", "np_sender_warehouse_ref", "np_sender_warehouse_name",
   "np_sender_phone", "ga4_id", "gtm_id", "meta_pixel_id", "tiktok_pixel_id", "telegram_channel",
+  "google_site_verification", "pickup_address", "opening_hours", "google_business_url",
 ] as const; // prettier-ignore
 
 export async function action({ request, context }: Route.ActionArgs) {
@@ -215,6 +220,16 @@ export default function Settings({ loaderData, actionData }: Route.ComponentProp
               {t("mkt.regenerate")}
             </label>
           )}
+        </Card>
+        <Card className="space-y-4 p-5">
+          <h2 className="font-semibold">{t("set.seo")}</h2>
+          <p className="text-muted text-sm">{t("set.seoHint")}</p>
+          <div className="grid gap-4 sm:grid-cols-2">
+            {text("pickup_address", t("set.pickupAddress"), t("set.pickupAddressHint"))}
+            {text("opening_hours", t("set.openingHours"), t("set.openingHoursHint"))}
+            {text("google_business_url", t("set.googleBusiness"), "https://maps.app.goo.gl/…")}
+            {text("google_site_verification", t("set.searchConsole"), t("set.searchConsoleHint"))}
+          </div>
         </Card>
         <Card className="space-y-4 p-5">
           <h2 className="font-semibold">{t("mkt.pixels")}</h2>

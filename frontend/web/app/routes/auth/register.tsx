@@ -15,7 +15,6 @@ import type { Route } from "./+types/register";
 
 export const meta: Route.MetaFunction = ({ matches }) => [
   { title: tFromMatches(matches)("auth.register.title") },
-  { name: "robots", content: "noindex" },
 ];
 
 export function loader({ request, context }: Route.LoaderArgs) {

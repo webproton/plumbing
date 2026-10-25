@@ -172,6 +172,10 @@ export interface SiteSettings {
   gtm_id?: string;
   meta_pixel_id?: string;
   tiktok_pixel_id?: string;
+  google_site_verification?: string;
+  pickup_address?: string;
+  opening_hours?: string;
+  google_business_url?: string;
 }
 
 /** Ошибки валидации DRF: {field: ["msg"]} или {detail: "msg"} */

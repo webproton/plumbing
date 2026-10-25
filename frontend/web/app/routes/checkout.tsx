@@ -19,7 +19,7 @@ import type { Route } from "./+types/checkout";
 
 export const meta: Route.MetaFunction = ({ matches }) => {
   const lang = (matches[0]?.loaderData as { lang?: "uk" | "ru" } | undefined)?.lang ?? "uk";
-  return [{ title: makeT(lang)("checkout.title") }, { name: "robots", content: "noindex" }];
+  return [{ title: makeT(lang)("checkout.title") }];
 };
 
 export async function loader({ request, context }: Route.LoaderArgs) {

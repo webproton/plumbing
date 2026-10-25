@@ -96,6 +96,8 @@ services:
       PUBLIC_URL: ${PUBLIC_URL:-http://localhost}
       # true — только для запуска без HTTPS (cookie без флага Secure)
       INSECURE_COOKIES: ${INSECURE_COOKIES:-false}
+      # true — тестовый сервер: robots.txt «Disallow: /», noindex на всех страницах, пустой sitemap
+      SEO_NOINDEX: ${SEO_NOINDEX:-false}
     depends_on:
       app:
         condition: service_healthy

@@ -16,5 +16,7 @@ export const config = {
   sessionSecret: required("SESSION_SECRET", "dev-only-secret"),
   siteName: process.env.SITE_NAME ?? "LUXORA",
   publicUrl: (process.env.PUBLIC_URL ?? "http://localhost:3000").replace(/\/$/, ""),
+  /** тестовый/промежуточный сервер: закрыть весь сайт от поисковиков */
+  noindex: process.env.SEO_NOINDEX === "true",
   secureCookies: isProd && process.env.INSECURE_COOKIES !== "true",
 };

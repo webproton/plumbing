@@ -195,6 +195,16 @@ export const cabinetRu: CabinetDict = {
   "set.npKeyOn": "Ключ API Новой Почты подключён — ТТН можно создавать из карточки заказа.",
   "set.npKeyOff":
     "Ключ API Новой Почты не подключён: поиск отделений и отслеживание работают, ТТН создавайте в приложении НП и вставляйте номер.",
+  "set.seo": "Поиск и Google",
+  "set.seoHint":
+    "Название, адрес и телефон на сайте должны совпадать с профилем Google Business буква в букву — так Google связывает сайт с магазином на Картах.",
+  "set.pickupAddress": "Адрес самовывоза / магазина",
+  "set.pickupAddressHint": "Как в профиле Google Business. Пусто — интернет-магазин без адреса",
+  "set.openingHours": "Часы работы",
+  "set.openingHoursHint": "Например: Пн–Пт 9:00–18:00, Сб 10:00–15:00",
+  "set.googleBusiness": "Профиль Google Business (ссылка)",
+  "set.searchConsole": "Код подтверждения Google Search Console",
+  "set.searchConsoleHint": "Search Console → «HTML-тег»: вставьте весь тег или только код",
   "set.mail": "Письма покупателям",
   "set.mailHint":
     "Письмо о каждом изменении заказа: принят, отправлен с ТТН, посылка в отделении, оплата получена, отменён. Нужна настроенная почта сервера (EMAIL_*).",
