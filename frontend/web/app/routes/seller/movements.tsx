@@ -24,8 +24,9 @@ const TYPES: MovementType[] = [
   "transfer_out",
   "adjustment",
   "adjustment_out",
+  "in_reversal",
 ];
-const OUTGOING = new Set<MovementType>(["out", "return_out", "transfer_out", "adjustment_out"]);
+const OUTGOING = new Set<MovementType>(["out", "return_out", "transfer_out", "adjustment_out", "in_reversal"]);
 
 export function MovementBadge({ type }: { type: MovementType }) {
   const t = useT();

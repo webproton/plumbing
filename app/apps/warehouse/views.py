@@ -46,6 +46,7 @@ from .services import (
     process_inventory_document,
     request_ai_parse,
     reset_document_columns,
+    reverse_inventory_document,
     set_document_columns,
     set_line_variant,
     suggest_variants,
@@ -569,7 +570,7 @@ class InventoryDocumentViewSet(viewsets.ModelViewSet):
         """
         Провести документ. Параметры: warehouse (по умолчанию — основной склад),
         accept_suggestions (принять похожие совпадения без проверки),
-        allow_duplicate_number (провести, даже если накладная с таким номером уже проведена).
+        allow_duplicate (провести, хотя похожая накладная уже проведена; прежнее имя — allow_duplicate_number).
         """
         document = self.get_object()
         warehouse_id = request.data.get("warehouse")
@@ -584,9 +585,18 @@ class InventoryDocumentViewSet(viewsets.ModelViewSet):
             warehouse=warehouse,
             created_by=request.user,
             accept_suggestions=_flag(request.data.get("accept_suggestions")),
-            allow_duplicate_number=_flag(request.data.get("allow_duplicate_number")),
+            allow_duplicate=_flag(request.data.get("allow_duplicate"))
+            or _flag(request.data.get("allow_duplicate_number")),
         )
         return Response({"status": "document processed", **report})
+
+    @action(detail=True, methods=["post"])
+    def reverse(self, request, pk=None):
+        """Отменить проведение (сторно) — {"reason": "..."}; документ снова можно исправить и провести."""
+        document = self.get_object()
+        reverse_inventory_document(document, user=request.user, reason=request.data.get("reason") or "")
+        document.refresh_from_db()
+        return Response(self.get_serializer(document).data)
 
     @action(detail=True, methods=["post"])
     def scan(self, request, pk=None):

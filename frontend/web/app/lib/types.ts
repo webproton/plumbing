@@ -210,7 +210,8 @@ export type MovementType =
   | "adjustment"
   | "adjustment_out"
   | "transfer_in"
-  | "transfer_out";
+  | "transfer_out"
+  | "in_reversal";
 
 export interface MovementRow {
   id: number;
@@ -274,6 +275,31 @@ export interface ProcessingReport {
   received: number;
   created: number;
   skipped: { row: number; reason: string }[];
+  /** уже принято сканером по этому документу — не приходовалось второй раз */
+  already_received?: { row: number; qty: string }[];
+  /** отсканировано, но нет в накладной (или больше, чем в ней) */
+  scanner_extra?: { variant_id: number; name: string; qty: string }[];
+  duplicate_confirmed?: { by: string; documents: number[] };
+}
+
+export type DuplicateReason = "number" | "content" | "similar";
+export interface InvoiceDuplicate {
+  id: number;
+  document_number: string | null;
+  supplier_name: string | null;
+  uploaded_at: string;
+  processed: boolean;
+  processed_at: string | null;
+  reasons: DuplicateReason[];
+  same_lines: number;
+  lines: number;
+}
+
+export interface InvoiceReversal {
+  at: string;
+  by: string;
+  reason: string;
+  positions: number;
 }
 
 export interface InvoiceLine {
@@ -339,9 +365,12 @@ export interface InvoiceDoc {
     engine?: ParseEngine;
     quality?: ParseQuality;
     columns?: ColumnMap | null;
+    reversals?: InvoiceReversal[];
   } | null;
   column_map: ColumnMap | null;
   ai: { enabled: boolean; status: "" | "queued" | "running" | "done" | "failed"; error: string; has_result: boolean };
+  /** похожие накладные (та же поставка?) — только у непроведённого документа */
+  duplicates: InvoiceDuplicate[];
 }
 
 export interface ScanCard {

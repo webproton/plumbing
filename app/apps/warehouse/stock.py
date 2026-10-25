@@ -205,6 +205,49 @@ def return_to_supplier(variant, warehouse, supplier, quantity, user=None, commen
     )
 
 
+@transaction.atomic
+def reverse_receipts(lines, *, user=None, **fields) -> list[StockMovement]:
+    """
+    Сторно приходов — отмена ошибочно проведённой накладной (дубль, не тот склад, не те количества).
+    lines: [(variant_id, warehouse, qty, price_per_unit)]. Всё или ничего: проданный и зарезервированный
+    под заказы товар не трогается; если чего-то не хватает — InsufficientStockError со списком shortages.
+    """
+    grouped = {}
+    for variant_id, warehouse, qty, price in lines:
+        key = (variant_id, warehouse.pk)
+        prev = grouped.get(key)
+        grouped[key] = (warehouse, (prev[1] if prev else ZERO) + to_quantity(qty), price)
+
+    movements, shortages = [], []
+    for variant_id in sorted({key[0] for key in grouped}):
+        locked = _lock_variant(variant_id)
+        items = [(wh_id, *grouped[(variant_id, wh_id)]) for vid, wh_id in sorted(grouped) if vid == variant_id]
+        balances = {wh_id: _lock_balance(variant_id, wh_id).quantity for wh_id, *_ in items}
+        need = sum(qty for _, _, qty, _ in items)
+        on_hand = sum(min(balances[wh_id], qty) for wh_id, _, qty, _ in items)  # есть на тех же складах
+        available = max(min(locked.stock - locked.reserved, on_hand), ZERO)  # и не в резерве
+        if available < need:
+            shortages.append({"variant_id": variant_id, "required": need, "available": available})
+            continue
+        for _wh_id, warehouse, qty, price in items:
+            movements.append(
+                _write_off_locked(
+                    locked,
+                    warehouse,
+                    qty,
+                    movement_type=StockMovement.IN_REVERSAL,
+                    user=user,
+                    price_per_unit=price,
+                    **fields,
+                )
+            )
+    if shortages:
+        raise InsufficientStockError(
+            _("Часть товара уже продана или зарезервирована — отменить приход нельзя"), shortages=shortages
+        )
+    return movements
+
+
 # ---------------------------------------------------------------------------
 # Перемещение и инвентаризация
 # ---------------------------------------------------------------------------

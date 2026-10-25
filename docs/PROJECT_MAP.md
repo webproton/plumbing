@@ -90,8 +90,9 @@ API: `/api/orders/cart/` (+`by-uuid/`), `/api/orders/order-create/`, `/api/order
 | Файл | Что внутри |
 |---|---|
 | `models.py` | `Warehouse`, `Supplier` (+`code` для автоопределения), `StockMovement` (неизменяемый журнал), `StockBalance` (остаток по складу), `InventoryDocument` (накладная, приватный файл, SHA-256, ручные колонки `column_map`, ИИ-разбор `ai_status/ai_result`), `InvoiceColumnProfile` (запомненные раскладки колонок поставщика), `ProductBarcode`, `VariantMatchMemory`, `CurrencyRate` |
-| `stock.py` | **Единственное место изменения остатков**: `receive`, `write_off`, `return_to_supplier`, `transfer`, `adjust`, `reserve`, `release`, `write_off_reserved`, `rebuild_from_journal`, `get_balance`, `journal_balance` |
-| `services.py` | Приёмка накладной: `parse_document` (через `parsers.pipeline`) → `set_line_variant` → `process_inventory_document`; `set_document_columns` / `reset_document_columns` (ручные колонки, профили), `request_ai_parse`; `VariantMatcher` (память → штрихкод → артикул → fuzzy; устойчив к «двойникам» букв); `suggest_variants` |
+| `stock.py` | **Единственное место изменения остатков**: `receive`, `write_off`, `return_to_supplier`, `transfer`, `adjust`, `reserve`, `release`, `write_off_reserved`, `rebuild_from_journal`, `reverse_receipts` (сторно), `get_balance`, `journal_balance` |
+| `duplicates.py` | Поиск дублей накладной: `number_key`, `line_keys`/`fingerprint`/`lines_total`, `find_duplicates` (номер / строки / похожие) |
+| `services.py` | Приёмка накладной: `parse_document` (через `parsers.pipeline`) → `set_line_variant` → `process_inventory_document` (дубли, вычет принятого сканером) → `reverse_inventory_document` (сторно); `set_document_columns` / `reset_document_columns` (ручные колонки, профили), `request_ai_parse`; `VariantMatcher` (память → штрихкод → артикул → fuzzy; устойчив к «двойникам» букв); `suggest_variants` |
 | `inventory/barcode_scanner.py` | `find_variant_by_code`, `scan_barcode` (пик = +1 шт. по документу) |
 | `pdf.py` | PDF накладной в памяти |
 | `labels.py` | PDF этикеток (58×40 / A4 3×8), EAN-13 или Code128 |
