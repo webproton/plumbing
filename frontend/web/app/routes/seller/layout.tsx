@@ -25,7 +25,6 @@ import type { Route } from "./+types/layout";
 
 export const meta: Route.MetaFunction = ({ matches }) => [
   { title: tFromMatches(matches)("wh.title") },
-  { name: "robots", content: "noindex" },
 ];
 
 const sellerContext = createContext<WarehouseMe>();

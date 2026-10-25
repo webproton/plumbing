@@ -3,20 +3,33 @@ import { ArrowRight, ShieldCheck, Truck, Wrench } from "lucide-react";
 import { CallbackForm } from "~/components/CallbackForm";
 import { ProductCard } from "~/components/ProductCard";
 import { ButtonLink } from "~/components/ui";
-import { makeT, type Lang } from "~/i18n";
+import { makeT } from "~/i18n";
 import { Link, useT } from "~/i18n/react";
 import { apiContext } from "~/lib/context.server";
+import { shopJsonLd } from "~/lib/seo";
 import type { ProductListItem } from "~/lib/types";
-import { useRootData } from "~/root";
+import { useRootData, type RootData } from "~/root";
 
 import type { Route } from "./+types/home";
 
 export function meta({ matches }: Route.MetaArgs) {
-  const root = matches[0]?.loaderData as { siteName?: string; lang?: Lang } | undefined;
+  const root = matches[0]?.loaderData as RootData | undefined;
   const t = makeT(root?.lang ?? "uk");
+  const title = t("home.title", { site: root?.siteName ?? "" });
+  const description = t("site.description");
   return [
-    { title: t("home.title", { site: root?.siteName ?? "" }) },
-    { name: "description", content: t("site.description") },
+    { title },
+    { name: "description", content: description },
+    { property: "og:title", content: title },
+    { property: "og:description", content: description },
+    { property: "og:type", content: "website" },
+    {
+      "script:ld+json": shopJsonLd({
+        origin: root?.publicUrl ?? "",
+        name: root?.siteName ?? "",
+        settings: root?.settings ?? null,
+      }),
+    },
   ];
 }
 

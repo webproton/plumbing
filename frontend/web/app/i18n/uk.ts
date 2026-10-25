@@ -6,7 +6,7 @@ import { sellerUk } from "./seller.uk";
 const base = {
   // загальне
   "site.tagline": "Сантехніка та меблі з доставкою по Україні",
-  "site.description": "Змішувачі, труби, сантехніка та меблі. Наявність на складі, доставка Новою Поштою.",
+  "site.description": "Сантехніка, опалення, генератори та меблі: змішувачі, труби, котли, бойлери. Наявність на складі, доставка Новою Поштою по Україні.",
   "common.currencyFrom": "від ",
   "common.notAvailable": "—",
   "common.toCatalog": "Перейти до каталогу",
@@ -47,7 +47,7 @@ const base = {
   "footer.contact": "Зв'язатися з нами",
 
   // головна
-  "home.title": "{site} — сантехніка та меблі з доставкою по Україні",
+  "home.title": "{site} — сантехніка, опалення, генератори та меблі з доставкою по Україні",
   "home.hero.title": "Усе для ванної, кухні та дому",
   "home.hero.text": "Реальні залишки на складі, чесні ціни та доставка по всій Україні.",
   "home.hero.callback": "Не знайшли потрібне? Залиште телефон — підберемо за вас.",
@@ -254,6 +254,10 @@ const base = {
   "page.contacts.title": "Контакти",
   "page.contacts.hours": "Пн–Пт 9:00–18:00",
   "page.contacts.unavailable": "Контакти тимчасово недоступні.",
+  "page.contacts.address": "Самовивіз",
+  "page.contacts.map": "Ми на Google Картах",
+  "seo.home": "Головна",
+  "seo.page": "сторінка {n}",
 } as const;
 
 export const uk = { ...base, ...sellerUk, ...importUk, ...cabinetUk } as const;

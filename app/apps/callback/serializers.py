@@ -9,8 +9,11 @@ from .models import SiteSettings
 class SiteSettingsSerializer(serializers.ModelSerializer):
     class Meta:
         model = SiteSettings
-        # ID пикселей — публичные (видны в коде любой страницы), нужны витрине для подключения аналитики
-        fields = ("phone", "email", "telegram", "whatsapp", "ga4_id", "gtm_id", "meta_pixel_id", "tiktok_pixel_id")
+        # ID пикселей и код Google — публичные (видны в коде любой страницы), нужны витрине
+        fields = (
+            "phone", "email", "telegram", "whatsapp", "ga4_id", "gtm_id", "meta_pixel_id", "tiktok_pixel_id",
+            "google_site_verification", "pickup_address", "opening_hours", "google_business_url",
+        )  # fmt: skip
         read_only_fields = fields
 
 
@@ -38,6 +41,16 @@ def _id_validator(field):
     return validate
 
 
+STRICT_FORMAT_FIELDS = (
+    "ga4_id",
+    "gtm_id",
+    "meta_pixel_id",
+    "tiktok_pixel_id",
+    "telegram_channel",
+    "google_site_verification",
+)
+
+
 class ShopSettingsSerializer(serializers.ModelSerializer):
     """Настройки магазина для кабинета администратора: контакты, реквизиты для счёта, отправитель НП."""
 
@@ -50,14 +63,12 @@ class ShopSettingsSerializer(serializers.ModelSerializer):
             "np_sender_phone",
             "ga4_id", "gtm_id", "meta_pixel_id", "tiktok_pixel_id", "feeds_enabled", "telegram_channel",
             "telegram_autopost", "notify_customers",
+            "google_site_verification", "pickup_address", "opening_hours", "google_business_url",
         ]  # fmt: skip
         # длину проверяет строгий формат ID — так видны все ошибки сразу
         extra_kwargs = {
             "phone": {"required": False},
-            **{
-                f: {"max_length": None}
-                for f in ("ga4_id", "gtm_id", "meta_pixel_id", "tiktok_pixel_id", "telegram_channel")
-            },
+            **{f: {"max_length": None} for f in STRICT_FORMAT_FIELDS},
         }
 
     def validate_iban(self, value):
@@ -77,6 +88,7 @@ class ShopSettingsSerializer(serializers.ModelSerializer):
     validate_meta_pixel_id = _id_validator("meta_pixel_id")
     validate_tiktok_pixel_id = _id_validator("tiktok_pixel_id")
     validate_telegram_channel = _id_validator("telegram_channel")
+    validate_google_site_verification = _id_validator("google_site_verification")
 
     def validate_np_sender_phone(self, value):
         return validate_phone_number(value) if value else value

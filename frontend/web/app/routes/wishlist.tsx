@@ -15,7 +15,6 @@ import type { Route } from "./+types/wishlist";
 
 export const meta: Route.MetaFunction = ({ matches }) => [
   { title: tFromMatches(matches)("wishlist.title") },
-  { name: "robots", content: "noindex" },
 ];
 
 export async function loader({ request, context }: Route.LoaderArgs) {

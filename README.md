@@ -26,8 +26,10 @@ A small retailer buys from many suppliers and sells online. Before this project,
 ## What it does
 
 **Storefront** (Ukrainian by default, Russian at `/ru`)
-- Catalog with search by name/SKU, category and price filters, sorting; product variants; JSON-LD, canonical and
-  `hreflang` tags for SEO; forms keep working without JavaScript.
+- Catalog with search by name/SKU, category and price filters, sorting; product variants; forms keep working
+  without JavaScript.
+- SEO: server-rendered pages, `sitemap.xml` and `robots.txt`, canonical URLs without sort/filter parameters,
+  `hreflang` for Ukrainian/Russian, schema.org markup (Product, BreadcrumbList, Store) and Open Graph previews.
 - Guest cart merged into the account on login; idempotent checkout; Nova Poshta city/branch picker with delivery
   cost and date estimate.
 - Account: order history, shipment tracking, invoice PDF; e-mail confirmation, password reset, wishlist.
@@ -161,8 +163,8 @@ All configuration is done through environment variables — see `.env.example`.
 ## Tests
 
 ```bash
-pytest                                   # backend: 231 tests (needs PostgreSQL)
-cd frontend/web && npm run check         # types, ESLint, 32 Vitest tests
+pytest                                   # backend: 253 tests (needs PostgreSQL)
+cd frontend/web && npm run check         # types, ESLint, 38 Vitest tests
 ruff check app config
 ```
 

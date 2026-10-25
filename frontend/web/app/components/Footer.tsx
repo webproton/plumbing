@@ -21,6 +21,8 @@ export function Footer({ siteName, settings }: { siteName: string; settings: Sit
           {settings?.phone && <a href={`tel:${settings.phone}`} className="block text-muted hover:text-ink">{settings.phone}</a>}
           {settings?.email && <a href={`mailto:${settings.email}`} className="block text-muted hover:text-ink">{settings.email}</a>}
           {settings?.telegram && <p className="text-muted">Telegram: {settings.telegram}</p>}
+          {settings?.pickup_address && <p className="text-muted">{settings.pickup_address}</p>}
+          {settings?.opening_hours && <p className="text-muted">{settings.opening_hours}</p>}
         </div>
       </div>
       <p className="border-t border-line py-4 text-center text-xs text-muted">

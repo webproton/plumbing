@@ -1,6 +1,10 @@
 import { type RouteConfig, index, layout, prefix, route } from "@react-router/dev/routes";
 
 export default [
+  // для поисковиков — только в корне сайта
+  route("robots.txt", "routes/seo/robots.ts"),
+  route("sitemap.xml", "routes/seo/sitemap.ts"),
+
   // все страницы доступны без префикса (українська) и с /ru (русский)
   route(":lang?", "routes/lang-layout.tsx", [
     index("routes/home.tsx"),

@@ -6,14 +6,15 @@ import { AddToCartButton } from "~/components/AddToCartButton";
 import { Price } from "~/components/Price";
 import { QuantityStepper } from "~/components/QuantityStepper";
 import { Badge, Button } from "~/components/ui";
-import { langFromRequest, makeT, type Lang, type TFunction } from "~/i18n";
+import { langFromRequest, localizePath, makeT, type TFunction } from "~/i18n";
 import { Link, useLocalPath, useT } from "~/i18n/react";
 import { trackEvent } from "~/lib/analytics";
 import { ApiError } from "~/lib/api.server";
 import { apiContext } from "~/lib/context.server";
 import { formatQty } from "~/lib/format";
+import { breadcrumbJsonLd, plainText } from "~/lib/seo";
 import type { ProductDetail, Variant } from "~/lib/types";
-import { useRootData } from "~/root";
+import { useRootData, type RootData } from "~/root";
 
 import type { Route } from "./+types/product";
 
@@ -29,37 +30,60 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
 }
 
 export function meta({ loaderData, matches }: Route.MetaArgs) {
-  const root = matches[0]?.loaderData as { siteName?: string; publicUrl?: string; lang?: Lang } | undefined;
-  const t = makeT(root?.lang ?? "uk");
+  const root = matches[0]?.loaderData as RootData | undefined;
+  const lang = root?.lang ?? "uk";
+  const t = makeT(lang);
   if (!loaderData) return [{ title: t("product.notFound") }];
   const { product } = loaderData;
   const v = product.variants[0];
+  const origin = root?.publicUrl ?? "";
   const image = v?.photo ?? product.photo;
-  const description = (product.description ?? v?.description ?? t("product.metaDescription", { name: product.name })).slice(0, 160);
+  const imageUrl = image ? (/^https?:\/\//.test(image) ? image : `${origin}${image}`) : undefined;
+  const url = `${origin}${localizePath(lang, `/product/${product.slug}`)}`;
+  const description =
+    plainText(product.description ?? v?.description) || t("product.metaDescription", { name: product.name });
+  const crumbs = [
+    { name: t("seo.home"), url: `${origin}${localizePath(lang, "/")}` },
+    ...(product.category
+      ? [{ name: product.category.name, url: `${origin}${localizePath(lang, `/catalog?category=${product.category.slug}`)}` }]
+      : [{ name: t("catalog.title"), url: `${origin}${localizePath(lang, "/catalog")}` }]),
+    { name: product.name, url },
+  ];
   return [
     { title: t("product.metaTitle", { name: product.name, site: root?.siteName ?? "" }) },
     { name: "description", content: description },
     { property: "og:title", content: product.name },
+    { property: "og:description", content: description },
     { property: "og:type", content: "product" },
-    ...(image ? [{ property: "og:image", content: `${root?.publicUrl ?? ""}${image}` }] : []),
+    ...(imageUrl ? [{ property: "og:image", content: imageUrl }] : []),
+    ...(v?.price
+      ? [
+          { property: "product:price:amount", content: String(v.price) },
+          { property: "product:price:currency", content: "UAH" },
+        ]
+      : []),
     {
       "script:ld+json": {
         "@context": "https://schema.org",
         "@type": "Product",
         name: product.name,
         sku: v?.code ?? undefined,
-        image: image ? `${root?.publicUrl ?? ""}${image}` : undefined,
+        image: imageUrl,
         description,
+        category: product.category?.name ?? undefined,
         offers: v?.price
           ? {
               "@type": "Offer",
+              url,
               price: v.price,
               priceCurrency: "UAH",
+              itemCondition: "https://schema.org/NewCondition",
               availability: v.in_stock ? "https://schema.org/InStock" : "https://schema.org/BackOrder",
             }
           : undefined,
       },
     },
+    { "script:ld+json": breadcrumbJsonLd(crumbs) },
   ];
 }
 

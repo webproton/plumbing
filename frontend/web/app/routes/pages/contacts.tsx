@@ -1,4 +1,4 @@
-import { Mail, MessageCircle, Phone } from "lucide-react";
+import { Clock, Mail, MapPin, MessageCircle, Phone } from "lucide-react";
 
 import { CallbackForm } from "~/components/CallbackForm";
 import { Card, PageTitle } from "~/components/ui";
@@ -15,8 +15,29 @@ export default function Contacts() {
   const t = useT();
   return (
     <div className="max-w-2xl space-y-6">
-      <PageTitle subtitle={t("page.contacts.hours")}>{t("page.contacts.title")}</PageTitle>
+      <PageTitle subtitle={s?.opening_hours || t("page.contacts.hours")}>{t("page.contacts.title")}</PageTitle>
       <Card className="space-y-3 p-5">
+        {s?.pickup_address && (
+          <p className="flex items-start gap-3">
+            <MapPin className="mt-0.5 size-5 shrink-0 text-brand-600" aria-hidden />
+            <span>
+              <span className="font-medium">{t("page.contacts.address")}:</span> {s.pickup_address}
+              {s.google_business_url && (
+                <>
+                  {" · "}
+                  <a href={s.google_business_url} target="_blank" rel="noreferrer" className="text-brand-700 underline">
+                    {t("page.contacts.map")}
+                  </a>
+                </>
+              )}
+            </span>
+          </p>
+        )}
+        {s?.opening_hours && (
+          <p className="flex items-center gap-3">
+            <Clock className="size-5 text-brand-600" aria-hidden /> {s.opening_hours}
+          </p>
+        )}
         {s?.phone && (
           <a href={`tel:${s.phone}`} className="flex items-center gap-3 text-lg font-medium">
             <Phone className="size-5 text-brand-600" aria-hidden /> {s.phone}

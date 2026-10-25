@@ -154,7 +154,8 @@ API (`/api/warehouse/`): `me/`, `dashboard/`, `balances/`, `variants/search/`, `
 | `feeds.py` | `offers()` и форматы `yml("prom"|"rozetka")`, `google()` |
 | `telegram.py` | `caption`, `post_product` (sendPhoto / sendMessage) |
 | `services.py` | `ensure_feeds_token`, `publish`, `announce` (автопубликация новинок) |
-| `views.py`, `urls.py` | `/api/feeds/<секрет>/<файл>`, `/api/marketing/telegram/products/<id>/` |
+| `views.py`, `urls.py` | `/api/feeds/<секрет>/<файл>`, `/api/marketing/telegram/products/<id>/`, `/api/seo/sitemap/` |
+| `seo.py` | Данные для sitemap.xml: видимые товары (до 45 000) и непустые категории, кэш 15 минут |
 | `validators.py` | Строгий формат ID пикселей и канала Telegram |
 | `models.py`, `tasks.py` | `TelegramPost`; задача `marketing.announce_product` |
 
@@ -185,6 +186,8 @@ React Router 8 (SSR) · React 19 · TypeScript strict · Tailwind CSS 4 · zod �
 | `app/lib/analytics.ts` | `trackEvent` (GA4/GTM, Meta, TikTok), `trackPageView`, строгий формат ID |
 | `app/lib/format.ts` | Цены (₴), количества, даты, склонения, цвет статуса заказа |
 | `app/lib/types.ts` | Типы ответов API |
+| `app/lib/seo.ts` | SEO: `robotsFor` (noindex), `canonicalSearch`, `robotsTxt`, `buildSitemap` (uk/ru, hreflang, фото), разметка `shopJsonLd`, `breadcrumbJsonLd`, `plainText` |
+| `app/routes/seo/robots.ts`, `app/routes/seo/sitemap.ts` | Ресурсные маршруты `/robots.txt` и `/sitemap.xml` (в корне, без языкового префикса) |
 | `app/components/` | `Analytics` (скрипты пикселей, просмотры страниц), `NpPicker` (город и отделение Новой Почты с автодополнением), UI-кит (`ui.tsx`), шапка, подвал, карточка товара, цена, пагинация, количество, «в корзину», заявка на звонок |
 | `app/routes/` | Страницы: главная, каталог, товар, корзина, оформление (Новая Почта), ресурсные `np/*` (справочник НП), `account/order-invoice` (счёт), вход/регистрация/пароль, кабинет, избранное, доставка, контакты |
 | `app/routes/seller/` | Кабинет склада/продавца: `layout` (роль, навигация), `index` (обзор), `products` + `product-new` + `product-edit` (товары), `orders` + `order` + `order-invoice` (заказы, ТТН, счёт), `labels` (PDF этикеток), `settings` (настройки магазина), `stock`, `documents` + `document` (накладные, «Перевірка розбору», ИИ) + `document-columns` (ручной выбор колонок), `operations`, `scanner`, `movements`, `warehouses`, `suppliers`, импорт — `import` (шаблон, загрузка, история), `import-run` (предпросмотр/применение), `sources` (источники), `source` (позиции поставщика), `source-edit` (создание/настройки); ресурсные маршруты `variants` (поиск товара), `document-file`, `import-template` (скачивание) |

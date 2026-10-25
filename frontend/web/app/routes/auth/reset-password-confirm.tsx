@@ -14,7 +14,6 @@ import type { Route } from "./+types/reset-password-confirm";
 
 export const meta: Route.MetaFunction = ({ matches }) => [
   { title: tFromMatches(matches)("auth.newPassword.title") },
-  { name: "robots", content: "noindex" },
 ];
 
 export async function action({ request, context }: Route.ActionArgs) {

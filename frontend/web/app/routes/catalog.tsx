@@ -4,12 +4,13 @@ import { Form, useNavigation, useSubmit } from "react-router";
 import { Pagination } from "~/components/Pagination";
 import { ProductCard } from "~/components/ProductCard";
 import { Button, EmptyState, Input, PageTitle, Select } from "~/components/ui";
-import { makeT, type Lang } from "~/i18n";
+import { localizePath, makeT } from "~/i18n";
 import { Link, useT } from "~/i18n/react";
 import { apiContext } from "~/lib/context.server";
 import { pluralize } from "~/lib/format";
+import { breadcrumbJsonLd } from "~/lib/seo";
 import type { Paginated, ProductListItem } from "~/lib/types";
-import { useRootData } from "~/root";
+import { useRootData, type RootData } from "~/root";
 
 import type { Route } from "./+types/catalog";
 
@@ -44,17 +45,34 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 }
 
 export function meta({ loaderData, matches }: Route.MetaArgs) {
-  const root = matches[0]?.loaderData as
-    | { categories?: { slug: string; name: string }[]; siteName?: string; lang?: Lang }
-    | undefined;
-  const t = makeT(root?.lang ?? "uk");
+  const root = matches[0]?.loaderData as RootData | undefined;
+  const lang = root?.lang ?? "uk";
+  const t = makeT(lang);
   const category = root?.categories?.find((c) => c.slug === loaderData?.filters.category);
   const title = loaderData?.filters.search
     ? t("catalog.searchMeta", { query: loaderData.filters.search })
     : (category?.name ?? t("catalog.title"));
+  // у каждой страницы списка — свой заголовок (иначе Google видит дубли «Змішувачі», «Змішувачі»…)
+  const page = loaderData && loaderData.page > 1 ? ` — ${t("seo.page", { n: loaderData.page })}` : "";
+  const description = t("catalog.metaDescription", { title });
+  const origin = root?.publicUrl ?? "";
   return [
-    { title: `${title} — ${root?.siteName ?? ""}` },
-    { name: "description", content: t("catalog.metaDescription", { title }) },
+    { title: `${title}${page} — ${root?.siteName ?? ""}` },
+    { name: "description", content: description },
+    { property: "og:title", content: title },
+    { property: "og:description", content: description },
+    { property: "og:type", content: "website" },
+    ...(category
+      ? [
+          {
+            "script:ld+json": breadcrumbJsonLd([
+              { name: t("seo.home"), url: `${origin}${localizePath(lang, "/")}` },
+              { name: t("catalog.title"), url: `${origin}${localizePath(lang, "/catalog")}` },
+              { name: category.name, url: `${origin}${localizePath(lang, `/catalog?category=${category.slug}`)}` },
+            ]),
+          },
+        ]
+      : []),
   ];
 }
 

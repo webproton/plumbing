@@ -12,7 +12,7 @@ import type { Route } from "./+types/order-success";
 
 export const meta: Route.MetaFunction = ({ matches }) => {
   const lang = (matches[0]?.loaderData as { lang?: "uk" | "ru" } | undefined)?.lang ?? "uk";
-  return [{ title: makeT(lang)("order.accepted.meta") }, { name: "robots", content: "noindex" }];
+  return [{ title: makeT(lang)("order.accepted.meta") }];
 };
 
 /** Данные заказа для события «покупка» (одноразово, из сессии после оформления) */

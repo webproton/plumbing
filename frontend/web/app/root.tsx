@@ -22,6 +22,7 @@ import { useT } from "./i18n/react";
 import { cartCount, getCart } from "./lib/cart.server";
 import { config } from "./lib/config.server";
 import { apiContext, sessionMiddleware } from "./lib/context.server";
+import { canonicalSearch, robotsFor } from "./lib/seo";
 import { sessionContext } from "./lib/session.server";
 import type { Category, SiteSettings } from "./lib/types";
 
@@ -56,6 +57,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     lang: langFromRequest(request),
     siteName: config.siteName,
     publicUrl: config.publicUrl,
+    noindex: config.noindex,
     user: session.get("user") ?? null,
     cartCount: cartCount(cart),
     categories,
@@ -75,6 +77,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const lang = data?.lang ?? "uk";
   const base = stripLang(pathname);
   const origin = data?.publicUrl ?? "";
+  // canonical и hreflang — без сортировки/фильтров/варианта; служебные страницы и поиск по сайту — noindex
+  const robots = robotsFor(base, search, data?.noindex);
+  const query = canonicalSearch(base, search);
+  const canonical = `${origin}${localizePath(lang, base)}${query}`;
+  const verification = data?.settings?.google_site_verification;
   return (
     <html lang={lang}>
       <head>
@@ -82,11 +89,22 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <meta name="theme-color" content="#1d6fa5" />
         <Meta />
-        <link rel="canonical" href={`${origin}${localizePath(lang, base)}${search}`} />
-        {LANGS.map((l) => (
-          <link key={l} rel="alternate" hrefLang={l} href={`${origin}${localizePath(l, base)}${search}`} />
-        ))}
-        <link rel="alternate" hrefLang="x-default" href={`${origin}${base}${search}`} />
+        {robots ? (
+          <meta name="robots" content={robots} />
+        ) : (
+          <>
+            <link rel="canonical" href={canonical} />
+            {LANGS.map((l) => (
+              <link key={l} rel="alternate" hrefLang={l} href={`${origin}${localizePath(l, base)}${query}`} />
+            ))}
+            <link rel="alternate" hrefLang="x-default" href={`${origin}${base}${query}`} />
+          </>
+        )}
+        <meta property="og:site_name" content={data?.siteName ?? "LUXORA"} />
+        <meta property="og:locale" content={lang === "ru" ? "ru_UA" : "uk_UA"} />
+        <meta property="og:url" content={canonical} />
+        <meta name="twitter:card" content="summary_large_image" />
+        {verification && <meta name="google-site-verification" content={verification} />}
         <Links />
         <AnalyticsHead settings={data?.settings ?? null} />
       </head>

@@ -6,7 +6,7 @@ import type { Dict } from "./uk";
 // Русский. Тип Dict гарантирует, что переведены все ключи украинского словаря.
 const base: Omit<Dict, keyof typeof sellerRu | keyof typeof importRu | keyof typeof cabinetRu> = {
   "site.tagline": "Сантехника и мебель с доставкой по Украине",
-  "site.description": "Смесители, трубы, сантехника и мебель. Наличие на складе, доставка Новой Почтой.",
+  "site.description": "Сантехника, отопление, генераторы и мебель: смесители, трубы, котлы, бойлеры. Наличие на складе, доставка Новой Почтой по Украине.",
   "common.currencyFrom": "от ",
   "common.notAvailable": "—",
   "common.toCatalog": "Перейти в каталог",
@@ -45,7 +45,7 @@ const base: Omit<Dict, keyof typeof sellerRu | keyof typeof importRu | keyof typ
   "footer.info": "Информация",
   "footer.contact": "Связаться с нами",
 
-  "home.title": "{site} — сантехника и мебель с доставкой по Украине",
+  "home.title": "{site} — сантехника, отопление, генераторы и мебель с доставкой по Украине",
   "home.hero.title": "Всё для ванной, кухни и дома",
   "home.hero.text": "Реальные остатки на складе, честные цены и доставка по всей Украине.",
   "home.hero.callback": "Не нашли нужное? Оставьте телефон — подберём за вас.",
@@ -241,6 +241,10 @@ const base: Omit<Dict, keyof typeof sellerRu | keyof typeof importRu | keyof typ
   "page.contacts.title": "Контакты",
   "page.contacts.hours": "Пн–Пт 9:00–18:00",
   "page.contacts.unavailable": "Контакты временно недоступны.",
+  "page.contacts.address": "Самовывоз",
+  "page.contacts.map": "Мы на Google Картах",
+  "seo.home": "Главная",
+  "seo.page": "страница {n}",
 };
 
 export const ru: Dict = { ...base, ...sellerRu, ...importRu, ...cabinetRu };

@@ -46,6 +46,12 @@ class SiteSettings(models.Model):
     # Письма покупателю: заказ принят, отправлен (ТТН), в отделении, оплата получена, отменён
     notify_customers = models.BooleanField("Уведомлять покупателей по email", default=True)
 
+    # Поиск и Google Business Profile: название, адрес и телефон на сайте должны совпадать с профилем буква в букву
+    google_site_verification = models.CharField("Код Google Search Console", max_length=100, blank=True, default="")
+    pickup_address = models.CharField("Адрес самовывоза / магазина", max_length=255, blank=True, default="")
+    opening_hours = models.CharField("Часы работы", max_length=255, blank=True, default="")
+    google_business_url = models.URLField("Профиль Google Business (ссылка)", blank=True, default="")
+
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
