@@ -240,8 +240,9 @@ function Specs({ variant }: { variant: Variant | null }) {
     [t("product.spec.height"), variant.dimensions_height],
     [t("product.spec.depth"), variant.dimensions_depth],
     [t("product.spec.weight"), variant.dimensions_weight],
+    ...Object.entries(variant.attributes ?? {}).map(([k, v]): [string, string] => [k, v == null ? "" : String(v)]),
   ];
-  const filled = rows.filter(([, v]) => v);
+  const filled = rows.filter(([, v]) => v).filter(([k], i, list) => list.findIndex(([k2]) => k2 === k) === i);
   if (!filled.length) return null;
   return (
     <dl className="divide-y divide-line rounded-2xl border border-line bg-white">
