@@ -115,6 +115,7 @@ export default function Catalog({ loaderData }: Route.ComponentProps) {
               <option value="">{t("catalog.allCategories")}</option>
               {categories.map((c) => (
                 <option key={c.id} value={c.slug}>
+                  {"— ".repeat(c.depth ?? 0)}
                   {c.name}
                 </option>
               ))}

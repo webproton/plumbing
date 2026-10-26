@@ -28,6 +28,16 @@ const base: Omit<Dict, keyof typeof sellerRu | keyof typeof importRu | keyof typ
   "error.unavailable": "Сервер недоступен. Попробуйте позже.",
   "error.generic": "Не удалось выполнить запрос. Попробуйте ещё раз.",
 
+  // демо-витрины для показа клиентам (/demo)
+  "demo.title": "Демо-витрины",
+  "demo.subtitle": "Один магазин — разные тематики. Откройте витрину, которую увидят покупатели вашего бизнеса.",
+  "demo.open": "Открыть витрину",
+  "demo.all": "Общий магазин",
+  "demo.allText": "Все тематики вместе: сантехника, инструмент, велосипеды, мебель.",
+  "demo.bar": "Демо-витрина «{name}»",
+  "demo.others": "Другие тематики",
+  "demo.exit": "Выйти из демо",
+  "demo.empty": "Демо-витрин пока нет — их создаёт команда seed_storefronts.",
   "nav.menu": "Меню",
   "nav.catalog": "Каталог",
   "nav.allCatalog": "Весь каталог",

@@ -32,6 +32,23 @@ DEMO_STOREFRONTS = [
 
 # направление → [(слаг категории дерева, товар, [(артикул, вариант, цена)])]
 DEMO_PRODUCTS = {
+    "plumbing": [
+        (
+            "zmishuvachi-kukhnia",
+            "Змішувач для кухні з гнучким виливом",
+            [("DEMO-SANT-01", "хром", 2890), ("DEMO-SANT-02", "чорний матовий", 3290)],
+        ),
+        ("zmishuvachi-vanna-dush", "Змішувач для ванни з душовим набором", [("DEMO-SANT-03", None, 3650)]),
+        ("dushovi-systemy", "Душова система з тропічною лійкою", [("DEMO-SANT-04", None, 6900)]),
+        ("unitazy-instaliatsii", "Унітаз підвісний безобідковий", [("DEMO-SANT-05", None, 5400)]),
+        ("rushnykosushky", "Рушникосушка водяна 500×800", [("DEMO-SANT-06", None, 2450)]),
+        ("zaporna-armatura", 'Кран кульовий 1/2"', [("DEMO-SANT-07", None, 210)]),
+        ("radiatory", "Радіатор сталевий 22 тип 500×1000", [("DEMO-SANT-08", None, 3750)]),
+        ("kotly-gazovi", "Котел газовий двоконтурний 24 кВт", [("DEMO-SANT-09", None, 21900)]),
+        ("boilery", "Бойлер електричний 80 л", [("DEMO-SANT-10", None, 5600)]),
+        ("filtry-pid-myiku", "Фільтр під мийку, 3 ступені", [("DEMO-SANT-11", None, 1890)]),
+        ("osmos", "Система зворотного осмосу 5 ступенів", [("DEMO-SANT-12", None, 5200)]),
+    ],
     "bikes": [
         (
             "velosypedy-dorosli",

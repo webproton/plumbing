@@ -134,5 +134,8 @@ def test_seed_storefronts_with_products():
     client = APIClient()
     velo = names(client.get(reverse("products:product-list"), {"page_size": 100}, HTTP_X_STOREFRONT="velo"))
     tools = names(client.get(reverse("products:product-list"), {"page_size": 100}, HTTP_X_STOREFRONT="instrument"))
-    assert len(velo) == 15 and len(tools) == 12
+    plumbing = names(client.get(reverse("products:product-list"), {"page_size": 100}, HTTP_X_STOREFRONT="santekhnika"))
+    assert (len(velo), len(tools), len(plumbing)) == (15, 12, 11)
     assert "Шуруповерт" not in " ".join(velo)
+    # демо-товары на складе — на витрине «в наличии»
+    assert not ProductVariant.objects.filter(code__startswith="DEMO-", stock__lte=0).exists()

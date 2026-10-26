@@ -15,8 +15,9 @@ import type { Route } from "./+types/home";
 export function meta({ matches }: Route.MetaArgs) {
   const root = matches[0]?.loaderData as RootData | undefined;
   const t = makeT(root?.lang ?? "uk");
-  const title = t("home.title", { site: root?.siteName ?? "" });
-  const description = t("site.description");
+  // витрина клиента: «Вело-магазин — Велосипеди, запчастини…» вместо общих текстов о сантехнике
+  const title = root?.tagline ? `${root.siteName} — ${root.tagline}` : t("home.title", { site: root?.siteName ?? "" });
+  const description = root?.tagline || t("site.description");
   return [
     { title },
     { name: "description", content: description },
@@ -42,15 +43,15 @@ export async function loader({ context }: Route.LoaderArgs) {
 export default function Home({ loaderData }: Route.ComponentProps) {
   const root = useRootData();
   const t = useT();
-  const categories = root?.categories ?? [];
+  const categories = root?.navCategories ?? [];
   return (
     <div className="space-y-12">
       <section className="overflow-hidden rounded-3xl bg-gradient-to-br from-brand-700 to-brand-500 px-6 py-12 text-white sm:px-12 sm:py-16">
         <div className="max-w-2xl space-y-5">
-          <h1 className="text-3xl font-extrabold tracking-tight sm:text-5xl">{t("home.hero.title")}</h1>
-          <p className="text-lg text-white/85">
-            {t("home.hero.text")}
-          </p>
+          <h1 className="text-3xl font-extrabold tracking-tight sm:text-5xl">
+            {root?.storefront ? root.siteName : t("home.hero.title")}
+          </h1>
+          <p className="text-lg text-white/85">{root?.tagline || t("home.hero.text")}</p>
           <div className="flex flex-wrap gap-3">
             <ButtonLink to="/catalog" size="lg" variant="secondary">
               {t("common.toCatalog")} <ArrowRight className="size-5" />
