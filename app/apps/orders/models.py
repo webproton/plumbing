@@ -198,6 +198,12 @@ class OrderItem(models.Model):
     sku = models.CharField(max_length=50, blank=True, default="", verbose_name="Артикул")
     unit_price = models.DecimalField(max_digits=12, decimal_places=2, verbose_name="Цена за единицу")
     quantity = models.DecimalField(max_digits=12, decimal_places=3, verbose_name="Количество")
+    # своего товара не хватало — продан с остатка поставщика: не резервируется, отгрузка — после оприходования
+    on_order = models.BooleanField(default=False, verbose_name="Под заказ у поставщика")
+    supplier = models.ForeignKey(
+        "warehouse.Supplier", on_delete=models.SET_NULL, null=True, blank=True, related_name="+",
+        verbose_name="У кого заказать",
+    )
 
     class Meta:
         verbose_name = "Позиция заказа"

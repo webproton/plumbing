@@ -103,6 +103,8 @@ export const cabinetRu: CabinetDict = {
   "ord.col.price": "Цена",
   "ord.col.lineTotal": "Сумма",
   "ord.stockNow": "на складе: {qty}",
+  "ord.onOrder": "Под заказ: закажите, оприходуйте, потом отгружайте",
+  "ord.onOrderFrom": "Под заказ у {supplier}: закажите, оприходуйте, потом отгружайте",
   "ord.total": "Итого",
   "ord.actions": "Действия",
   "ord.moveTo": "Перевести в «{status}»",

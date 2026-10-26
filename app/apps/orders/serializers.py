@@ -26,7 +26,9 @@ class CartItemSerializer(serializers.ModelSerializer):
     variant_price = serializers.DecimalField(
         source="variant.price", max_digits=12, decimal_places=2, read_only=True, default=None
     )
-    available = serializers.SerializerMethodField(help_text="Доступно к заказу (остаток минус резерв)")
+    available = serializers.SerializerMethodField(help_text="Доступно к заказу: свой остаток или под заказ у поставщика")
+    on_order = serializers.SerializerMethodField()
+    on_order_days = serializers.SerializerMethodField()
     photo = serializers.SerializerMethodField()
 
     class Meta:
@@ -41,13 +43,24 @@ class CartItemSerializer(serializers.ModelSerializer):
             "quantity",
             "variant_price",
             "available",
+            "on_order",
+            "on_order_days",
         )
 
     def get_price(self, item):
         return item.variant.price if item.variant else None
 
     def get_available(self, item):
-        return item.variant.available_stock if item.variant else None
+        """Сколько можно купить: свой остаток или, если больше, — под заказ у поставщика."""
+        return item.variant.orderable_qty if item.variant else None
+
+    def get_on_order(self, item):
+        """Строка уйдёт «под заказ»: своего не хватает, а у поставщика есть (так же решает оформление заказа)."""
+        v = item.variant
+        return bool(v and v.available_stock < item.quantity and v.supplier_qty and v.supplier_qty >= item.quantity)
+
+    def get_on_order_days(self, item):
+        return item.variant.supplier_days if item.variant else None
 
     def get_photo(self, item):
         if item.variant and item.variant.photo:

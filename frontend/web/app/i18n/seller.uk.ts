@@ -25,6 +25,13 @@ export const sellerUk = {
   "wh.dash.open": "Відкрити",
   "wh.dash.uploadInvoice": "Накладні",
   "wh.dash.recent": "Останні рухи",
+  "wh.dash.suppliers": "Каталоги постачальників",
+  "wh.dash.suppliersHint":
+    "Це не ваш склад: товари з фідів постачальників. Своїм товар стає після оприходування — вручну або за накладною.",
+  "wh.dash.supplierItems": "Позицій у фідах",
+  "wh.dash.supplierOnSite": "З них на сайті",
+  "wh.dash.supplierOrderable": "Можна продати під замовлення",
+  "wh.dash.supplierOrderableHint": "своїх немає, у постачальника є",
 
   "wh.col.product": "Товар",
   "wh.col.sku": "Артикул",

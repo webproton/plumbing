@@ -5,6 +5,9 @@
     оформление            → reserved     (stock.reserve: доступно к продаже уменьшается)
     отмена                → released     (stock.release)
     доставлен / завершён  → written_off  (stock.write_off_reserved: физическое списание со склада)
+
+Позиция «под заказ» (OrderItem.on_order): своего товара не хватало, а у поставщика есть. Её не резервируют;
+продавец заказывает товар, оприходует накладную, и при отгрузке он списывается со склада как обычно.
 """
 
 import logging
@@ -14,6 +17,8 @@ from django.db import transaction
 from django.utils.translation import gettext as _
 from rest_framework.exceptions import ValidationError
 
+from app.apps.imports.services import order_suppliers
+from app.apps.products.models import ProductVariant
 from app.apps.warehouse import stock
 from app.core.tasks import enqueue
 
@@ -36,8 +41,20 @@ def _resolve_variant(cart_item):
     raise ValidationError({"cart": _("Для товара «{name}» не выбран вариант").format(name=cart_item.product.name)})
 
 
-def _stock_lines(order):
-    return [(item.variant_id, item.quantity) for item in order.items.all()]
+def _stock_lines(order, *, on_order=False):
+    return [(item.variant_id, item.quantity) for item in order.items.all() if item.on_order == on_order]
+
+
+def _split_on_order(lines) -> set[int]:
+    """Варианты, которые уйдут «под заказ»: своего не хватает на всю строку, а у поставщика хватает."""
+    ids = sorted({variant.pk for _ci, variant in lines})
+    locked = {v.pk: v for v in ProductVariant.objects.select_for_update().filter(pk__in=ids).order_by("pk")}
+    on_order = set()
+    for ci, variant in lines:
+        v = locked[variant.pk]
+        if v.available_stock < ci.quantity and v.supplier_qty and v.supplier_qty >= ci.quantity:
+            on_order.add(v.pk)
+    return on_order
 
 
 @transaction.atomic
@@ -61,13 +78,18 @@ def create_order_from_cart(cart: Cart, *, user=None, **order_fields) -> Order:
             raise ValidationError({"cart": _("У товара «{name}» не указана цена").format(name=ci.product.name)})
         lines.append((ci, variant))
 
-    stock.reserve([(variant, ci.quantity) for ci, variant in lines])
+    on_order = _split_on_order(lines)
+    own = [(variant, ci.quantity) for ci, variant in lines if variant.pk not in on_order]
+    if own:
+        stock.reserve(own)
+    suppliers = order_suppliers(on_order) if on_order else {}
 
     order_fields.setdefault("language", customer_notifications.order_language())
     order = Order.objects.create(
         cart=cart,
         customer=user if user is not None and user.is_authenticated else None,
-        stock_state=Order.STOCK_STATE.reserved,
+        # всё «под заказ» — резервировать нечего
+        stock_state=Order.STOCK_STATE.reserved if own else Order.STOCK_STATE.none,
         total_price=Decimal("0"),
         **order_fields,
     )
@@ -80,6 +102,8 @@ def create_order_from_cart(cart: Cart, *, user=None, **order_fields) -> Order:
             sku=variant.code or "",
             unit_price=variant.price,
             quantity=ci.quantity,
+            on_order=variant.pk in on_order,
+            supplier=suppliers.get(variant.pk),
         )
         for ci, variant in lines
     ]
@@ -111,12 +135,19 @@ def change_status(order: Order, new_status: str, *, user=None) -> Order:
         if order.stock_state == Order.STOCK_STATE.released:
             raise ValidationError({"status_order": _("Заказ был отменён — резерв снят")})
         if order.stock_state in (Order.STOCK_STATE.reserved, Order.STOCK_STATE.none):
-            stock.write_off_reserved(
-                _stock_lines(order),
-                user=user,
-                comment=_("Заказ #{pk}").format(pk=order.pk),
-                from_reserve=order.stock_state == Order.STOCK_STATE.reserved,
-            )
+            comment = _("Заказ #{pk}").format(pk=order.pk)
+            own, ordered = _stock_lines(order), _stock_lines(order, on_order=True)
+            if own:
+                stock.write_off_reserved(
+                    own, user=user, comment=comment, from_reserve=order.stock_state == Order.STOCK_STATE.reserved
+                )
+            if ordered:  # товар от поставщика уже должен лежать на складе — по накладной
+                try:
+                    stock.write_off_reserved(ordered, user=user, comment=comment, from_reserve=False)
+                except stock.InsufficientStockError:
+                    raise ValidationError(
+                        {"status_order": _("Товар «под заказ» ещё не оприходован — примите накладную от поставщика")}
+                    ) from None
             order.stock_state = Order.STOCK_STATE.written_off
 
     elif order.stock_state == Order.STOCK_STATE.released:

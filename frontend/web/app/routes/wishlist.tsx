@@ -7,6 +7,7 @@ import { ButtonLink, EmptyState, PageTitle } from "~/components/ui";
 import { tFromMatches } from "~/i18n";
 import { Link, useLocalPath, useT } from "~/i18n/react";
 import { ApiError } from "~/lib/api.server";
+import { availabilityOf } from "~/lib/availability";
 import { requireUser } from "~/lib/auth.server";
 import { apiContext } from "~/lib/context.server";
 import type { WishlistItem } from "~/lib/types";
@@ -76,7 +77,7 @@ function WishlistCard({ item }: { item: WishlistItem }) {
           <AddToCartButton
             productId={v.product.id}
             variantId={v.id}
-            disabled={!v.in_stock}
+            disabled={availabilityOf(v) === "out"}
             size="sm"
             className="flex-1"
             track={{ id: v.id, name: v.product_name ?? v.product.name ?? "", price: Number(v.price ?? 0) }}

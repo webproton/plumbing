@@ -149,6 +149,9 @@ function CartRow({ item }: { item: CartItem }) {
         {available !== null && quantity > available && (
           <p className="text-sm text-danger">{t("cart.onlyLeft", { qty: formatQty(available) })}</p>
         )}
+        {item.on_order && item.on_order_days ? (
+          <p className="text-sm text-brand-700">{t("cart.onOrder", { days: item.on_order_days })}</p>
+        ) : null}
         {fetcher.data?.error && <p className="text-sm text-danger">{fetcher.data.error}</p>}
       </div>
     </li>

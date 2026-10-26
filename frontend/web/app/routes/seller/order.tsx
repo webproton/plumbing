@@ -195,6 +195,13 @@ export default function OrderPage({ loaderData, actionData }: Route.ComponentPro
                           {it.sku && `${it.sku} · `}
                           {t("ord.stockNow", { qty: formatQty(it.available_stock) })}
                         </p>
+                        {it.on_order && (
+                          <p className="text-brand-700 text-xs font-medium">
+                            {it.supplier_name
+                              ? t("ord.onOrderFrom", { supplier: it.supplier_name })
+                              : t("ord.onOrder")}
+                          </p>
+                        )}
                       </div>
                     </div>
                   </Td>

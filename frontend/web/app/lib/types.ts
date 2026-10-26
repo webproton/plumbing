@@ -58,6 +58,11 @@ export interface Variant {
   available: boolean | null;
   in_stock: boolean;
   available_qty: Money;
+  /** Свого немає, але можна замовити з залишку постачальника */
+  on_order?: boolean;
+  on_order_days?: number | null;
+  /** Скільки можна купити: свій залишок або під замовлення */
+  orderable_qty?: Money;
   photo: string | null;
   description: string | null;
   features: string | null;
@@ -107,6 +112,9 @@ export interface CartItem {
   quantity: number;
   price: Money | null;
   available: Money | null;
+  /** Рядок піде «під замовлення» від постачальника */
+  on_order?: boolean;
+  on_order_days?: number | null;
 }
 
 export interface Cart {
@@ -258,6 +266,8 @@ export interface MovementRow {
 }
 
 export interface WarehouseDashboard {
+  /** Каталоги постачальників — не ваш склад */
+  supplier_catalogs?: { sources: number; items: number; on_site: number; orderable: number };
   positions: number;
   units: string | number;
   value: string | number;
@@ -520,6 +530,8 @@ export interface ImportSource {
   update_prices: boolean;
   hide_when_unavailable: boolean;
   sync_interval_minutes: number;
+  sell_on_order: boolean;
+  order_days: number;
   is_active: boolean;
   last_sync_at: string | null;
   next_sync_at: string | null;
@@ -668,6 +680,9 @@ export interface ManageOrder extends ManageOrderRow {
     product: number | null;
     photo: string | null;
     available_stock: Money;
+    /** Продано з залишку постачальника: замовити, оприходувати, потім відвантажити */
+    on_order?: boolean;
+    supplier_name?: string | null;
   }[];
   next_statuses: { value: OrderStatus; label: string }[];
   can_manage: boolean;

@@ -26,6 +26,13 @@ export const sellerRu: SellerDict = {
   "wh.dash.open": "Открыть",
   "wh.dash.uploadInvoice": "Накладные",
   "wh.dash.recent": "Последние движения",
+  "wh.dash.suppliers": "Каталоги поставщиков",
+  "wh.dash.suppliersHint":
+    "Это не ваш склад: товары из фидов поставщиков. Своим товар становится после оприходования — вручную или по накладной.",
+  "wh.dash.supplierItems": "Позиций в фидах",
+  "wh.dash.supplierOnSite": "Из них на сайте",
+  "wh.dash.supplierOrderable": "Можно продать под заказ",
+  "wh.dash.supplierOrderableHint": "своих нет, у поставщика есть",
 
   "wh.col.product": "Товар",
   "wh.col.sku": "Артикул",

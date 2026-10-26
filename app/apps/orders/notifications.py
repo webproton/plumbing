@@ -17,10 +17,16 @@ logger = logging.getLogger(__name__)
 User = get_user_model()
 
 
+def _on_order_note(item) -> str:
+    if not item.on_order:
+        return ""
+    return f" — 🕓 под заказ у {item.supplier.name}" if item.supplier_id else " — 🕓 под заказ"
+
+
 def _items_text(order):
     return "\n".join(
-        f"{item.name} — {format_qty(item.quantity)} × {item.unit_price} ₴ = {item.line_total} ₴"
-        for item in order.items.all()
+        f"{item.name} — {format_qty(item.quantity)} × {item.unit_price} ₴ = {item.line_total} ₴{_on_order_note(item)}"
+        for item in order.items.select_related("supplier")
     )
 
 
