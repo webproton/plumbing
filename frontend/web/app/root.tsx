@@ -14,6 +14,7 @@ import {
 import type { Route } from "./+types/root";
 import "./app.css";
 import { AnalyticsHead, usePageViews } from "./components/Analytics";
+import { DemoBar } from "./components/DemoBar";
 import { Footer } from "./components/Footer";
 import { Header } from "./components/Header";
 import { ButtonLink, EmptyState } from "./components/ui";
@@ -24,7 +25,8 @@ import { config } from "./lib/config.server";
 import { apiContext, sessionMiddleware } from "./lib/context.server";
 import { canonicalSearch, robotsFor } from "./lib/seo";
 import { sessionContext } from "./lib/session.server";
-import type { Category, SiteSettings } from "./lib/types";
+import { brandStyle, navCategories, storefrontTagline, treeOrder } from "./lib/storefront";
+import type { Category, SiteSettings, Storefront } from "./lib/types";
 
 export const middleware: Route.MiddlewareFunction[] = [sessionMiddleware];
 
@@ -48,19 +50,26 @@ async function safe<T>(promise: Promise<T>, fallback: T): Promise<T> {
 export async function loader({ request, context }: Route.LoaderArgs) {
   const api = context.get(apiContext);
   const session = context.get(sessionContext);
-  const [cart, categories, settings] = await Promise.all([
+  const [cart, categories, settings, current] = await Promise.all([
     safe(getCart(api, session), null),
-    safe(api.get<Category[]>("/category/"), [] as Category[]),
+    // только категории с товарами (на витрине клиента — только его направления)
+    safe(api.get<Category[]>("/category/", { query: { nonempty: 1 } }), [] as Category[]),
     safe(api.get<SiteSettings>("/callback/site-settings/"), null),
+    safe(api.get<{ storefront: Storefront | null }>("/storefronts/current/"), { storefront: null }),
   ]);
+  const storefront = current.storefront;
+  const lang = langFromRequest(request);
   return {
-    lang: langFromRequest(request),
-    siteName: config.siteName,
+    lang,
+    siteName: storefront?.name || config.siteName,
+    storefront,
+    tagline: storefrontTagline(storefront, lang),
+    navCategories: navCategories(categories, storefront),
     publicUrl: config.publicUrl,
     noindex: config.noindex,
     user: session.get("user") ?? null,
     cartCount: cartCount(cart),
-    categories,
+    categories: treeOrder(categories),
     settings,
   };
 }
@@ -83,11 +92,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const canonical = `${origin}${localizePath(lang, base)}${query}`;
   const verification = data?.settings?.google_site_verification;
   return (
-    <html lang={lang}>
+    <html lang={lang} style={brandStyle(data?.storefront?.brand_color)}>
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <meta name="theme-color" content="#1d6fa5" />
+        <meta name="theme-color" content={data?.storefront?.brand_color || "#1d6fa5"} />
         <Meta />
         {robots ? (
           <meta name="robots" content={robots} />
@@ -109,16 +118,17 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <AnalyticsHead settings={data?.settings ?? null} />
       </head>
       <body className="flex min-h-dvh flex-col">
+        {data?.storefront?.is_demo && <DemoBar name={data.storefront.name} />}
         <Header
           siteName={data?.siteName ?? "LUXORA"}
           user={data?.user ?? null}
           cartCount={data?.cartCount ?? 0}
-          categories={data?.categories ?? []}
+          categories={data?.navCategories ?? []}
           phone={data?.settings?.phone ?? null}
         />
         <NavigationProgress />
         <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:py-8">{children}</main>
-        <Footer siteName={data?.siteName ?? "LUXORA"} settings={data?.settings ?? null} />
+        <Footer siteName={data?.siteName ?? "LUXORA"} tagline={data?.tagline} settings={data?.settings ?? null} />
         <ScrollRestoration />
         <Scripts />
       </body>

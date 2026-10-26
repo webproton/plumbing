@@ -11,6 +11,8 @@ export interface SessionData {
   refresh: string;
   cartUuid: string;
   user: { email: string; name: string; staff?: boolean };
+  /** витрина, выбранная ссылкой ?store=<slug> (сервер по IP, демо для клиента) */
+  store: string;
 }
 
 export interface FlashData {

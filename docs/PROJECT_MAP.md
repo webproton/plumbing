@@ -166,7 +166,23 @@ API (`/api/warehouse/`): `me/`, `dashboard/`, `balances/`, `variants/search/`, `
 | `validators.py` | Строгий формат ID пикселей и канала Telegram |
 | `models.py`, `tasks.py` | `TelegramPost`; задача `marketing.announce_product` |
 
-### 2.9 Остальные приложения
+### 2.9 `app/apps/storefronts/` — витрины клиентов (один сервер, много магазинов)
+Клиент по подписке получает «свой магазин» на общей установке: только его направления и/или его товары,
+его название, цвет и контакты. Общий магазин со всеми направлениями работает параллельно.
+
+| Файл | Назначение |
+|---|---|
+| `models.py` | `Storefront`: `slug` (ссылка `/?store=<slug>`), `domains` (свой домен клиента, по строке), `verticals` (`bikes`, `tools`…; пусто — все), `sellers` (пусто — все продавцы), `brand_color`, `logo`, контакты, `telegram_bot`, `is_demo` |
+| `resolve.py` | `StorefrontMiddleware` → `request.storefront`: заголовок `X-Storefront` (slug) → `?storefront=` → домен (`X-Storefront-Host` от фронтенда или `Host`); карта доменов кэшируется на минуту |
+| `scope.py` | `scope_products` / `scope_categories` / `with_products` (категории, где есть товары, с учётом подкатегорий) / `depth` |
+| `views.py` | `/api/storefronts/current/` (витрина запроса или null), `/api/storefronts/demo/` (демо для показа клиентам) |
+| `management/commands/seed_storefronts.py` + `demo.py` | Демо-витрины `velo`, `instrument`, `santekhnika`; `--products` — демо-товары по дереву направлений с остатком на складе (на рабочей базе — `--force`) |
+
+Каталог (`products/views.py`) учитывает витрину: список, карточка (чужой товар → 404), новинки, категории
+(`?nonempty=1` — только с товарами; поля `parent`, `vertical`, `depth`). Фильтр `?category=` включает подкатегории.
+Новый клиент: админка → «Витрины» → название, slug, направления, продавец, цвет, домен (или ссылка `/?store=<slug>`).
+
+### 2.10 Остальные приложения
 
 | Приложение | Что внутри |
 |---|---|
@@ -195,6 +211,7 @@ React Router 8 (SSR) · React 19 · TypeScript strict · Tailwind CSS 4 · zod �
 | `app/lib/types.ts` | Типы ответов API |
 | `app/lib/seo.ts` | SEO: `robotsFor` (noindex), `canonicalSearch`, `robotsTxt`, `buildSitemap` (uk/ru, hreflang, фото), разметка `shopJsonLd`, `breadcrumbJsonLd`, `plainText` |
 | `app/routes/seo/robots.ts`, `app/routes/seo/sitemap.ts` | Ресурсные маршруты `/robots.txt` и `/sitemap.xml` (в корне, без языкового префикса) |
+| Витрина клиента | `lib/context.server.ts` (`?store=<slug>` → сессия, `X-Storefront` / `X-Storefront-Host` в каждом запросе к API), `lib/storefront.ts` (`navCategories` — разделы витрины одного направления, `treeOrder`, `brandStyle` — фирменный цвет через CSS-переменные brand-*), `root.tsx` (название, подзаголовок, цвет, `DemoBar`), `routes/demo.tsx` (`/demo` — демо-витрины для показа клиентам) |
 | `app/components/` | `Analytics` (скрипты пикселей, просмотры страниц), `NpPicker` (город и отделение Новой Почты с автодополнением), UI-кит (`ui.tsx`), шапка, подвал, карточка товара, цена, пагинация, количество, «в корзину», заявка на звонок |
 | `app/routes/` | Страницы: главная, каталог, товар, корзина, оформление (Новая Почта), ресурсные `np/*` (справочник НП), `account/order-invoice` (счёт), вход/регистрация/пароль, кабинет, избранное, доставка, контакты |
 | `app/routes/seller/` | Кабинет склада/продавца: `layout` (роль, навигация), `index` (обзор), `products` + `product-new` + `product-edit` (товары), `orders` + `order` + `order-invoice` (заказы, ТТН, счёт), `labels` (PDF этикеток), `settings` (настройки магазина), `stock`, `documents` + `document` (накладные, «Перевірка розбору», ИИ) + `document-columns` (ручной выбор колонок), `operations`, `scanner`, `movements`, `warehouses`, `suppliers`, импорт — `import` (шаблон, загрузка, история), `import-run` (предпросмотр/применение), `sources` (источники), `source` (позиции поставщика), `source-edit` (создание/настройки); ресурсные маршруты `variants` (поиск товара), `document-file`, `import-template` (скачивание) |

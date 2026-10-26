@@ -63,6 +63,7 @@ export default [
       ]),
     ]),
 
+    route("demo", "routes/demo.tsx"),
     route("delivery", "routes/pages/delivery.tsx"),
     route("contacts", "routes/pages/contacts.tsx"),
     route("callback", "routes/callback.tsx"),

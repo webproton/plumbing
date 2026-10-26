@@ -70,6 +70,8 @@ export class Api {
     private session: AppSession,
     private clientIp: string | null,
     private lang: Lang = "uk",
+    /** витрина клиента: slug из ?store= и домен, на который зашёл покупатель */
+    private storefront: { slug: string | null; host: string | null } = { slug: null, host: null },
   ) {}
 
   get isAuthenticated(): boolean {
@@ -103,6 +105,8 @@ export class Api {
     // FormData: браузер/fetch сами выставят multipart с boundary
     if (opts.body !== undefined && !isForm) headers["Content-Type"] = "application/json";
     if (this.clientIp) headers["X-Real-IP"] = this.clientIp;
+    if (this.storefront.slug) headers["X-Storefront"] = this.storefront.slug;
+    if (this.storefront.host) headers["X-Storefront-Host"] = this.storefront.host;
     const token = this.session.get("access");
     if (token && opts.auth !== false) headers.Authorization = `Bearer ${token}`;
 

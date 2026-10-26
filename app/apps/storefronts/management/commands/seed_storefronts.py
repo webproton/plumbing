@@ -19,8 +19,11 @@ from app.apps.products.models import Product, ProductVariant
 from app.apps.sellers.models import Seller
 from app.apps.storefronts.demo import DEMO_PRODUCTS, DEMO_STOREFRONTS
 from app.apps.storefronts.models import Storefront
+from app.apps.warehouse import stock
+from app.apps.warehouse.models import Supplier, Warehouse
 
 COST_RATIO = Decimal("0.7")
+DEMO_QTY = 10  # остаток демо-товаров: на витрине они «в наличии»
 
 
 class Command(BaseCommand):
@@ -44,6 +47,10 @@ class Command(BaseCommand):
         if not settings.DEBUG and not force:
             raise CommandError("Демо-товары попадут и в общий магазин. На рабочей базе запустите с --force.")
         seller = self._seller()
+        warehouse = Warehouse.objects.filter(seller=seller, is_default=True).first() or Warehouse.objects.create(
+            seller=seller, name="Основний склад", is_default=True
+        )
+        supplier, _created = Supplier.objects.get_or_create(code="demo", defaults={"name": "Демо-постачальник"})
         added = 0
         for vertical_key, items in DEMO_PRODUCTS.items():
             categories = ensure_taxonomy(VERTICALS[vertical_key])
@@ -52,7 +59,7 @@ class Command(BaseCommand):
                     name=name, seller=seller, defaults={"category": categories[category_slug]}
                 )
                 for code, variant_name, price in variants:
-                    _variant, new = ProductVariant.objects.get_or_create(
+                    variant, new = ProductVariant.objects.get_or_create(
                         code=code,
                         defaults={
                             "product": product,
@@ -63,6 +70,16 @@ class Command(BaseCommand):
                         },
                     )
                     added += new
+                    if new:
+                        stock.receive(
+                            variant,
+                            warehouse,
+                            DEMO_QTY,
+                            supplier=supplier,
+                            price_per_unit=variant.cost_price,
+                            document_number="DEMO",
+                            comment="seed_storefronts: демо-залишок",
+                        )
         self.stdout.write(f"Демо-товаров (вариантов) добавлено: {added}")
 
     def _seller(self) -> Seller:
