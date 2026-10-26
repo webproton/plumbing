@@ -107,3 +107,14 @@ def test_ukrainian_letters_transliterated_in_slugs():
     from app.apps.products.utils.slugs import make_slug
 
     assert make_slug("Змішувач їжак Євро ґанок") == "zmishuvach-yizhak-yevro-ganok"
+
+
+@pytest.mark.django_db
+def test_long_supplier_name_fits_slug_fields():
+    from app.apps.products.utils.slugs import MAX_SLUG, make_slug
+
+    name = 'Змішувач для кухні щ ш ж ч ' * 10  # транслитерация длиннее 255
+    assert len(make_slug(name)) <= MAX_SLUG and not make_slug(name).endswith("-")
+    product = Product.objects.create(name=name[:255])
+    variant = ProductVariant.objects.create(product=product, variant_name=name[:255], price=10)
+    assert len(product.slug) <= 255 and len(variant.slug) <= 255

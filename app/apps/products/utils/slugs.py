@@ -7,10 +7,16 @@ _UA = str.maketrans(
 )
 
 
+MAX_SLUG = 200  # поле — 255; запас на «-2», «-3»… Длинные названия поставщиков после транслитерации длиннее 255
+
+
 def make_slug(text: str, fallback: str = "item") -> str:
     """Латинский slug из кириллицы (рус./укр.): «Смесители» → «smesiteli». Django slugify кириллицу выбрасывает."""
     latin = translit((text or "").translate(_UA), "ru", reversed=True)
-    return slugify(latin) or fallback
+    slug = slugify(latin)
+    if len(slug) > MAX_SLUG:
+        slug = slug[:MAX_SLUG].rsplit("-", 1)[0]
+    return slug or fallback
 
 
 def unique_slug(model, text: str, fallback: str = "item", exclude_pk=None) -> str:
