@@ -35,6 +35,8 @@ export interface Storefront {
   address: string;
   telegram_bot: string;
   is_demo: boolean;
+  /** домен клиента, если витрина открыта на нём (а не по ссылке ?store=) */
+  domain?: string | null;
 }
 
 export interface NamedRef {
