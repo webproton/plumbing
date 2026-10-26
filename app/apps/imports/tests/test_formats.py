@@ -5,7 +5,7 @@ from decimal import Decimal
 import pytest
 from openpyxl import Workbook
 
-from app.apps.imports.fields import detect_columns, to_bool, to_quantity
+from app.apps.imports.fields import detect_columns, to_bool, to_plain_text, to_quantity
 from app.apps.imports.formats import FormatError, detect_format, parse_items
 
 YML = """<?xml version="1.0" encoding="UTF-8"?>
@@ -49,7 +49,7 @@ def test_yml_offer_fields():
     assert (a.price, a.old_price, a.cost) == (Decimal("2499.0000"), Decimal("2999.0000"), Decimal("1700.5000"))
     assert a.quantity == Decimal("7.000") and a.available is True
     assert a.photos == ["https://cdn.example.com/a1.jpg", "https://cdn.example.com/a2.jpg"]
-    assert a.params == {"Колір": "Хром"} and "Опис" in a.description
+    assert a.params == {"Колір": "Хром"} and a.description == "Опис"
     assert b.available is False and b.quantity is None
 
 
@@ -125,3 +125,16 @@ def test_value_helpers():
     assert detect_columns(["Назва", "Ціна, грн", "Опт. ціна"])["price"] == 1
     assert to_bool("В наявності") is True and to_bool("нет в наличии") is False and to_bool("?") is None
     assert to_quantity("більше 50 шт") == Decimal("50.000") and to_quantity("немає") is None
+
+
+def test_descriptions_become_plain_text():
+    # O&L кладёт CDATA экранированным: после разбора XML в тексте остаётся «<![CDATA[…]]>»
+    feed = YML.replace(
+        "<description><![CDATA[<p>Опис</p>]]></description>".encode(),
+        "<description>&lt;![CDATA[&lt;div&gt;2-ге місце&amp;nbsp;13 кг&lt;/div&gt;]]&gt;</description>".encode(),
+    ).replace(b"<price>55</price>", "<price>55</price><description>&lt;![CDATA[]]&gt;</description>".encode())
+    items, _info = parse_items(feed)
+    a, b = sorted(items, key=lambda i: i.external_id)
+    assert a.description == "2-ге місце 13 кг" and b.description == ""
+    assert to_plain_text("<p>Тиск < 6 бар</p><ul><li>DN 15</li><li>DN 20</li></ul>") == "Тиск < 6 бар\nDN 15\nDN 20"
+    assert to_plain_text("Рядок 1<br>Рядок 2") == "Рядок 1\nРядок 2"
