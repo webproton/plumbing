@@ -33,6 +33,9 @@ class CurrentStorefrontView(APIView):
     def get(self, request):
         storefront = current(request)
         data = StorefrontSerializer(storefront, context={"request": request}).data if storefront else None
+        if data is not None:
+            # домен клиента, если витрина определилась по нему (по ссылке ?store= — None)
+            data["domain"] = getattr(request, "storefront_domain", None)
         return Response({"storefront": data})
 
 

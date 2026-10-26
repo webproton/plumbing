@@ -11,6 +11,12 @@ function required(name: string, fallback: string): string {
   return fallback;
 }
 
+/** Адрес сайта для canonical, sitemap и robots: свой домен витрины клиента или PUBLIC_URL */
+export function originFor(domain?: string | null): string {
+  if (!domain) return config.publicUrl;
+  return `${new URL(config.publicUrl).protocol}//${domain}`;
+}
+
 export const config = {
   apiUrl: (process.env.API_INTERNAL_URL ?? "http://localhost:8000").replace(/\/$/, ""),
   sessionSecret: required("SESSION_SECRET", "dev-only-secret"),

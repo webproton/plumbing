@@ -7,24 +7,26 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from app.apps.products.models import Category, Product
+from app.apps.storefronts.resolve import current
+from app.apps.storefronts.scope import scope_categories, scope_products, with_products
 
 CACHE_KEY = "seo:sitemap"
 CACHE_SECONDS = 15 * 60
 MAX_PRODUCTS = 45_000  # один sitemap — до 50 000 адресов; каждый товар даёт две языковые версии
 
 
-def sitemap_data() -> dict:
+def sitemap_data(storefront=None) -> dict:
+    """Видимые товары и непустые категории; на витрине клиента — только её."""
     products = (
-        Product.objects.filter(variants__available=True, slug__isnull=False)
+        scope_products(Product.objects.filter(variants__available=True, slug__isnull=False), storefront)
         .exclude(slug="")
         .distinct()
         .order_by("-modified")
         .values("slug", "modified", "photo")[:MAX_PRODUCTS]
     )
     categories = (
-        Category.objects.filter(products__variants__available=True, slug__isnull=False)
+        with_products(scope_categories(Category.objects.filter(slug__isnull=False), storefront), storefront)
         .exclude(slug="")
-        .distinct()
         .order_by("name")
         .values("slug", "modified")
     )
@@ -48,8 +50,10 @@ class SitemapDataView(APIView):
     authentication_classes = []
 
     def get(self, request):
-        data = cache.get(CACHE_KEY)
+        storefront = current(request)
+        key = f"{CACHE_KEY}:{storefront.slug if storefront else ''}"  # у каждой витрины своя карта
+        data = cache.get(key)
         if data is None:
-            data = sitemap_data()
-            cache.set(CACHE_KEY, data, CACHE_SECONDS)
+            data = sitemap_data(storefront)
+            cache.set(key, data, CACHE_SECONDS)
         return Response(data)

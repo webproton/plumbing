@@ -124,6 +124,9 @@ def test_current_and_demo_endpoints(velo):
     assert (data["name"], data["verticals"], data["brand_color"]) == ("Вело", ["bikes"], "#15803d")
     assert client.get(reverse("storefronts:current")).json() == {"storefront": None}
     assert [s["slug"] for s in client.get(reverse("storefronts:demo")).json()] == ["velo"]
+    assert data["domain"] is None  # по ссылке/заголовку — не по домену
+    by_domain = client.get(reverse("storefronts:current"), HTTP_X_STOREFRONT_HOST="www.velo-dnipro.com.ua").json()
+    assert by_domain["storefront"]["domain"] == "velo-dnipro.com.ua"
 
 
 def test_seed_storefronts_with_products():
@@ -139,3 +142,13 @@ def test_seed_storefronts_with_products():
     assert "Шуруповерт" not in " ".join(velo)
     # демо-товары на складе — на витрине «в наличии»
     assert not ProductVariant.objects.filter(code__startswith="DEMO-", stock__lte=0).exists()
+
+
+def test_sitemap_of_storefront_lists_only_its_products(catalog, velo):
+    client = APIClient()
+    full = client.get(reverse("marketing:seo-sitemap")).json()
+    own = client.get(reverse("marketing:seo-sitemap"), HTTP_X_STOREFRONT_HOST="velo-dnipro.com.ua").json()
+    assert len(full["products"]) == 3
+    assert {p["slug"] for p in own["products"]} == {catalog["bike"].slug, catalog["chain"].slug}
+    assert "velosypedy-i-sport" in {c["slug"] for c in own["categories"]}
+    assert "instrument" not in {c["slug"] for c in own["categories"]}

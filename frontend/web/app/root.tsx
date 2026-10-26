@@ -21,7 +21,7 @@ import { ButtonLink, EmptyState } from "./components/ui";
 import { LANGS, langFromRequest, localizePath, stripLang } from "./i18n";
 import { useT } from "./i18n/react";
 import { cartCount, getCart } from "./lib/cart.server";
-import { config } from "./lib/config.server";
+import { config, originFor } from "./lib/config.server";
 import { apiContext, sessionMiddleware } from "./lib/context.server";
 import { canonicalSearch, robotsFor } from "./lib/seo";
 import { sessionContext } from "./lib/session.server";
@@ -65,7 +65,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     storefront,
     tagline: storefrontTagline(storefront, lang),
     navCategories: navCategories(categories, storefront),
-    publicUrl: config.publicUrl,
+    publicUrl: originFor(storefront?.domain),
     noindex: config.noindex,
     user: session.get("user") ?? null,
     cartCount: cartCount(cart),
