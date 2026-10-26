@@ -43,7 +43,7 @@ export default function Warehouses({ loaderData, actionData }: Route.ComponentPr
   const errors = actionData && !actionData.ok ? actionData.errors : {};
   return (
     <div className="space-y-5">
-      <PageTitle subtitle={t("wh.wh.subtitle")}>{t("wh.nav.warehouses")}</PageTitle>
+      <PageTitle subtitle={t("wh.wh.subtitle")} help="suppliers">{t("wh.nav.warehouses")}</PageTitle>
       {errors.form && <Alert tone="danger">{errors.form}</Alert>}
 
       <TableWrap>

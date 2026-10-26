@@ -20,10 +20,18 @@ from app.apps.products.models import Product, ProductVariant
 from app.apps.products.serializers import ProductVariantSerializer
 from app.core.pagination import StandardPagination
 
-from . import stock
+from . import stock, supplier_prices
 from .inventory.barcode_scanner import find_variant_by_code, scan_barcode
 from .labels import generate_labels
-from .models import InventoryDocument, ProductBarcode, StockBalance, StockMovement, Supplier, Warehouse
+from .models import (
+    InventoryDocument,
+    ProductBarcode,
+    StockBalance,
+    StockMovement,
+    Supplier,
+    SupplierQuote,
+    Warehouse,
+)
 from .pdf import generate_invoice_pdf
 from .permissions import IsWarehouseStaff, IsWarehouseStaffOrReadOnly, get_active_seller
 from .serializers import (
@@ -33,6 +41,7 @@ from .serializers import (
     StockBalanceSerializer,
     StockMovementCreateSerializer,
     StockMovementListSerializer,
+    SupplierQuoteSerializer,
     SupplierSerializer,
     TransferSerializer,
     VariantLookupSerializer,
@@ -777,3 +786,98 @@ class LabelsView(APIView):
         response = HttpResponse(pdf, content_type="application/pdf")
         response["Content-Disposition"] = f'inline; filename="labels-{size}.pdf"'
         return response
+
+
+# ---------------------------------------------------------------------------
+# Сравнение цен поставщиков
+# ---------------------------------------------------------------------------
+
+
+def _price_scope(user):
+    """Продавец видит свои товары и свои цены, администратор — все."""
+    return None if user.is_superuser else get_active_seller(user)
+
+
+def _scoped_variant(user, variant_id) -> ProductVariant:
+    variants = ProductVariant.objects.select_related("product")
+    seller = _price_scope(user)
+    if seller is not None:
+        variants = variants.filter(product__seller=seller)
+    return get_object_or_404(variants, pk=variant_id)
+
+
+class SupplierPricesView(APIView):
+    """
+    GET ?search=&multi=1&sort=spread|saving|name&page= — товары, по которым есть цены поставщиков
+    (фиды, накладные, внесённые вручную), с лучшей ценой, разницей и наценкой.
+    """
+
+    permission_classes = [IsWarehouseStaff]
+
+    def get(self, request):
+        rows = supplier_prices.comparison(
+            _price_scope(request.user),
+            search=request.query_params.get("search", ""),
+            multi=request.query_params.get("multi") == "1",
+            sort=request.query_params.get("sort", "spread"),
+        )
+        paginator = StandardPagination()
+        page = paginator.paginate_queryset(rows, request, view=self)
+        return paginator.get_paginated_response(page)
+
+
+class SupplierPriceDetailView(APIView):
+    """GET — все цены поставщиков на один вариант (для карточки товара)."""
+
+    permission_classes = [IsWarehouseStaff]
+
+    def get(self, request, variant_id):
+        variant = _scoped_variant(request.user, variant_id)
+        offers = supplier_prices.collect_offers([variant.pk], _price_scope(request.user))
+        return Response(supplier_prices.summarize(variant, offers.get(variant.pk, [])))
+
+
+class SupplierQuoteViewSet(
+    mixins.CreateModelMixin,
+    mixins.UpdateModelMixin,
+    mixins.DestroyModelMixin,
+    mixins.ListModelMixin,
+    viewsets.GenericViewSet,
+):
+    """Цены поставщиков, внесённые вручную. ?variant=<id> — по одному товару."""
+
+    serializer_class = SupplierQuoteSerializer
+    permission_classes = [IsWarehouseStaff]
+    pagination_class = StandardPagination
+
+    def get_queryset(self):
+        qs = SupplierQuote.objects.select_related("supplier")
+        seller = _price_scope(self.request.user)
+        if seller is not None:
+            qs = qs.filter(seller=seller)
+        variant = self.request.query_params.get("variant")
+        return qs.filter(variant_id=variant) if variant and variant.isdigit() else qs
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        variant = _scoped_variant(request.user, data["variant"].pk)
+        seller = get_active_seller(request.user) or variant.product.seller
+        if seller is None:
+            raise ValidationError({"variant": _("У товара нет продавца")})
+        quote, created = SupplierQuote.objects.update_or_create(
+            seller=seller,
+            variant=variant,
+            supplier=data["supplier"],
+            defaults={
+                "price": data["price"],
+                "currency": data["currency"],
+                "in_stock": data.get("in_stock"),
+                "note": data.get("note", ""),
+                "created_by": request.user,
+            },
+        )
+        return Response(
+            self.get_serializer(quote).data, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK
+        )

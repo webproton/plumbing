@@ -37,7 +37,7 @@ export default function Stock({ loaderData }: Route.ComponentProps) {
 
   return (
     <div className="space-y-4">
-      <PageTitle subtitle={`${count} ${pluralize(count, t("plural.position"))}`}>{t("wh.nav.stock")}</PageTitle>
+      <PageTitle subtitle={`${count} ${pluralize(count, t("plural.position"))}`} help="stock">{t("wh.nav.stock")}</PageTitle>
 
       <Form method="get" className="flex flex-wrap items-end gap-3 rounded-2xl border border-line bg-white p-4">
         <label className="min-w-48 flex-1 space-y-1.5">
