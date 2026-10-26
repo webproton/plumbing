@@ -7,7 +7,6 @@ from .models import (
     BedType,
     BodyMaterial,
     Brand,
-    Category,
     Filling,
     Form,
     IncludedItem,
@@ -26,7 +25,8 @@ class NumberInFilter(filters.BaseInFilter, filters.NumberFilter):
 
 
 class ProductFilters(filters.FilterSet):
-    category = filters.ModelChoiceFilter(queryset=Category.objects.all(), label="Category", to_field_name="slug")
+    # категория вместе с подкатегориями: «Велосипеди» → разделы → категории (дерево направлений)
+    category = filters.CharFilter(method="category_filter", label="Category")
 
     brand = filters.ModelMultipleChoiceFilter(
         queryset=Brand.objects.all(), field_name="variants__brand__id", to_field_name="id", label="Brand"
@@ -153,6 +153,11 @@ class ProductFilters(filters.FilterSet):
             "included_items",
             "search",
         ]
+
+    def category_filter(self, queryset, name, value):
+        return queryset.filter(
+            Q(category__slug=value) | Q(category__parent__slug=value) | Q(category__parent__parent__slug=value)
+        )
 
     def search_filter(self, queryset, name, value):
         """Поиск по названию товара/варианта, артикулу и штрихкоду."""

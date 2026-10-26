@@ -34,10 +34,18 @@ export function Header({ siteName, user, cartCount, categories, phone }: HeaderP
             <hr className="my-2 border-line" />
             <MobileLink to="/delivery">{t("nav.deliveryPayment")}</MobileLink>
             <MobileLink to="/contacts">{t("nav.contacts")}</MobileLink>
+            <div className="px-3 py-2 sm:hidden">
+              <LanguageSwitcher />
+            </div>
           </nav>
         </details>
 
-        <Link to="/" className="text-xl font-extrabold tracking-tight text-brand-700">
+        {/* длинное название витрины клиента на телефоне обрезается, а не ломает шапку */}
+        <Link
+          to="/"
+          title={siteName}
+          className="min-w-0 flex-1 truncate text-lg font-extrabold tracking-tight text-brand-700 sm:flex-none sm:text-xl"
+        >
           {siteName}
         </Link>
 
@@ -89,7 +97,7 @@ export function Header({ siteName, user, cartCount, categories, phone }: HeaderP
               </span>
             )}
           </IconLink>
-          <LanguageSwitcher />
+          <LanguageSwitcher className="hidden sm:flex" />
         </div>
       </div>
     </header>
@@ -97,13 +105,13 @@ export function Header({ siteName, user, cartCount, categories, phone }: HeaderP
 }
 
 /** UA | RU — та же страница на другом языке */
-function LanguageSwitcher() {
+function LanguageSwitcher({ className = "flex" }: { className?: string }) {
   const lang = useLang();
   const t = useT();
   const { pathname, search } = useLocation();
   const base = stripLang(pathname);
   return (
-    <nav aria-label={t("common.language")} className="ml-1 flex rounded-xl border border-line p-0.5 text-xs font-semibold">
+    <nav aria-label={t("common.language")} className={`ml-1 w-fit rounded-xl border border-line p-0.5 text-xs font-semibold ${className}`}>
       {LANGS.map((l) => (
         <RawLink
           key={l}
@@ -121,7 +129,7 @@ function LanguageSwitcher() {
 
 function IconLink({ to, label, className = "", children }: { to: string; label: string; className?: string; children: React.ReactNode }) {
   return (
-    <Link to={to} aria-label={label} title={label} className={`relative grid size-10 place-items-center rounded-xl hover:bg-brand-50 ${className}`}>
+    <Link to={to} aria-label={label} title={label} className={`relative grid size-9 place-items-center rounded-xl hover:bg-brand-50 sm:size-10 ${className}`}>
       {children}
     </Link>
   );

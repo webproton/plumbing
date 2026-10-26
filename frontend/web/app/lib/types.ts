@@ -15,6 +15,26 @@ export interface Category {
   name: string;
   photo: string | null;
   product_list: string;
+  /** место в дереве направлений: 0 — направление, 1 — раздел, 2 — категория */
+  parent?: string | null;
+  vertical?: string;
+  depth?: number;
+}
+
+/** Витрина клиента (/api/storefronts/current/): свои направления, название, цвет, контакты */
+export interface Storefront {
+  slug: string;
+  name: string;
+  tagline: string;
+  tagline_ru: string;
+  verticals: string[];
+  brand_color: string;
+  logo: string | null;
+  phone: string;
+  email: string;
+  address: string;
+  telegram_bot: string;
+  is_demo: boolean;
 }
 
 export interface NamedRef {
