@@ -27,9 +27,12 @@ def resolve(request) -> Storefront | None:
     if slug:
         return active.filter(slug=slug.strip().lower()).first()
     # фронтенд передаёт домен, на который зашёл покупатель; прямой запрос к API — его собственный Host
-    host = request.META.get("HTTP_X_STOREFRONT_HOST") or request.META.get("HTTP_HOST", "")
-    pk = _domains().get(normalize_host(host)) if host else None
-    return active.filter(pk=pk).first() if pk else None
+    host = normalize_host(request.META.get("HTTP_X_STOREFRONT_HOST") or request.META.get("HTTP_HOST", ""))
+    pk = _domains().get(host) if host else None
+    storefront = active.filter(pk=pk).first() if pk else None
+    if storefront:
+        request.storefront_domain = host  # сайт строит canonical и sitemap от домена клиента
+    return storefront
 
 
 class StorefrontMiddleware:
