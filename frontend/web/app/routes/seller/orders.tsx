@@ -55,7 +55,7 @@ export default function Orders({ loaderData }: Route.ComponentProps) {
 
   return (
     <div className="space-y-5">
-      <PageTitle subtitle={t("ord.subtitle")}>{t("ord.nav")}</PageTitle>
+      <PageTitle subtitle={t("ord.subtitle")} help="orders">{t("ord.nav")}</PageTitle>
       <nav className="flex flex-wrap gap-2" aria-label={t("catalog.filters")}>
         {TABS.map((s) => {
           const n = s === "all" ? total : (counts[s] ?? 0);

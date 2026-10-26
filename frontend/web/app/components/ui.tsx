@@ -1,9 +1,9 @@
 import { clsx } from "clsx";
-import { AlertCircle, CheckCircle2, Info, Loader2 } from "lucide-react";
+import { AlertCircle, CheckCircle2, CircleHelp, Info, Loader2 } from "lucide-react";
 import { useId, type ComponentProps, type ReactNode } from "react";
 import { type LinkProps } from "react-router";
 
-import { Link } from "~/i18n/react";
+import { Link, useT } from "~/i18n/react";
 
 // ---------- Button ----------
 
@@ -153,10 +153,25 @@ export function Card({ className, ...props }: ComponentProps<"div">) {
   return <div className={clsx("rounded-[var(--radius-card)] border border-line bg-white", className)} {...props} />;
 }
 
-export function PageTitle({ children, subtitle }: { children: ReactNode; subtitle?: ReactNode }) {
+/** help — раздел справки кабинета (/seller/help#…): рядом с заголовком появится «Как это работает?» */
+export function PageTitle({ children, subtitle, help }: { children: ReactNode; subtitle?: ReactNode; help?: string }) {
+  const t = useT();
+  const title = <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{children}</h1>;
   return (
     <div className="mb-6 space-y-1">
-      <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{children}</h1>
+      {help ? (
+        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+          {title}
+          <Link
+            to={`/seller/help#${help}`}
+            className="text-brand-700 inline-flex items-center gap-1 text-sm font-medium hover:underline"
+          >
+            <CircleHelp className="size-4 self-center" aria-hidden /> {t("help.how")}
+          </Link>
+        </div>
+      ) : (
+        title
+      )}
       {subtitle && <p className="text-muted">{subtitle}</p>}
     </div>
   );

@@ -48,7 +48,7 @@ export default function Suppliers({ loaderData, actionData }: Route.ComponentPro
   const errors = actionData && !actionData.ok ? actionData.errors : {};
   return (
     <div className="space-y-5">
-      <PageTitle subtitle={t("wh.sup.subtitle")}>{t("wh.nav.suppliers")}</PageTitle>
+      <PageTitle subtitle={t("wh.sup.subtitle")} help="suppliers">{t("wh.nav.suppliers")}</PageTitle>
       {errors.form && <Alert tone="danger">{errors.form}</Alert>}
 
       <TableWrap>

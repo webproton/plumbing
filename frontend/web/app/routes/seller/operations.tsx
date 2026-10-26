@@ -115,7 +115,7 @@ export default function Operations({ loaderData, actionData }: Route.ComponentPr
 
   return (
     <div className="space-y-5">
-      <PageTitle subtitle={t("wh.op.subtitle")}>{t("wh.nav.operations")}</PageTitle>
+      <PageTitle subtitle={t("wh.op.subtitle")} help="operations">{t("wh.nav.operations")}</PageTitle>
 
       <div role="tablist" aria-label={t("wh.nav.operations")} className="flex flex-wrap gap-2">
         {OPS.map((o) => (
