@@ -2,6 +2,7 @@
 
 import re
 from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
+from html import unescape
 
 from parsers.core.numbers import safe_float
 
@@ -198,6 +199,23 @@ def to_text(value, limit: int | None = None) -> str:
     if isinstance(value, float) and value.is_integer():
         value = int(value)  # артикул/штрихкод из Excel приходят как 4820000000001.0
     text = re.sub(r"\s+", " ", str(value)).strip()
+    return text[:limit] if limit else text
+
+
+_CDATA = re.compile(r"<!\[CDATA\[(.*?)\]\]>", re.DOTALL)
+_BREAKS = re.compile(r"<br\s*/?>|</(?:p|div|li|h[1-6]|tr)>", re.IGNORECASE)
+_TAGS = re.compile(r"</?[a-zA-Z!][^>]*>")  # «тиск < 6 бар» — не тег
+
+
+def to_plain_text(value, limit: int | None = None) -> str:
+    """Описание поставщика → обычный текст: сайт показывает его как текст, а не HTML.
+
+    Некоторые фиды кладут CDATA экранированным («&lt;![CDATA[…]]&gt;»), и после разбора XML он остаётся в тексте.
+    """
+    text = _CDATA.sub(r"\1", str(value or ""))
+    text = unescape(_TAGS.sub("", _BREAKS.sub("\n", text))).replace("\xa0", " ")
+    lines = (re.sub(r"[ \t\r\f\v]+", " ", line).strip() for line in text.split("\n"))
+    text = re.sub(r"\n{3,}", "\n\n", "\n".join(lines)).strip()
     return text[:limit] if limit else text
 
 

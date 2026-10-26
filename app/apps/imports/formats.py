@@ -19,7 +19,7 @@ from functools import partial
 from defusedxml import ElementTree as ET
 from django.utils.translation import gettext as _
 
-from .fields import detect_columns, to_bool, to_decimal, to_quantity, to_text, to_urls
+from .fields import detect_columns, to_bool, to_decimal, to_plain_text, to_quantity, to_text, to_urls
 
 MAX_ITEMS = 100_000
 HEADER_SCAN_ROWS = 30
@@ -146,7 +146,7 @@ def build_item(values: dict, params: dict | None = None) -> SourceItem | None:
         barcode=barcode,
         brand=to_text(values.get("brand"), 255),
         category=to_text(values.get("category"), 255),
-        description=str(values.get("description") or "").strip()[:20000],
+        description=to_plain_text(values.get("description"), 20000),
         url=to_text(values.get("url"), 1000),
         price=to_decimal(values.get("price")),
         old_price=to_decimal(values.get("old_price")),
