@@ -69,6 +69,7 @@ INSTALLED_APPS = [
     "app.apps.imports",
     "app.apps.delivery",
     "app.apps.marketing",
+    "app.apps.storefronts",
 ]
 
 MIDDLEWARE = [
@@ -79,6 +80,8 @@ MIDDLEWARE = [
     # язык ответа по Accept-Language (витрина присылает uk-UA / ru-UA)
     "django.middleware.locale.LocaleMiddleware",
     "django.middleware.common.CommonMiddleware",
+    # витрина клиента (свой домен или ?store=): request.storefront — каталог только её направлений и товаров
+    "app.apps.storefronts.resolve.StorefrontMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "allauth.account.middleware.AccountMiddleware",
@@ -222,7 +225,7 @@ REST_FRAMEWORK = {
 # ==============================
 CORS_ALLOWED_ORIGINS = env.list("CORS_ALLOWED_ORIGINS", default=[FRONTEND_URL])
 CORS_ALLOW_CREDENTIALS = True
-CORS_ALLOW_HEADERS = [*default_headers, "x-device-id", "x-session-id"]
+CORS_ALLOW_HEADERS = [*default_headers, "x-device-id", "x-session-id", "x-storefront", "x-storefront-host"]
 CSRF_TRUSTED_ORIGINS = env.list("CSRF_TRUSTED_ORIGINS", default=[FRONTEND_URL])
 
 # За nginx: доверяем X-Real-IP / X-Forwarded-Proto только если явно включено.
