@@ -3,7 +3,7 @@ from django.utils.translation import gettext_lazy
 # warehouse/permissions.py
 from rest_framework import permissions
 
-from .models import InventoryDocument, StockMovement, Supplier, Warehouse
+from .models import InventoryDocument, StockMovement, Supplier, SupplierQuote, Warehouse
 
 
 def get_active_seller(user):
@@ -29,7 +29,7 @@ class IsWarehouseStaff(permissions.BasePermission):
         if request.user.is_superuser:
             return True
         seller = get_active_seller(request.user)
-        if isinstance(obj, (Warehouse, StockMovement, InventoryDocument)):
+        if isinstance(obj, (Warehouse, StockMovement, InventoryDocument, SupplierQuote)):
             return obj.seller_id == seller.pk
         if isinstance(obj, Supplier):
             return True  # справочник поставщиков общий

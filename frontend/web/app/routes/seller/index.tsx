@@ -1,4 +1,4 @@
-import { AlertTriangle, FileText } from "lucide-react";
+import { AlertTriangle, FileText, LifeBuoy, Scale } from "lucide-react";
 
 import { StatCard, Table, TableWrap, Td, Th } from "~/components/seller/Table";
 import { Alert, ButtonLink, PageTitle } from "~/components/ui";
@@ -25,6 +25,15 @@ export default function SellerHome({ loaderData }: Route.ComponentProps) {
   return (
     <div className="space-y-6">
       <PageTitle>{t("wh.nav.overview")}</PageTitle>
+
+      {dash.positions === 0 && (
+        <Alert>
+          {t("help.firstTime")}{" "}
+          <Link to="/seller/help" className="font-semibold underline">
+            {t("help.openGuide")}
+          </Link>
+        </Alert>
+      )}
 
       {dash.documents_need_review > 0 && (
         <Alert tone="danger">
@@ -55,6 +64,12 @@ export default function SellerHome({ loaderData }: Route.ComponentProps) {
         </ButtonLink>
         <ButtonLink to="/seller/operations" variant="secondary">
           {t("wh.nav.operations")}
+        </ButtonLink>
+        <ButtonLink to="/seller/prices" variant="secondary">
+          <Scale className="size-4" aria-hidden /> {t("pr.nav")}
+        </ButtonLink>
+        <ButtonLink to="/seller/help" variant="ghost">
+          <LifeBuoy className="size-4" aria-hidden /> {t("help.nav")}
         </ButtonLink>
       </div>
 

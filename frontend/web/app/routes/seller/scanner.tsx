@@ -154,7 +154,7 @@ export default function Scanner({ loaderData }: Route.ComponentProps) {
 
   return (
     <div className="space-y-5">
-      <PageTitle subtitle={t("wh.scan.subtitle")}>{t("wh.nav.scanner")}</PageTitle>
+      <PageTitle subtitle={t("wh.scan.subtitle")} help="scanner">{t("wh.nav.scanner")}</PageTitle>
 
       <div role="tablist" className="flex flex-wrap gap-2">
         {MODES.map((m) => (

@@ -77,7 +77,7 @@ export default function ImportPage({ loaderData, actionData }: Route.ComponentPr
 
   return (
     <div className="space-y-6">
-      <PageTitle subtitle={t("imp.subtitle")}>{t("imp.nav")}</PageTitle>
+      <PageTitle subtitle={t("imp.subtitle")} help="import">{t("imp.nav")}</PageTitle>
 
       <div className="grid gap-4 lg:grid-cols-[1fr_1.4fr]">
         <Card className="space-y-4 p-5">

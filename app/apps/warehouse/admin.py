@@ -2,7 +2,15 @@ from django.contrib import admin, messages
 from django.db.models import F, Sum
 
 from . import stock
-from .models import InventoryDocument, InvoiceColumnProfile, StockBalance, StockMovement, Supplier, Warehouse
+from .models import (
+    InventoryDocument,
+    InvoiceColumnProfile,
+    StockBalance,
+    StockMovement,
+    Supplier,
+    SupplierQuote,
+    Warehouse,
+)
 from .services import ReviewRequiredError, process_inventory_document
 
 
@@ -155,3 +163,12 @@ class InvoiceColumnProfileAdmin(admin.ModelAdmin):
     list_display = ("supplier", "header", "used_count", "last_used_at", "created_at")
     list_filter = ("supplier",)
     readonly_fields = ("used_count", "last_used_at", "created_by")
+
+
+@admin.register(SupplierQuote)
+class SupplierQuoteAdmin(admin.ModelAdmin):
+    list_display = ("variant", "supplier", "price", "currency", "in_stock", "seller", "updated_at")
+    list_filter = ("supplier", "currency")
+    search_fields = ("variant__variant_name", "variant__product__name", "variant__code", "supplier__name")
+    autocomplete_fields = ("variant",)
+    raw_id_fields = ("created_by",)
