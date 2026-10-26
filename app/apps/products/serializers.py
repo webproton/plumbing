@@ -2,6 +2,8 @@ from django.db.models import Min
 from django.urls import reverse
 from rest_framework import serializers
 
+from app.apps.storefronts.scope import depth as category_depth
+
 from .models import (
     Armrest,
     Ball,
@@ -149,13 +151,18 @@ class ManufacturerSerializer(serializers.ModelSerializer):
 
 
 class CategorySerializer(serializers.ModelSerializer):
-    """Категория + ссылка на отфильтрованный каталог."""
+    """Категория + ссылка на отфильтрованный каталог; parent/vertical/depth — место в дереве направлений."""
 
     product_list = serializers.SerializerMethodField()
+    parent = serializers.SlugRelatedField(slug_field="slug", read_only=True)
+    depth = serializers.SerializerMethodField()
 
     class Meta:
         model = Category
-        fields = ["id", "slug", "name", "product_list", "photo"]
+        fields = ["id", "slug", "name", "product_list", "photo", "parent", "vertical", "depth"]
+
+    def get_depth(self, category):
+        return category_depth(category)
 
     def get_product_list(self, category):
         return reverse("products:product-list") + f"?category={category.slug}"

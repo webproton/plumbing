@@ -6,6 +6,9 @@ from rest_framework.decorators import action
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 
+from app.apps.storefronts.resolve import current
+from app.apps.storefronts.scope import scope_categories, scope_products, with_products
+
 from .filters import ProductFilters
 from .models import Category, Product, ProductVariant, Wishlist
 from .serializers import (
@@ -71,14 +74,22 @@ class NewProducts(viewsets.GenericViewSet, mixins.ListModelMixin):
     permission_classes = [permissions.AllowAny]
 
     def get_queryset(self):
-        return catalog_queryset().order_by("-id")[:6]
+        return scope_products(catalog_queryset(), current(self.request)).order_by("-id")[:6]
 
 
 class CategoryList(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.RetrieveModelMixin):
+    """Категории витрины; ?nonempty=1 — только те, где есть товары (для меню и плиток сайта)."""
+
     serializer_class = CategorySerializer
     permission_classes = [permissions.AllowAny]
     lookup_field = "slug"
-    queryset = Category.objects.order_by("name")
+
+    def get_queryset(self):
+        storefront = current(self.request)
+        queryset = scope_categories(Category.objects.select_related("parent__parent").order_by("name"), storefront)
+        if self.request.query_params.get("nonempty") == "1":
+            queryset = with_products(queryset, storefront)
+        return queryset
 
 
 class ProductListView(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.RetrieveModelMixin):
@@ -93,7 +104,7 @@ class ProductListView(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.Ret
     pagination_class = ProductPagination
 
     def get_queryset(self):
-        qs = catalog_queryset()
+        qs = scope_products(catalog_queryset(), current(self.request))
         if self.action == "retrieve":
             return qs.prefetch_related("photos")
         ordering = ORDERING.get(self.request.query_params.get("ordering", ""), "min_price")
