@@ -327,6 +327,11 @@ class ProductVariant(TimeStampedModel):
     # Меняются только через app.apps.warehouse.stock (queryset.update, без save()).
     stock = models.DecimalField(max_digits=12, decimal_places=3, default=0, verbose_name="Физический остаток")
     reserved = models.DecimalField(max_digits=12, decimal_places=3, default=0, verbose_name="Зарезервировано")
+    # не склад: сколько можно продать «под заказ» с остатка поставщиков (кэш, imports.services.refresh_supplier_stock)
+    supplier_qty = models.DecimalField(
+        max_digits=12, decimal_places=3, null=True, blank=True, verbose_name="Можно заказать у поставщика"
+    )
+    supplier_days = models.PositiveSmallIntegerField(null=True, blank=True, verbose_name="Срок поставки под заказ, дней")
 
     barcode_image = models.ImageField(upload_to="products/barcodes/", blank=True, null=True)
     barcode_type = models.CharField(
@@ -770,6 +775,11 @@ class ProductVariant(TimeStampedModel):
     def available_stock(self):
         """Доступно к продаже = физический остаток − резерв."""
         return max(self.stock - self.reserved, Decimal("0"))
+
+    @property
+    def orderable_qty(self):
+        """Сколько можно заказать: со своего склада или, если больше, «под заказ» у поставщика."""
+        return max(self.available_stock, self.supplier_qty or Decimal("0"))
 
     def generate_unique_code(self):
         prefix = "P"

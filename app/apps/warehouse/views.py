@@ -712,6 +712,22 @@ class VariantSearchAPIView(APIView):
         return Response(VariantLookupSerializer(variants, many=True).data)
 
 
+def _supplier_catalogs(warehouses) -> dict:
+    """Каталоги поставщиков — не склад: сколько позиций в фидах, сколько на сайте, что можно продать под заказ."""
+    from app.apps.imports.models import ImportSource, SupplierItem
+
+    sources = ImportSource.objects.filter(seller__in=warehouses.values("seller"))
+    items = SupplierItem.objects.filter(source__in=sources, missing=False)
+    return {
+        "sources": sources.count(),
+        "items": items.count(),
+        "on_site": items.filter(status=SupplierItem.LINKED).count(),
+        "orderable": ProductVariant.objects.filter(supplier_items__source__in=sources, supplier_qty__gt=0)
+        .distinct()
+        .count(),
+    }
+
+
 class WarehouseDashboardAPIView(APIView):
     """Сводка для главной страницы кабинета."""
 
@@ -731,6 +747,7 @@ class WarehouseDashboardAPIView(APIView):
         documents = InventoryDocument.objects.filter(seller__in=warehouses.values("seller"))
         return Response(
             {
+                "supplier_catalogs": _supplier_catalogs(warehouses),
                 "positions": totals["positions"] or 0,
                 "units": totals["units"] or 0,
                 "value": totals["value"] or 0,

@@ -66,10 +66,11 @@ class ItemSerializer(serializers.ModelSerializer):
     available_stock = serializers.DecimalField(
         source="variant.available_stock", max_digits=12, decimal_places=3, read_only=True
     )
+    supplier_name = serializers.CharField(source="supplier.name", read_only=True, default=None)
 
     class Meta:
         model = OrderItem
-        fields = ["id", "name", "sku", "quantity", "unit_price", "line_total", "variant", "product", "photo", "available_stock"]  # fmt: skip
+        fields = ["id", "name", "sku", "quantity", "unit_price", "line_total", "variant", "product", "photo", "available_stock", "on_order", "supplier_name"]  # fmt: skip
 
     def get_photo(self, item):
         v = item.variant

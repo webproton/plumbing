@@ -45,6 +45,7 @@ class ImportSourceSerializer(serializers.ModelSerializer):
             "currency", "price_mode", "markup_percent", "price_rounding", "partner_discount_percent",
             "partner_discount_brands", "category", "category_name",
             "supplier", "supplier_name", "publish_new", "update_prices", "hide_when_unavailable",
+            "sell_on_order", "order_days",
             "sync_interval_minutes", "is_active", "last_sync_at", "next_sync_at", "last_status", "last_error",
             "counts", "created_at",
         ]  # fmt: skip
@@ -115,6 +116,11 @@ class ImportSourceSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError(error)
             result[brand.strip()] = float(percent)
         return result
+
+    def validate_order_days(self, value):
+        if not 0 <= value <= 60:
+            raise serializers.ValidationError(_("Срок поставки — от 0 до 60 дней"))
+        return value
 
     def validate_price_rounding(self, value):
         if not 0 < value <= 1000:

@@ -33,6 +33,7 @@ logger = logging.getLogger(__name__)
 
 BATCH = 500
 CENT = Decimal("0.01")
+UNKNOWN_QTY = Decimal("999")  # у поставщика «есть», а сколько — фид не говорит
 ITEM_FIELDS = [
     "sku",
     "barcode",
@@ -248,6 +249,70 @@ def apply_updates(source: ImportSource, items=None) -> dict:
     return stats
 
 
+# ---------------------------------------------------------------------------
+# Остаток у поставщиков: продажа «под заказ» (свой склад не трогаем)
+# ---------------------------------------------------------------------------
+
+
+def _orderable(item) -> Decimal | None:
+    """Сколько можно заказать по позиции фида. «Нет в наличии» важнее количества: O&L пишет 100 и у отсутствующих."""
+    if item.available is False:
+        return None
+    if item.quantity is not None:
+        return item.quantity if item.quantity > 0 else None
+    return UNKNOWN_QTY if item.available else None
+
+
+def _orderable_items(variant_ids):
+    return SupplierItem.objects.filter(
+        variant_id__in=variant_ids,
+        status=SupplierItem.LINKED,
+        missing=False,
+        source__is_active=True,
+        source__sell_on_order=True,
+    ).select_related("source__supplier")
+
+
+def refresh_supplier_stock(variant_ids) -> int:
+    """Пересчитывает у вариантов supplier_qty / supplier_days по связанным позициям фидов. → сколько изменилось."""
+    ids = {pk for pk in variant_ids if pk}
+    if not ids:
+        return 0
+    qty: dict[int, Decimal] = {}
+    days: dict[int, int] = {}
+    for item in _orderable_items(ids):
+        amount = _orderable(item)
+        if amount is None:
+            continue
+        qty[item.variant_id] = qty.get(item.variant_id, Decimal(0)) + amount
+        days[item.variant_id] = min(days.get(item.variant_id, item.source.order_days), item.source.order_days)
+    changed = []
+    for variant in ProductVariant.objects.filter(pk__in=ids).only("id", "supplier_qty", "supplier_days"):
+        fresh = (qty.get(variant.pk), days.get(variant.pk))
+        if (variant.supplier_qty, variant.supplier_days) != fresh:
+            variant.supplier_qty, variant.supplier_days = fresh
+            changed.append(variant)
+    ProductVariant.objects.bulk_update(changed, ["supplier_qty", "supplier_days"], batch_size=BATCH)
+    return len(changed)
+
+
+def source_variant_ids(source: ImportSource) -> list[int]:
+    return list(source.items.filter(variant__isnull=False).values_list("variant_id", flat=True))
+
+
+def order_suppliers(variant_ids) -> dict:
+    """{id варианта: поставщик, у кого заказать} — у кого есть и дешевле закупка (оценка — если в прайсе только РРЦ)."""
+    best: dict[int, tuple] = {}
+    for item in _orderable_items(variant_ids):
+        if _orderable(item) is None or not item.source.supplier_id:
+            continue
+        cost = item.source.item_cost(item)
+        key = (cost is None, cost or 0)
+        if item.variant_id not in best or key < best[item.variant_id][0]:
+            best[item.variant_id] = (key, item.source.supplier)
+    return {vid: supplier for vid, (_key, supplier) in best.items()}
+
+
 def schedule_next(source: ImportSource, now):
     source.next_sync_at = (
         now + timedelta(minutes=source.sync_interval_minutes) if source.sync_interval_minutes else None
@@ -271,6 +336,7 @@ def sync_source(source: ImportSource, run: ImportRun | None = None) -> ImportRun
             stats = upsert_items(source, catalog.items, now)
             stats["linked_auto"] = auto_link(source)
             stats.update(apply_updates(source))
+            stats["on_order_changed"] = refresh_supplier_stock(source_variant_ids(source))
     except (ConnectorError, FetchError, FormatError) as exc:
         return _finish(source, run, now, error=str(exc))
     except Exception as exc:  # noqa: BLE001 — любой сбой фиксируем в журнале, а не теряем в воркере
@@ -330,16 +396,21 @@ def link_item(item: SupplierItem, variant_id: int) -> SupplierItem:
         raise ImportActionError(
             _("Этот товар уже связан с позицией «{name}»").format(name=other.name or other.external_id)
         )
+    previous = item.variant_id
     item.variant, item.status, item.match_method, item.hidden_by_sync = variant, SupplierItem.LINKED, "manual", False
     item.save(update_fields=["variant", "status", "match_method", "hidden_by_sync"])
     apply_updates(item.source, SupplierItem.objects.filter(pk=item.pk))
+    refresh_supplier_stock([previous, variant.pk])
     return item
 
 
 def set_status(source: ImportSource, item_ids, status: str) -> int:
     qs = source.items.filter(pk__in=item_ids)
     if status == SupplierItem.NEW:
-        return qs.update(status=SupplierItem.NEW, variant=None, match_method="", hidden_by_sync=False)
+        unlinked = list(qs.filter(variant__isnull=False).values_list("variant_id", flat=True))
+        changed = qs.update(status=SupplierItem.NEW, variant=None, match_method="", hidden_by_sync=False)
+        refresh_supplier_stock(unlinked)
+        return changed
     return qs.filter(variant__isnull=True).update(status=status)
 
 
@@ -410,6 +481,7 @@ def publish_items(source: ImportSource, item_ids, *, category: Category | None =
             item.save(update_fields=["variant", "status", "match_method"])
         taken.add(variant.pk)
         result["created"].append((variant.pk, item.photos))
+    refresh_supplier_stock(source.items.filter(pk__in=item_ids, variant__isnull=False).values_list("variant_id", flat=True))
     if visible and result["created"]:
         from app.apps.marketing.services import announce
 

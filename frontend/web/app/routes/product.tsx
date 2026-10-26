@@ -1,4 +1,4 @@
-import { Heart, ImageOff, PackageCheck, PackageX, Truck } from "lucide-react";
+import { Clock, Heart, ImageOff, PackageCheck, PackageX, Truck } from "lucide-react";
 import { useEffect, useState } from "react";
 import { data, useFetcher, useSearchParams } from "react-router";
 
@@ -9,6 +9,7 @@ import { Badge, Button } from "~/components/ui";
 import { langFromRequest, localizePath, makeT, type TFunction } from "~/i18n";
 import { Link, useLocalPath, useT } from "~/i18n/react";
 import { trackEvent } from "~/lib/analytics";
+import { availabilityOf, onOrderLabel, orderableQty } from "~/lib/availability";
 import { ApiError } from "~/lib/api.server";
 import { apiContext } from "~/lib/context.server";
 import { formatQty } from "~/lib/format";
@@ -78,7 +79,11 @@ export function meta({ loaderData, matches }: Route.MetaArgs) {
               price: v.price,
               priceCurrency: "UAH",
               itemCondition: "https://schema.org/NewCondition",
-              availability: v.in_stock ? "https://schema.org/InStock" : "https://schema.org/BackOrder",
+              availability: v.in_stock
+                ? "https://schema.org/InStock"
+                : v.on_order
+                  ? "https://schema.org/BackOrder"
+                  : "https://schema.org/OutOfStock",
             }
           : undefined,
       },
@@ -107,6 +112,7 @@ export default function ProductPage({ loaderData }: Route.ComponentProps) {
   );
   const [active, setActive] = useState(0);
   const available = variant ? Number(variant.available_qty) : 0;
+  const availability = availabilityOf(variant);
 
   return (
     <div className="space-y-10">
@@ -159,9 +165,13 @@ export default function ProductPage({ loaderData }: Route.ComponentProps) {
             <>
               <Price value={variant.price} original={variant.original_price} size="lg" />
               <div className="flex items-center gap-2">
-                {variant.in_stock ? (
+                {availability === "in_stock" ? (
                   <Badge tone="success">
                     <PackageCheck className="mr-1 size-3.5" aria-hidden /> {t("product.inStockQty", { qty: formatQty(available) })}
+                  </Badge>
+                ) : availability === "on_order" ? (
+                  <Badge tone="info">
+                    <Clock className="mr-1 size-3.5" aria-hidden /> {onOrderLabel(t, variant.on_order_days)}
                   </Badge>
                 ) : (
                   <Badge tone="muted">
@@ -169,6 +179,9 @@ export default function ProductPage({ loaderData }: Route.ComponentProps) {
                   </Badge>
                 )}
               </div>
+              {availability === "on_order" && variant.on_order_days ? (
+                <p className="text-sm text-muted">{t("product.onOrderNote", { days: variant.on_order_days })}</p>
+              ) : null}
 
               {product.variants.length > 1 && (
                 <fieldset className="space-y-2">
@@ -184,7 +197,7 @@ export default function ProductPage({ loaderData }: Route.ComponentProps) {
                           setParams({ v: String(v.id) }, { replace: true, preventScrollReset: true });
                         }}
                         aria-pressed={v.id === variant.id}
-                        className={`rounded-xl border px-3 py-2 text-sm ${v.id === variant.id ? "border-brand-500 bg-brand-50 font-medium" : "border-line bg-white hover:border-brand-500"} ${v.in_stock ? "" : "text-muted"}`}
+                        className={`rounded-xl border px-3 py-2 text-sm ${v.id === variant.id ? "border-brand-500 bg-brand-50 font-medium" : "border-line bg-white hover:border-brand-500"} ${availabilityOf(v) === "out" ? "text-muted" : ""}`}
                       >
                         {variantLabel(v, t)}
                       </button>
@@ -194,12 +207,16 @@ export default function ProductPage({ loaderData }: Route.ComponentProps) {
               )}
 
               <div className="flex flex-wrap items-center gap-3">
-                <QuantityStepper value={qty} onChange={setQty} max={variant.in_stock ? Math.floor(available) : undefined} />
+                <QuantityStepper
+                  value={qty}
+                  onChange={setQty}
+                  max={availability === "out" ? undefined : Math.floor(orderableQty(variant))}
+                />
                 <AddToCartButton
                   productId={product.id}
                   variantId={variant.id}
                   quantity={qty}
-                  disabled={!variant.in_stock}
+                  disabled={availability === "out"}
                   size="lg"
                   className="min-w-48 flex-1"
                   track={{ id: variant.id, name: product.name, price: Number(variant.price ?? 0) }}

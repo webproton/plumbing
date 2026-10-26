@@ -101,6 +101,10 @@ class ImportSource(models.Model):
     hide_when_unavailable = models.BooleanField(
         default=False, help_text="Скрывать товар, если у поставщика его нет, а на нашем складе пусто"
     )
+    sell_on_order = models.BooleanField(
+        default=True, help_text="Продавать «под заказ», когда у поставщика есть, а на нашем складе нет"
+    )
+    order_days = models.PositiveSmallIntegerField(default=3, help_text="Срок поставки под заказ, дней")
     sync_interval_minutes = models.PositiveIntegerField(default=0, help_text="0 — только вручную")
     is_active = models.BooleanField(default=True)
 

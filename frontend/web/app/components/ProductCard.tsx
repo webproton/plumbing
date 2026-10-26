@@ -1,6 +1,7 @@
 import { ImageOff } from "lucide-react";
 import { Link, useT } from "~/i18n/react";
 
+import { availabilityOf, onOrderLabel } from "~/lib/availability";
 import type { ProductListItem } from "~/lib/types";
 
 import { AddToCartButton } from "./AddToCartButton";
@@ -11,7 +12,7 @@ export function ProductCard({ product }: { product: ProductListItem }) {
   const t = useT();
   const variant = product.first_variant;
   const image = variant?.photo ?? product.photo;
-  const inStock = Boolean(variant?.in_stock);
+  const availability = availabilityOf(variant);
   return (
     <article className="group flex flex-col overflow-hidden rounded-[var(--radius-card)] border border-line bg-white transition-shadow hover:shadow-lg">
       <Link to={`/product/${product.slug}`} prefetch="intent" className="relative block aspect-square bg-surface">
@@ -38,13 +39,19 @@ export function ProductCard({ product }: { product: ProductListItem }) {
         </Link>
         <div className="mt-auto flex items-end justify-between gap-2">
           <Price value={product.price} original={variant?.original_price} from />
-          <Badge tone={inStock ? "success" : "muted"}>{inStock ? t("product.inStock") : t("product.onOrder")}</Badge>
+          <Badge tone={availability === "in_stock" ? "success" : availability === "on_order" ? "info" : "muted"}>
+            {availability === "in_stock"
+              ? t("product.inStock")
+              : availability === "on_order"
+                ? onOrderLabel(t, variant?.on_order_days)
+                : t("product.outOfStock")}
+          </Badge>
         </div>
         {variant && (
           <AddToCartButton
             productId={product.id}
             variantId={variant.id}
-            disabled={!inStock}
+            disabled={availability === "out"}
             size="sm"
             track={{ id: variant.id, name: product.name, price: Number(variant.price ?? product.price ?? 0) }}
           />

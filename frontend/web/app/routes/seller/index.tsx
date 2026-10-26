@@ -54,6 +54,27 @@ export default function SellerHome({ loaderData }: Route.ComponentProps) {
         <StatCard label={t("wh.dash.reserved")} value={formatQty(dash.reserved_units)} hint={t("wh.dash.reservedHint")} />
       </div>
 
+      {dash.supplier_catalogs && dash.supplier_catalogs.sources > 0 && (
+        <section className="space-y-3">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <h2 className="text-lg font-semibold">{t("wh.dash.suppliers")}</h2>
+            <Link to="/seller/sources" className="text-brand-700 text-sm font-semibold hover:underline">
+              {t("wh.dash.open")}
+            </Link>
+          </div>
+          <p className="text-muted text-sm">{t("wh.dash.suppliersHint")}</p>
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
+            <StatCard label={t("wh.dash.supplierItems")} value={dash.supplier_catalogs.items} />
+            <StatCard label={t("wh.dash.supplierOnSite")} value={dash.supplier_catalogs.on_site} />
+            <StatCard
+              label={t("wh.dash.supplierOrderable")}
+              value={dash.supplier_catalogs.orderable}
+              hint={t("wh.dash.supplierOrderableHint")}
+            />
+          </div>
+        </section>
+      )}
+
       <div className="flex flex-wrap gap-3">
         <ButtonLink to="/seller/documents" variant="secondary">
           <FileText className="size-4" aria-hidden /> {t("wh.dash.uploadInvoice")}

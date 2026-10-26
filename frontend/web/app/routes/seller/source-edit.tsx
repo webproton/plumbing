@@ -89,6 +89,8 @@ export async function action({ request, params, context }: Route.ActionArgs) {
       publish_new: form.get("publish_new") === "1",
       update_prices: form.get("update_prices") === "1",
       hide_when_unavailable: form.get("hide_when_unavailable") === "1",
+      sell_on_order: form.get("sell_on_order") === "1",
+      order_days: Number(v("order_days")) || 0,
       is_active: form.get("is_active") === "1",
       sync_interval_minutes: Number(v("sync_interval_minutes")) || 0,
       field_map: collect(form, "map."),
@@ -175,6 +177,7 @@ export default function SourceEdit({ loaderData, actionData }: Route.ComponentPr
         "markup_percent",
         "partner_discount_percent",
         "partner_discount_brands",
+        "order_days",
         "price_rounding",
         "sync_interval_minutes",
       ].includes(k),
@@ -502,6 +505,18 @@ export default function SourceEdit({ loaderData, actionData }: Route.ComponentPr
                 </Select>
               )}
             </Field>
+            <Field label={t("src.form.orderDays")} error={errors.order_days} hint={t("src.form.orderDaysHint")}>
+              {(p) => (
+                <Input
+                  {...p}
+                  name="order_days"
+                  type="number"
+                  min={0}
+                  max={60}
+                  defaultValue={source?.order_days ?? 3}
+                />
+              )}
+            </Field>
             <Field label={t("src.form.interval")} error={errors.sync_interval_minutes}>
               {(p) => (
                 <Select {...p} name="sync_interval_minutes" defaultValue={source?.sync_interval_minutes ?? 0}>
@@ -529,6 +544,11 @@ export default function SourceEdit({ loaderData, actionData }: Route.ComponentPr
               name="hide_when_unavailable"
               label={t("src.form.hide")}
               defaultChecked={source?.hide_when_unavailable ?? false}
+            />
+            <Check
+              name="sell_on_order"
+              label={t("src.form.sellOnOrder")}
+              defaultChecked={source?.sell_on_order ?? true}
             />
             <Check name="is_active" label={t("src.form.active")} defaultChecked={source?.is_active ?? true} />
           </div>

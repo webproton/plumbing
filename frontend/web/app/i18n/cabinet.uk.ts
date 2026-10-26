@@ -102,6 +102,8 @@ export const cabinetUk = {
   "ord.col.price": "Ціна",
   "ord.col.lineTotal": "Сума",
   "ord.stockNow": "на складі: {qty}",
+  "ord.onOrder": "Під замовлення: замовте, оприходуйте, потім відвантажуйте",
+  "ord.onOrderFrom": "Під замовлення у {supplier}: замовте, оприходуйте, потім відвантажуйте",
   "ord.total": "Разом",
   "ord.actions": "Дії",
   "ord.moveTo": "Перевести в «{status}»",

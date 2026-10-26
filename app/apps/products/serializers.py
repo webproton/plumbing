@@ -221,6 +221,9 @@ class ProductVariantSerializer(serializers.ModelSerializer):
     bed_type_form = FormSerializer(read_only=True)
     in_stock = serializers.SerializerMethodField(help_text="Есть ли товар в наличии (остаток минус резерв > 0)")
     available_qty = serializers.DecimalField(source="available_stock", max_digits=12, decimal_places=3, read_only=True)
+    on_order = serializers.SerializerMethodField(help_text="Можно заказать «под заказ» с остатка поставщика")
+    on_order_days = serializers.IntegerField(source="supplier_days", read_only=True)
+    orderable_qty = serializers.DecimalField(max_digits=12, decimal_places=3, read_only=True)
 
     class Meta:
         model = ProductVariant
@@ -274,10 +277,16 @@ class ProductVariantSerializer(serializers.ModelSerializer):
             "bed_type_form",
             "in_stock",
             "available_qty",
+            "on_order",
+            "on_order_days",
+            "orderable_qty",
         ]
 
     def get_in_stock(self, obj):
         return obj.available_stock > 0
+
+    def get_on_order(self, obj):
+        return bool(obj.supplier_qty)
 
     def get_photo(self, obj):
         if obj.photo:

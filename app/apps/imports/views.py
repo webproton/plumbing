@@ -209,10 +209,16 @@ class ImportSourceViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         serializer.save(seller=_require_seller(self.request.user))
 
+    def perform_update(self, serializer):
+        source = serializer.save()
+        services.refresh_supplier_stock(services.source_variant_ids(source))  # выключили источник / продажу под заказ
+
     def perform_destroy(self, instance):
+        variant_ids = services.source_variant_ids(instance)
         if instance.file:
             instance.file.delete(save=False)
         instance.delete()
+        services.refresh_supplier_stock(variant_ids)
 
     @action(detail=True, methods=["post"])
     def sync(self, request, pk=None):
