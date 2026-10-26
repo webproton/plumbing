@@ -136,6 +136,11 @@ export const importUk = {
   "src.price.markup": "Закупівельна ціна + націнка",
   "src.form.markup": "Націнка, %",
   "src.form.markupHint": "Для рекомендованої ціни — якщо її немає в прайсі",
+  "src.form.partnerDiscount": "Знижка партнера від РРЦ, %",
+  "src.form.partnerDiscountHint":
+    "Якщо в прайсі тільки РРЦ: закупка = РРЦ мінус знижка. Напр. РРЦ 6240, закупка 5135,65 → 17,7 %",
+  "src.form.brandDiscounts": "Знижка по брендах",
+  "src.form.brandDiscountsHint": "Кожен бренд з нового рядка: «KOER 17,7». Решта брендів — із загальною знижкою",
   "src.form.rounding": "Округлення",
   "src.round.cents": "до копійок",
   "src.round.1": "до гривні",

@@ -5,16 +5,19 @@ import pytest
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import reverse
 from django.utils import timezone
+from rest_framework.exceptions import ValidationError
 from rest_framework.test import APIClient
 
 from app.apps.accounts.tests.factories import UserFactory
 from app.apps.imports import services, tasks
 from app.apps.imports.connectors import web
 from app.apps.imports.models import ImportRun, ImportSource, SupplierItem
+from app.apps.imports.serializers import ImportSourceSerializer
 from app.apps.products.models import ProductVariant
 from app.apps.products.tests.factories import CategoryFactory, ProductVariantFactory
 from app.apps.warehouse import stock
 from app.apps.warehouse.models import CurrencyRate
+from app.apps.warehouse.supplier_prices import collect_offers
 from app.apps.warehouse.tests.factories import SellerFactory, SupplierFactory
 
 pytestmark = pytest.mark.django_db
@@ -96,6 +99,40 @@ def test_markup_mode_and_currency(seller):
     services.sync_source(source)
     variant.refresh_from_db()
     assert variant.price == Decimal("1.00")
+
+
+def test_partner_discount_from_rrp_gives_cost(seller):
+    # O&L отдаёт только РРЦ: закупка = РРЦ − скидка партнёра, у бренда может быть своя
+    koer = ProductVariantFactory(product__seller=seller, code="KP2668", price=Decimal("1"))
+    grohe = ProductVariantFactory(product__seller=seller, code="GR-1", price=Decimal("1"))
+    priced = ProductVariantFactory(product__seller=seller, code="P-1", price=Decimal("1"))
+    feed = yml(
+        offer("K", "Насосна станція Koer", "6240", sku="KP2668").replace("</offer>", "<vendor>KOER</vendor></offer>")
+        + offer("G", "Змішувач Grohe", "1000", sku="GR-1").replace("</offer>", "<vendor>Grohe</vendor></offer>")
+        + offer("P", "Із закупкою в прайсі", "1000", sku="P-1", cost="700")
+    )
+    source = make_source(
+        seller, feed, partner_discount_percent=Decimal("17.7"), partner_discount_brands={" grohe ": 25}
+    )
+    services.sync_source(source)
+    for variant in (koer, grohe, priced):
+        variant.refresh_from_db()
+    assert (koer.price, koer.cost_price) == (Decimal("6240.00"), Decimal("5135.5200"))  # 6240 − 17,7 %
+    assert grohe.cost_price == Decimal("750.0000")  # своя скидка бренда, регистр и пробелы не важны
+    assert priced.cost_price == Decimal("700.0000")  # закупка из прайса важнее оценки
+
+    best = collect_offers([koer.pk], seller)[koer.pk][0]
+    assert best.cost_uah == Decimal("5135.52") and best.ref == "Фід: РРЦ − 17.7 %"
+
+
+def test_partner_discount_validation():
+    serializer = ImportSourceSerializer()
+    assert serializer.validate_partner_discount_brands({" KOER ": "17,7", "Grohe": 25}) == {"KOER": 17.7, "Grohe": 25.0}
+    for bad in ({"KOER": "?"}, {"KOER": "NaN"}, {"KOER": 100}, {" ": 10}, ["KOER"]):
+        with pytest.raises(ValidationError):
+            serializer.validate_partner_discount_brands(bad)
+    with pytest.raises(ValidationError):
+        serializer.validate_partner_discount_percent(Decimal("100"))
 
 
 def test_second_sync_detects_changes_and_missing(seller):

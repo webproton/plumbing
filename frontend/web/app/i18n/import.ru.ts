@@ -135,6 +135,11 @@ export const importRu: ImportDict = {
   "src.price.markup": "Закупочная цена + наценка",
   "src.form.markup": "Наценка, %",
   "src.form.markupHint": "Для рекомендованной цены — если её нет в прайсе",
+  "src.form.partnerDiscount": "Скидка партнёра от РРЦ, %",
+  "src.form.partnerDiscountHint":
+    "Если в прайсе только РРЦ: закупка = РРЦ минус скидка. Напр. РРЦ 6240, закупка 5135,65 → 17,7 %",
+  "src.form.brandDiscounts": "Скидка по брендам",
+  "src.form.brandDiscountsHint": "Каждый бренд с новой строки: «KOER 17,7». Остальные бренды — с общей скидкой",
   "src.form.rounding": "Округление",
   "src.round.cents": "до копеек",
   "src.round.1": "до гривны",

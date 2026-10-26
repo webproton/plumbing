@@ -508,6 +508,10 @@ export interface ImportSource {
   price_mode: "rrp" | "markup";
   markup_percent: string;
   price_rounding: string;
+  /** Знижка партнера від РРЦ, % — коли в прайсі немає закупівельної ціни */
+  partner_discount_percent: string;
+  /** Своя знижка для брендів: { "KOER": 17.7 } */
+  partner_discount_brands: Record<string, number>;
   category: number | null;
   category_name: string | null;
   supplier: number | null;
