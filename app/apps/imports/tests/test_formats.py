@@ -132,7 +132,7 @@ def test_descriptions_become_plain_text():
     feed = YML.replace(
         "<description><![CDATA[<p>Опис</p>]]></description>".encode(),
         "<description>&lt;![CDATA[&lt;div&gt;2-ге місце&amp;nbsp;13 кг&lt;/div&gt;]]&gt;</description>".encode(),
-    ).replace(b"<price>55</price>", "<price>55</price><description>&lt;![CDATA[]]&gt;</description>".encode())
+    ).replace(b"<price>55</price>", b"<price>55</price><description>&lt;![CDATA[]]&gt;</description>")
     items, _info = parse_items(feed)
     a, b = sorted(items, key=lambda i: i.external_id)
     assert a.description == "2-ге місце 13 кг" and b.description == ""

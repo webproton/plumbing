@@ -1,7 +1,13 @@
 """Дерево направлений в базе и подбор категории/характеристик для импорта (apps.imports.services.publish_items)."""
+
+import re
+
 from ..models import Category
 from .attributes import extract
 from .taxonomy import VERTICALS, Vertical, classify
+
+# упаковка оптовика («Од. в упак.», «Вага ящ.», «Об'єм ящ.») — покупателю не нужна
+PACKAGING_PARAM = re.compile(r"упак|ящ\.|ящик", re.IGNORECASE)
 
 
 def ensure_taxonomy(vertical: Vertical) -> dict[str, Category]:
@@ -54,4 +60,5 @@ class CategoryResolver:
     def attributes(self, name: str, description: str = "", params: dict | None = None) -> dict:
         """Параметры поставщика + извлечённое из названия (різьба, DN, потужність…); данные поставщика важнее."""
         found = extract(f"{name} {description[:300]}", self.vertical.key) if self.vertical else {}
-        return {**found, **(params or {})}
+        own = {k: v for k, v in (params or {}).items() if not PACKAGING_PARAM.search(k)}
+        return {**found, **own}

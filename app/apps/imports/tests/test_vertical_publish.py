@@ -34,7 +34,7 @@ def test_publish_into_vertical_root_classifies_items(seller):
     source = make_source(
         seller,
         feed(
-            offer("1", "Змішувач для кухні Eurosmart хром", "3450", Виробник="Німеччина"),
+            offer("1", "Змішувач для кухні Eurosmart хром", "3450", Виробник="Німеччина", **{"Од. в упак.": "10", "Вага ящ.": "12.1"}),
             offer("2", 'Кран кульовий латунний 1/2" DN15', "265"),
             offer("3", "Радіатор сталевий 22 тип 500x1000", "4200", Тип="22"),
             offer("4", "Щось без категорії", "10"),
@@ -54,3 +54,5 @@ def test_publish_into_vertical_root_classifies_items(seller):
     assert by_ext["1"].attributes["Виробник"] == "Німеччина"  # параметр фида
     assert by_ext["1"].attributes["Колір"] == "хром"  # извлечено из названия
     assert by_ext["2"].attributes["Різьба"] == '1/2"' and by_ext["2"].attributes["DN"] == "15"
+    assert "Од. в упак." not in by_ext["1"].attributes and "Вага ящ." not in by_ext["1"].attributes  # упаковка оптовика
+    assert (by_ext["1"].dimensions_width, by_ext["1"].dimensions_weight) == (None, None)  # без заглушек 10 из модели

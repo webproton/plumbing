@@ -52,6 +52,12 @@ ITEM_FIELDS = [
 ]
 
 
+# у модели размеры по умолчанию 10 (наследие мебели) — у товаров поставщика их нет, не показываем выдуманные
+NO_DIMENSIONS = dict.fromkeys(
+    ("dimensions_width", "dimensions_height", "dimensions_depth", "dimensions_weight", "dimensions_thickness"), None
+)
+
+
 class ImportActionError(Exception):
     """Ошибка действия импорта, понятная пользователю."""
 
@@ -394,6 +400,7 @@ def publish_items(source: ImportSource, item_ids, *, category: Category | None =
                 description=item.description or None,
                 attributes=categories.attributes(item.name, item.description, item.params),
                 available=visible,
+                **NO_DIMENSIONS,
                 **discount_fields(sale, pricing.old(item, sale)),
             )
             variant.save()

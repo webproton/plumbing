@@ -67,6 +67,8 @@ export interface Variant {
   dimensions_height: Money | null;
   dimensions_depth: Money | null;
   dimensions_weight: Money | null;
+  /** Характеристики від постачальника: «Матеріал», «Тип виливу», «DN»… */
+  attributes?: Record<string, string | number | boolean | null> | null;
 }
 
 export interface ProductListItem {
