@@ -252,7 +252,7 @@ export default function Products({ loaderData, actionData }: Route.ComponentProp
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-start justify-between gap-4">
-        <PageTitle subtitle={t("prod.subtitle")}>{t("prod.nav")}</PageTitle>
+        <PageTitle subtitle={t("prod.subtitle")} help="products">{t("prod.nav")}</PageTitle>
         <ButtonLink to="/seller/products/new">
           <Plus className="size-4" aria-hidden /> {t("prod.add")}
         </ButtonLink>

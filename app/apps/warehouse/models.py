@@ -279,3 +279,33 @@ class InvoiceColumnProfile(models.Model):
 
     def __str__(self):
         return f"{self.supplier}: {', '.join(self.header.values())[:80]}"
+
+
+class SupplierQuote(models.Model):
+    """
+    Цена поставщика, внесённая вручную: прайс в PDF, звонок менеджеру, сайт поставщика.
+    Вместе с фидами (imports.SupplierItem) и накладными (приход) — основа сравнения цен
+    (app.apps.warehouse.supplier_prices).
+    """
+
+    seller = models.ForeignKey(Seller, on_delete=models.CASCADE, related_name="supplier_quotes")
+    variant = models.ForeignKey(ProductVariant, on_delete=models.CASCADE, related_name="supplier_quotes")
+    supplier = models.ForeignKey(Supplier, on_delete=models.CASCADE, related_name="quotes")
+    price = models.DecimalField(max_digits=14, decimal_places=4, verbose_name="Закупочная цена")
+    currency = models.CharField(max_length=3, default="UAH")
+    in_stock = models.BooleanField(null=True, blank=True, verbose_name="Есть у поставщика")
+    note = models.CharField(max_length=255, blank=True, verbose_name="Комментарий")
+    created_by = models.ForeignKey("accounts.User", on_delete=models.SET_NULL, null=True, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = _("Цена поставщика (вручную)")
+        verbose_name_plural = _("Цены поставщиков (вручную)")
+        ordering = ["price"]
+        constraints = [
+            models.UniqueConstraint(fields=["seller", "variant", "supplier"], name="supplierquote_seller_variant_uniq"),
+            models.CheckConstraint(condition=Q(price__gt=0), name="supplierquote_price_positive"),
+        ]
+
+    def __str__(self):
+        return f"{self.supplier}: {self.variant} — {self.price} {self.currency}"

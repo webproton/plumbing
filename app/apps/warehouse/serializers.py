@@ -7,7 +7,7 @@ from rest_framework import serializers
 from app.apps.products.models import ProductVariant
 
 from .duplicates import find_duplicates
-from .models import InventoryDocument, StockBalance, StockMovement, Supplier, Warehouse
+from .models import InventoryDocument, StockBalance, StockMovement, Supplier, SupplierQuote, Warehouse
 
 ALLOWED_INVOICE_EXTENSIONS = {".xlsx", ".xls", ".xml", ".yml", ".pdf", ".jpg", ".jpeg", ".png", ".webp"}
 MAX_INVOICE_SIZE = 10 * 1024 * 1024  # 10 МБ
@@ -221,3 +221,21 @@ class InventoryDocumentSerializer(serializers.ModelSerializer):
         if f.size > MAX_INVOICE_SIZE:
             raise serializers.ValidationError(_("Файл больше 10 МБ"))
         return f
+
+
+class SupplierQuoteSerializer(serializers.ModelSerializer):
+    """Цена поставщика, внесённая вручную. Повторное сохранение для той же пары товар + поставщик — обновление."""
+
+    supplier_name = serializers.CharField(source="supplier.name", read_only=True)
+    currency = serializers.ChoiceField(choices=[code for code, _label in ProductVariant.CURRENCY_CHOICES], default="UAH")
+
+    class Meta:
+        model = SupplierQuote
+        fields = ["id", "variant", "supplier", "supplier_name", "price", "currency", "in_stock", "note", "updated_at"]
+        read_only_fields = ["updated_at"]
+        validators = []  # уникальность (продавец, товар, поставщик) — обновлением в SupplierQuoteViewSet.create
+
+    def validate_price(self, value):
+        if value <= 0:
+            raise serializers.ValidationError(_("Цена должна быть больше нуля"))
+        return value

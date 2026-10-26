@@ -50,7 +50,7 @@ export default function Sources({ loaderData, actionData }: Route.ComponentProps
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-start justify-between gap-4">
-        <PageTitle subtitle={t("src.subtitle")}>{t("src.nav")}</PageTitle>
+        <PageTitle subtitle={t("src.subtitle")} help="sources">{t("src.nav")}</PageTitle>
         <ButtonLink to="/seller/sources/new">
           <Plus className="size-4" aria-hidden /> {t("src.add")}
         </ButtonLink>

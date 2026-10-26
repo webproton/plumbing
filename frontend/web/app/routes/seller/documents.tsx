@@ -73,7 +73,7 @@ export default function Documents({ loaderData, actionData }: Route.ComponentPro
 
   return (
     <div className="space-y-6">
-      <PageTitle subtitle={t("wh.doc.subtitle")}>{t("wh.nav.documents")}</PageTitle>
+      <PageTitle subtitle={t("wh.doc.subtitle")} help="documents">{t("wh.nav.documents")}</PageTitle>
 
       <Card className="p-5">
         <Form method="post" encType="multipart/form-data" className="grid items-end gap-4 sm:grid-cols-[1fr_16rem_auto]">

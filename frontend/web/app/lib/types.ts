@@ -709,3 +709,43 @@ export interface NpEstimate {
   cost?: number | null;
   date?: string | null;
 }
+
+// ---------- Ціни постачальників (/warehouse/supplier-prices/) ----------
+
+export type SupplierOfferKind = "feed" | "invoice" | "manual";
+
+export interface SupplierOffer {
+  kind: SupplierOfferKind;
+  supplier_key: string;
+  supplier_id: number | null;
+  supplier_name: string;
+  cost: number | null;
+  currency: string;
+  cost_uah: number | null;
+  rrp_uah: number | null;
+  available: boolean | null;
+  quantity: number | null;
+  date: string | null;
+  url: string;
+  ref: string;
+  quote_id: number | null;
+  best: boolean;
+}
+
+export interface SupplierPriceRow {
+  variant_id: number;
+  product_id: number | null;
+  name: string;
+  code: string;
+  barcode: string;
+  price: number | null;
+  cost_price: number | null;
+  suppliers: number;
+  min_cost: number | null;
+  max_cost: number | null;
+  spread_pct: number | null;
+  best: { supplier_name: string; cost_uah: number; kind: SupplierOfferKind } | null;
+  margin_pct: number | null;
+  saving: number | null;
+  offers: SupplierOffer[];
+}
