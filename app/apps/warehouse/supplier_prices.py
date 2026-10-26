@@ -105,21 +105,25 @@ def collect_offers(variant_ids, seller) -> dict[int, list[Offer]]:
     for item in _feed_items(seller).filter(variant_id__in=variant_ids).select_related("source__supplier"):
         source = item.source
         currency = item.currency or source.currency
+        cost = source.item_cost(item)
+        ref = source.name
+        if cost is not None and not item.cost:  # оценка: РРЦ минус скидка партнёра, а не цена из прайса
+            ref = f"{source.name}: РРЦ − {source.partner_discount(item.brand).normalize():f} %"
         offers[item.variant_id].append(
             Offer(
                 kind="feed",
                 supplier_key=f"s{source.supplier_id}" if source.supplier_id else f"src{source.pk}",
                 supplier_id=source.supplier_id,
                 supplier_name=source.supplier.name if source.supplier_id else source.name,
-                cost=item.cost,
+                cost=cost,
                 currency=currency,
-                cost_uah=to_uah(item.cost, currency, rates),
+                cost_uah=to_uah(cost, currency, rates),
                 rrp_uah=to_uah(item.price, currency, rates),
                 available=item.available,
                 quantity=item.quantity,
                 date=item.last_seen_at,
                 url=item.url,
-                ref=source.name,
+                ref=ref,
             )
         )
 

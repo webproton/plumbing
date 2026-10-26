@@ -1,4 +1,5 @@
 import os
+from decimal import Decimal, InvalidOperation
 from urllib.parse import urlsplit
 
 from django.utils.translation import gettext as _
@@ -12,6 +13,7 @@ MAX_SOURCE_FILE = 50 * 1024 * 1024
 TEMPLATE_EXTENSIONS = {".xlsx", ".xls", ".csv"}
 MAX_TEMPLATE_FILE = 20 * 1024 * 1024
 MAX_MAP_KEYS = 40
+MAX_DISCOUNT_BRANDS = 300
 
 
 def _check_file(f, extensions, max_size):
@@ -40,7 +42,8 @@ class ImportSourceSerializer(serializers.ModelSerializer):
         fields = [
             "id", "name", "kind", "url", "file", "has_file", "file_name", "format",
             "auth_type", "auth_login", "secret", "clear_secret", "has_secret", "adapter", "field_map", "options",
-            "currency", "price_mode", "markup_percent", "price_rounding", "category", "category_name",
+            "currency", "price_mode", "markup_percent", "price_rounding", "partner_discount_percent",
+            "partner_discount_brands", "category", "category_name",
             "supplier", "supplier_name", "publish_new", "update_prices", "hide_when_unavailable",
             "sync_interval_minutes", "is_active", "last_sync_at", "next_sync_at", "last_status", "last_error",
             "counts", "created_at",
@@ -92,6 +95,26 @@ class ImportSourceSerializer(serializers.ModelSerializer):
         if not 0 <= value <= 1000:
             raise serializers.ValidationError(_("Наценка — от 0 до 1000 %"))
         return value
+
+    def validate_partner_discount_percent(self, value):
+        if not 0 <= value < 100:
+            raise serializers.ValidationError(_("Скидка партнёра — от 0 до 99 %"))
+        return value
+
+    def validate_partner_discount_brands(self, value):
+        error = _("Скидки по брендам: «бренд → процент от 0 до 99»")
+        if not isinstance(value, dict) or len(value) > MAX_DISCOUNT_BRANDS:
+            raise serializers.ValidationError(error)
+        result = {}
+        for brand, percent in value.items():
+            try:
+                percent = Decimal(str(percent).replace(",", ".").strip())
+            except InvalidOperation:
+                raise serializers.ValidationError(error) from None
+            if not brand.strip() or len(brand) > 255 or not percent.is_finite() or not 0 <= percent < 100:
+                raise serializers.ValidationError(error)
+            result[brand.strip()] = float(percent)
+        return result
 
     def validate_price_rounding(self, value):
         if not 0 < value <= 1000:

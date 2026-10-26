@@ -88,17 +88,19 @@ class Pricing:
 
     def cost(self, item) -> Decimal | None:
         rate = self.rate(item.currency)
-        return (item.cost * rate).quantize(Decimal("0.0001")) if item.cost and rate else None
+        cost = self.source.item_cost(item)
+        return (cost * rate).quantize(Decimal("0.0001")) if cost and rate else None
 
     def sale(self, item) -> Decimal | None:
         rate = self.rate(item.currency)
         if rate is None:
             return None
         markup = Decimal(1) + self.source.markup_percent / Decimal(100)
+        cost = self.source.item_cost(item)
         if self.source.price_mode == ImportSource.PRICE_MARKUP:
-            base = item.cost * markup if item.cost else item.price
+            base = cost * markup if cost else item.price
         else:
-            base = item.price or (item.cost * markup if item.cost else None)
+            base = item.price or (cost * markup if cost else None)
         if not base or base <= 0:
             return None
         return self._round(base * rate)

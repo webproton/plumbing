@@ -3,11 +3,12 @@ import { useState, type ReactNode } from "react";
 import { data, Form, useNavigation } from "react-router";
 
 import { INTERVALS } from "~/components/seller/imports";
-import { Alert, Button, Card, Field, Input, PageTitle, Select } from "~/components/ui";
+import { Alert, Button, Card, Field, Input, PageTitle, Select, Textarea } from "~/components/ui";
 import { langFromRequest, makeT, tFromMatches, type TKey } from "~/i18n";
 import { Link, useT } from "~/i18n/react";
 import { localRedirect } from "~/i18n/server";
 import { ApiError, LONG_TIMEOUT } from "~/lib/api.server";
+import { brandDiscountsText, parseBrandDiscounts } from "~/lib/discounts";
 import { requireSeller } from "~/lib/seller.server";
 import type { AuthType, Category, ImportSource, SiteAdapterInfo, SourceKind, Supplier } from "~/lib/types";
 
@@ -80,6 +81,8 @@ export async function action({ request, params, context }: Route.ActionArgs) {
       currency: v("currency") || "UAH",
       price_mode: v("price_mode") || "rrp",
       markup_percent: v("markup_percent") || "0",
+      partner_discount_percent: v("partner_discount_percent") || "0",
+      partner_discount_brands: parseBrandDiscounts(v("partner_discount_brands")),
       price_rounding: v("price_rounding") || "1",
       category: Number(v("category")) || null,
       supplier: Number(v("supplier")) || null,
@@ -170,6 +173,8 @@ export default function SourceEdit({ loaderData, actionData }: Route.ComponentPr
         "file",
         "adapter",
         "markup_percent",
+        "partner_discount_percent",
+        "partner_discount_brands",
         "price_rounding",
         "sync_interval_minutes",
       ].includes(k),
@@ -419,6 +424,38 @@ export default function SourceEdit({ loaderData, actionData }: Route.ComponentPr
                   max={1000}
                   step="0.01"
                   defaultValue={source?.markup_percent ?? "30"}
+                />
+              )}
+            </Field>
+            <Field
+              label={t("src.form.partnerDiscount")}
+              error={errors.partner_discount_percent}
+              hint={t("src.form.partnerDiscountHint")}
+            >
+              {(p) => (
+                <Input
+                  {...p}
+                  name="partner_discount_percent"
+                  type="number"
+                  min={0}
+                  max={99}
+                  step="0.01"
+                  defaultValue={Number(source?.partner_discount_percent ?? 0) || ""}
+                />
+              )}
+            </Field>
+            <Field
+              label={t("src.form.brandDiscounts")}
+              error={errors.partner_discount_brands}
+              hint={t("src.form.brandDiscountsHint")}
+            >
+              {(p) => (
+                <Textarea
+                  {...p}
+                  name="partner_discount_brands"
+                  rows={3}
+                  placeholder={"KOER 17,7\nGrohe 25"}
+                  defaultValue={brandDiscountsText(source?.partner_discount_brands)}
                 />
               )}
             </Field>

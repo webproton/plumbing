@@ -7,6 +7,8 @@ SupplierItem  — товар в каталоге поставщика (пром�
 ImportRun     — один запуск: загрузка шаблона товаров или синхронизация источника (журнал + предпросмотр).
 """
 
+from decimal import Decimal
+
 from django.conf import settings
 from django.db import models
 from django.utils import timezone
@@ -84,6 +86,13 @@ class ImportSource(models.Model):
     price_rounding = models.DecimalField(
         max_digits=8, decimal_places=2, default=1, help_text="Округлять цену до (1 — до гривны, 0.01 — до копеек)"
     )
+    # в прайсе только РРЦ (O&L) → закупка = РРЦ − скидка партнёра; у разных брендов скидка разная
+    partner_discount_percent = models.DecimalField(
+        max_digits=5, decimal_places=2, default=0, help_text="Скидка партнёра от РРЦ, % — если в прайсе нет закупки"
+    )
+    partner_discount_brands = models.JSONField(
+        default=dict, blank=True, help_text='Скидка партнёра по брендам: {"KOER": 17.7, "Grohe": 25}'
+    )
     category = models.ForeignKey(
         Category, on_delete=models.SET_NULL, null=True, blank=True, help_text="Категория для новых товаров"
     )
@@ -117,6 +126,23 @@ class ImportSource(models.Model):
     @secret.setter
     def secret(self, value: str):
         self.secret_encrypted = crypto.encrypt(value or "")
+
+    def partner_discount(self, brand: str = "") -> Decimal:
+        """Скидка партнёра от РРЦ, %: своя у бренда, если задана, иначе общая."""
+        key = (brand or "").strip().casefold()
+        for name, percent in (self.partner_discount_brands or {}).items():
+            if key and name.strip().casefold() == key:
+                return Decimal(str(percent))
+        return self.partner_discount_percent or Decimal(0)
+
+    def item_cost(self, item) -> Decimal | None:
+        """Закупка позиции в валюте поставщика: из прайса, а если её нет — РРЦ минус скидка партнёра."""
+        if item.cost:
+            return item.cost
+        discount = self.partner_discount(item.brand)
+        if discount and item.price:
+            return (item.price * (1 - discount / 100)).quantize(Decimal("0.0001"))
+        return None
 
 
 class SupplierItem(models.Model):
