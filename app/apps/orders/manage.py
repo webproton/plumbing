@@ -25,6 +25,7 @@ from . import customer_notifications
 from .invoice import generate_invoice
 from .models import CustomerNotification, Order, OrderItem
 from .services import change_status
+from .stats import PERIODS, sales_stats
 
 S = Order.STATUS
 NEXT_STATUSES = {
@@ -140,6 +141,17 @@ class OrderDetailSerializer(OrderRowSerializer):
 
 class ManageOrderViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet):
     permission_classes = [IsOrderStaff]
+
+    @action(detail=False, methods=["get"])
+    def stats(self, request):
+        """Статистика продаж: ?days=1|7|30|90|365 (по умолчанию 30)."""
+        try:
+            days = int(request.query_params.get("days", 30))
+        except ValueError:
+            days = 0
+        if days not in PERIODS:
+            raise ValidationError({"days": _("Период: {periods} дней").format(periods=", ".join(map(str, PERIODS)))})
+        return Response(sales_stats(request.user, days))
     pagination_class = StandardPagination
 
     def get_serializer_class(self):
