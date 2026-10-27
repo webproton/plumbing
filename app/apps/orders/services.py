@@ -101,6 +101,7 @@ def create_order_from_cart(cart: Cart, *, user=None, **order_fields) -> Order:
             name=variant.variant_name or ci.product.name or "",
             sku=variant.code or "",
             unit_price=variant.price,
+            unit_cost=variant.cost_price,
             quantity=ci.quantity,
             on_order=variant.pk in on_order,
             supplier=suppliers.get(variant.pk),

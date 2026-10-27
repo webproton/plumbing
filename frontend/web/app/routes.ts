@@ -49,6 +49,7 @@ export default [
         route("warehouses", "routes/seller/warehouses.tsx"),
         route("suppliers", "routes/seller/suppliers.tsx"),
         route("prices", "routes/seller/prices.tsx"),
+        route("stats", "routes/seller/stats.tsx"),
         route("help", "routes/seller/help.tsx"),
         route("documents", "routes/seller/documents.tsx"),
         route("documents/:id", "routes/seller/document.tsx"),

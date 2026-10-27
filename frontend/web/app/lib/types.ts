@@ -265,6 +265,30 @@ export interface MovementRow {
   created_by_email: string | null;
 }
 
+/** Статистика продаж владельца: /orders/manage/stats/?days= */
+export interface SalesStats {
+  period: { days: number; from: string; to: string };
+  revenue: Money;
+  orders: number;
+  avg_check: Money;
+  units: Money;
+  profit: Money;
+  /** Сколько процентов выручки — с известной закупкой (100 — прибыль точная) */
+  profit_coverage: number;
+  canceled: number;
+  previous: { revenue: Money; orders: number; avg_check: Money; profit: Money };
+  by_day: { date: string; revenue: Money; orders: number }[];
+  top_products: { variant_id: number; product_id: number | null; name: string; qty: Money; revenue: Money; profit: Money }[];
+  top_categories: { category: string; qty: Money; revenue: Money }[];
+  dead_stock: {
+    count: number;
+    value: Money;
+    items: { variant_id: number; product_id: number; name: string; stock: Money; value: Money; last_sold: string | null }[];
+  };
+  low_stock: { variant_id: number; product_id: number; name: string; available: Money; sold: Money }[];
+  on_order_open: { lines: number; orders: number };
+}
+
 export interface WarehouseDashboard {
   /** Каталоги постачальників — не ваш склад */
   supplier_catalogs?: { sources: number; items: number; on_site: number; orderable: number };

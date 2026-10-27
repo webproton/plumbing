@@ -198,6 +198,10 @@ class OrderItem(models.Model):
     sku = models.CharField(max_length=50, blank=True, default="", verbose_name="Артикул")
     unit_price = models.DecimalField(max_digits=12, decimal_places=2, verbose_name="Цена за единицу")
     quantity = models.DecimalField(max_digits=12, decimal_places=3, verbose_name="Количество")
+    # закупка на момент заказа — прибыль в статистике не «плывёт», когда себестоимость товара потом меняется
+    unit_cost = models.DecimalField(
+        max_digits=14, decimal_places=4, null=True, blank=True, verbose_name="Себестоимость на момент заказа"
+    )
     # своего товара не хватало — продан с остатка поставщика: не резервируется, отгрузка — после оприходования
     on_order = models.BooleanField(default=False, verbose_name="Под заказ у поставщика")
     supplier = models.ForeignKey(
