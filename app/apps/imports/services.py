@@ -78,6 +78,8 @@ class Pricing:
     def __init__(self, source: ImportSource):
         self.source = source
         self.rates = {r.code.upper(): r.rate for r in CurrencyRate.objects.all()}
+        for own in ((source.options or {}).get("feed_rates") or {}, source.currency_rates or {}):
+            self.rates.update({code.upper(): Decimal(str(rate)) for code, rate in own.items() if rate})
         self.rates["UAH"] = Decimal(1)
 
     def rate(self, currency: str) -> Decimal | None:
@@ -335,6 +337,10 @@ def sync_source(source: ImportSource, run: ImportRun | None = None) -> ImportRun
         catalog = get_connector(source).fetch()
         if not catalog.items:
             raise FormatError(_("Источник не вернул ни одного товара"))
+        feed_rates = catalog.info.get("rates") or {}
+        if feed_rates != (source.options or {}).get("feed_rates", {}):
+            source.options = {**(source.options or {}), "feed_rates": feed_rates}
+            source.save(update_fields=["options"])
         with transaction.atomic():
             stats = upsert_items(source, catalog.items, now)
             stats["linked_auto"] = auto_link(source)
@@ -350,6 +356,7 @@ def sync_source(source: ImportSource, run: ImportRun | None = None) -> ImportRun
     stats["format"] = catalog.info.get("format", "")
     stats["skipped"] = catalog.info.get("skipped", 0)
     stats["duplicates"] = catalog.info.get("duplicates", 0)
+    stats["rates"] = catalog.info.get("rates", {})
     return _finish(source, run, now, stats=stats)
 
 

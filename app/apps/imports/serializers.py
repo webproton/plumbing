@@ -43,7 +43,7 @@ class ImportSourceSerializer(serializers.ModelSerializer):
             "id", "name", "kind", "url", "file", "has_file", "file_name", "format",
             "auth_type", "auth_login", "secret", "clear_secret", "has_secret", "adapter", "field_map", "options",
             "currency", "price_mode", "markup_percent", "price_rounding", "partner_discount_percent",
-            "partner_discount_brands", "category", "category_name",
+            "partner_discount_brands", "currency_rates", "category", "category_name",
             "supplier", "supplier_name", "publish_new", "update_prices", "hide_when_unavailable",
             "sell_on_order", "order_days",
             "sync_interval_minutes", "is_active", "last_sync_at", "next_sync_at", "last_status", "last_error",
@@ -85,7 +85,10 @@ class ImportSourceSerializer(serializers.ModelSerializer):
         return {k: v.strip() for k, v in value.items() if v.strip()}
 
     def validate_options(self, value):
-        return self._check_map(value, "options")
+        value = self._check_map(value, "options")
+        value.pop("feed_rates", None)  # курс из прайса пишет синхронизация, не форма — сохраняем прежний
+        feed_rates = ((self.instance.options or {}) if self.instance else {}).get("feed_rates")
+        return {**value, "feed_rates": feed_rates} if feed_rates else value
 
     def validate_sync_interval_minutes(self, value):
         if value and not 30 <= value <= 7 * 24 * 60:
@@ -101,6 +104,22 @@ class ImportSourceSerializer(serializers.ModelSerializer):
         if not 0 <= value < 100:
             raise serializers.ValidationError(_("Скидка партнёра — от 0 до 99 %"))
         return value
+
+    def validate_currency_rates(self, value):
+        error = _("Курс поставщика: «валюта курс», например «USD 46,55»")
+        if not isinstance(value, dict) or len(value) > 10:
+            raise serializers.ValidationError(error)
+        result = {}
+        for code, rate in value.items():
+            try:
+                rate = Decimal(str(rate).replace(",", ".").strip())
+            except InvalidOperation:
+                raise serializers.ValidationError(error) from None
+            code = str(code).strip().upper()
+            if not (len(code) == 3 and code.isalpha()) or not rate.is_finite() or not 0 < rate < 100000:
+                raise serializers.ValidationError(error)
+            result[code] = float(rate)
+        return result
 
     def validate_partner_discount_brands(self, value):
         error = _("Скидки по брендам: «бренд → процент от 0 до 99»")

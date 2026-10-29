@@ -1,8 +1,9 @@
-import { CheckCircle2, PackagePlus, ScanBarcode, TriangleAlert } from "lucide-react";
+import { CheckCircle2, Link2, PackagePlus, ScanBarcode, TriangleAlert } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { data, useFetcher, useSearchParams } from "react-router";
 
 import { CameraScanner } from "~/components/seller/CameraScanner";
+import { VariantPicker } from "~/components/seller/VariantPicker";
 import { Alert, Badge, Button, Card, Field, Input, PageTitle, Select } from "~/components/ui";
 import { langFromRequest, makeT, tFromMatches, type TKey } from "~/i18n";
 import { useT } from "~/i18n/react";
@@ -30,6 +31,7 @@ type ScanResult =
   | { ts: number; intent: "find" | "receive"; found: false; code: string }
   | { ts: number; intent: "receive"; found: true; name: string; sku: string | null; docQty: string; code: string }
   | { ts: number; intent: "create"; found: true; card: ScanCard }
+  | { ts: number; intent: "attach"; found: true; card: ScanCard; code: string; docQty: string | null }
   | { ts: number; intent: "count"; found: true; changed: boolean; name: string };
 
 const num = (v: string | undefined) => (v ?? "").replace(/\s/g, "").replace(",", ".");
@@ -54,6 +56,22 @@ export async function action({ request, context }: Route.ActionArgs) {
         { barcode: code, warehouse: Number(v.warehouse) },
       );
       return { ts, intent: "receive", found: true, name: r.name, sku: r.sku, docQty: r.current_doc_qty, code } satisfies ScanResult;
+    }
+    if (v.intent === "attach") {
+      // заводской штрихкод → к товару из базы; в «Приёмке» товар сразу добавляется в накладную
+      const card = await api.post<ScanCard>("/warehouse/stock-movements/attach_barcode/", {
+        variant: Number(v.variant),
+        code,
+      });
+      let docQty: string | null = null;
+      if (v.document) {
+        const r = await api.post<{ current_doc_qty: string }>(`/warehouse/inventory-documents/${Number(v.document)}/scan/`, {
+          barcode: code,
+          warehouse: Number(v.warehouse),
+        });
+        docQty = r.current_doc_qty;
+      }
+      return { ts, intent: "attach", found: true, card, code, docQty } satisfies ScanResult;
     }
     if (v.intent === "create") {
       const card = await api.post<ScanCard>("/warehouse/stock-movements/create_and_add/", {
@@ -136,6 +154,11 @@ export default function Scanner({ loaderData }: Route.ComponentProps) {
         setUnknown(result.code);
         push("danger", t("wh.scan.notFound", { code: result.code }));
       }
+    } else if (result.intent === "attach") {
+      setUnknown(null);
+      if (mode === "find") setCard(result.card);
+      push("success", t("wh.scan.attached", { code: result.code, name: result.card.name }));
+      if (result.docQty) push("success", t("wh.scan.received", { name: result.card.name, qty: formatQty(result.docQty) }));
     } else if (result.intent === "create") {
       setUnknown(null);
       push("success", t("wh.scan.created", { name: result.card.name }));
@@ -234,6 +257,18 @@ export default function Scanner({ loaderData }: Route.ComponentProps) {
       </Card>
 
       {unknown && mode !== "count" && (
+        <AttachBarcode
+          code={unknown}
+          busy={busy}
+          onSubmit={(variant) =>
+            fetcher.submit(
+              { intent: "attach", variant, code: unknown, warehouse, document: mode === "receive" ? documentId : "" },
+              { method: "post" },
+            )
+          }
+        />
+      )}
+      {unknown && mode !== "count" && (
         <CreateProduct
           code={unknown}
           warehouse={warehouse}
@@ -322,6 +357,36 @@ function ProductCardInline({ card }: { card: ScanCard }) {
         {t("wh.scan.onWarehouse", { qty: formatQty(card.stock_current ?? card.stock_total) })} · {[card.sku, card.barcode].filter(Boolean).join(" · ")}
       </p>
     </div>
+  );
+}
+
+function AttachBarcode({ code, busy, onSubmit }: { code: string; busy: boolean; onSubmit: (variant: string) => void }) {
+  const t = useT();
+  const [variant, setVariant] = useState<string>("");
+  return (
+    <Alert tone="info">
+      <form
+        className="space-y-3"
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (variant) onSubmit(variant);
+        }}
+      >
+        <p className="flex items-center gap-2 font-semibold">
+          <Link2 className="size-4" aria-hidden /> {t("wh.scan.attachTitle", { code })}
+        </p>
+        <p className="text-sm text-muted">{t("wh.scan.attachHint")}</p>
+        <div className="flex flex-wrap items-start gap-2">
+          <div className="min-w-0 flex-1">
+            <VariantPicker name="variant" onSelect={(v) => setVariant(v ? String(v.id) : "")} />
+          </div>
+          <Button type="submit" size="sm" loading={busy} disabled={!variant}>
+            {t("wh.scan.attach")}
+          </Button>
+        </div>
+        <p className="text-sm text-muted">{t("wh.scan.orCreate")}</p>
+      </form>
+    </Alert>
   );
 }
 

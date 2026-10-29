@@ -44,7 +44,7 @@ def stocked(wh):
 # --- права --------------------------------------------------------------
 
 
-@pytest.mark.parametrize("url_name", ["warehouse:scanner_find", "warehouse:scanner_create"])
+@pytest.mark.parametrize("url_name", ["warehouse:scanner_find", "warehouse:scanner_create", "warehouse:scanner_attach"])
 def test_scanner_requires_auth(url_name):
     resp = APIClient().post(reverse(url_name), {"query": "x"}, format="json")
     assert resp.status_code in (401, 403)
@@ -140,6 +140,26 @@ def test_scanner_find(client, wh, stocked):
     body = resp.json()
     assert body["variant_id"] == stocked.pk
     assert Decimal(body["stock_current"]) == 10
+
+
+def test_scanner_attach_factory_barcode(client, wh, stocked):
+    """Заводской штрихкод с упаковки → к товару из базы; следующий скан его находит; чужой — не перепривязать."""
+    find = reverse("warehouse:scanner_find")
+    attach = reverse("warehouse:scanner_attach")
+    assert client.post(find, {"query": "6974198851840"}, format="json").status_code == 404
+
+    resp = client.post(attach, {"variant": stocked.pk, "code": " 6974198851840 "}, format="json")
+    assert resp.status_code == 200 and resp.json()["variant_id"] == stocked.pk
+    assert client.post(find, {"query": "6974198851840"}, format="json").json()["variant_id"] == stocked.pk
+    assert client.post(attach, {"variant": stocked.pk, "code": "6974198851840"}, format="json").status_code == 200
+
+    other = ProductVariantFactory(product__seller=wh.seller, code="SKU-2")
+    busy = client.post(attach, {"variant": other.pk, "code": "6974198851840"}, format="json")
+    assert busy.status_code == 409 and "6974198851840" in busy.json()["detail"]
+    assert client.post(attach, {"variant": other.pk, "code": ""}, format="json").status_code == 400
+
+    alien = ProductVariantFactory(product__seller=SellerFactory())
+    assert client.post(attach, {"variant": alien.pk, "code": "111"}, format="json").status_code == 403
 
 
 def test_scanner_create_and_receive(client, wh):

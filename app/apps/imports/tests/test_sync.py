@@ -406,7 +406,7 @@ def test_stale_runs_are_failed(seller):
 
 
 def test_cost_in_its_own_currency_and_rrp_price(seller):
-    """Секвоя: продаём по РРЦ (грн), закупка — опт в $ по курсу из админки, а не «0,26 грн»."""
+    """Секвоя: продаём по РРЦ (грн), закупка — опт в $ по курсу (из прайса — 46.55), а не «0,26 грн»."""
     from app.apps.imports.tests.test_formats import SEQUOIA
 
     CurrencyRate.objects.create(code="USD", rate=Decimal("40"))
@@ -415,7 +415,7 @@ def test_cost_in_its_own_currency_and_rrp_price(seller):
     services.sync_source(source)
     variant.refresh_from_db()
     assert variant.price == Decimal("15.60")  # РРЦ
-    assert variant.cost_price == Decimal("10.4000")  # 0.26 $ × 40
+    assert variant.cost_price == Decimal("12.1030")  # 0.26 $ × 46.55 — курс из прайса важнее общего (40)
     item = SupplierItem.objects.get(source=source, external_id__contains="1003390")
     assert (item.cost_currency, item.photos) == ("USD", ["https://b2b.example.com//gallery/product_gallery/a.webp"])
 
@@ -425,4 +425,31 @@ def test_cost_in_its_own_currency_and_rrp_price(seller):
     services.sync_source(source)
     item.refresh_from_db()
     variant.refresh_from_db()
-    assert (item.cost, item.cost_currency, variant.cost_price) == (Decimal("0.3000"), "USD", Decimal("12.0000"))
+    assert (item.cost, item.cost_currency, variant.cost_price) == (Decimal("0.3000"), "USD", Decimal("13.9650"))
+
+
+def test_supplier_rate_from_feed_and_manual_override(seller):
+    """Курс у поставщика свой: Секвоя пишет Rate="46.55" прямо в прайсе; вручную в джерелі — важнее; общий — последним."""
+    from app.apps.imports.tests.test_formats import SEQUOIA
+
+    CurrencyRate.objects.create(code="USD", rate=Decimal("40"))
+    variant = ProductVariantFactory(product__seller=seller, code="1003390", price=Decimal("1"))
+    source = make_source(seller, SEQUOIA.encode(), price_rounding=Decimal("0.01"))
+    run = services.sync_source(source)
+    variant.refresh_from_db()
+    source.refresh_from_db()
+    assert run.stats["rates"] == {"USD": "46.55"} and source.options["feed_rates"] == {"USD": "46.55"}
+    assert variant.cost_price == Decimal("12.1030")  # 0.26 $ × 46.55 (курс поставщика, не общий 40)
+
+    source.currency_rates = {"USD": 45}
+    source.save()
+    replace_file(source, SEQUOIA.replace("0.26", "0.30").encode())
+    services.sync_source(source)
+    variant.refresh_from_db()
+    assert variant.cost_price == Decimal("13.5000")  # 0.30 × 45 — ручной курс важнее курса из прайса
+
+    serializer = ImportSourceSerializer(source, data={"options": {"items_tag": "Product"}}, partial=True)
+    assert serializer.is_valid(), serializer.errors
+    assert serializer.validated_data["options"] == {"items_tag": "Product", "feed_rates": {"USD": "46.55"}}
+    bad = ImportSourceSerializer(source, data={"currency_rates": {"долар": "x"}}, partial=True)
+    assert not bad.is_valid() and "currency_rates" in bad.errors

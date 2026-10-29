@@ -83,6 +83,7 @@ export async function action({ request, params, context }: Route.ActionArgs) {
       markup_percent: v("markup_percent") || "0",
       partner_discount_percent: v("partner_discount_percent") || "0",
       partner_discount_brands: parseBrandDiscounts(v("partner_discount_brands")),
+      currency_rates: parseBrandDiscounts(v("currency_rates")), // тот же формат строк: «USD 46,55»
       price_rounding: v("price_rounding") || "1",
       category: Number(v("category")) || null,
       supplier: Number(v("supplier")) || null,
@@ -167,6 +168,10 @@ export default function SourceEdit({ loaderData, actionData }: Route.ComponentPr
   const [adapterCode, setAdapterCode] = useState(source?.adapter || adapters[0]?.code || "");
   const adapter = adapters.find((a) => a.code === adapterCode);
   const opt = (name: string) => String(source?.options?.[name] ?? "");
+  // курс, который синхронизация нашла в самом прайсе (Rate="46.55" у Секвои)
+  const feedRates = Object.entries((source?.options?.feed_rates ?? {}) as unknown as Record<string, string>)
+    .map(([code, rate]) => `${code} ${rate}`)
+    .join(", ");
   const otherErrors = Object.entries(errors).filter(
     ([k]) =>
       ![
@@ -177,6 +182,7 @@ export default function SourceEdit({ loaderData, actionData }: Route.ComponentPr
         "markup_percent",
         "partner_discount_percent",
         "partner_discount_brands",
+        "currency_rates",
         "order_days",
         "price_rounding",
         "sync_interval_minutes",
@@ -486,6 +492,25 @@ export default function SourceEdit({ loaderData, actionData }: Route.ComponentPr
                     </option>
                   ))}
                 </Select>
+              )}
+            </Field>
+            <Field
+              label={t("src.form.rates")}
+              error={errors.currency_rates}
+              hint={
+                feedRates
+                  ? `${t("src.form.feedRates", { rates: feedRates })}. ${t("src.form.ratesHint")}`
+                  : t("src.form.ratesHint")
+              }
+            >
+              {(p) => (
+                <Textarea
+                  {...p}
+                  name="currency_rates"
+                  rows={2}
+                  placeholder={"USD 46,55\nEUR 50,10"}
+                  defaultValue={brandDiscountsText(source?.currency_rates)}
+                />
               )}
             </Field>
           </div>

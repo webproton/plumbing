@@ -187,6 +187,35 @@ class ScannerFindByBarcodeOrSkuAPIView(APIView):
         return Response(_variant_card(variant, request.user, warehouse))
 
 
+class ScannerAttachBarcodeAPIView(APIView):
+    """
+    POST {variant, code} — штрихкод с упаковки (заводской) привязать к товару, который уже есть в базе.
+    В прайсах поставщиков заводских штрихкодов нет: база «учится» со сканера, следующий скан найдёт товар.
+    """
+
+    permission_classes = [IsWarehouseStaff]
+
+    @transaction.atomic
+    def post(self, request):
+        code = str(request.data.get("code") or "").strip()
+        if not code or len(code) > 128:
+            return Response({"detail": _("Укажите штрихкод")}, status=status.HTTP_400_BAD_REQUEST)
+        variant = get_object_or_404(ProductVariant.objects.select_related("product"), pk=request.data.get("variant") or 0)
+        seller = get_active_seller(request.user)
+        if not request.user.is_superuser and variant.product.seller_id not in (None, getattr(seller, "pk", None)):
+            raise PermissionDenied(_("Товар принадлежит другому продавцу"))
+        owner = find_variant_by_code(code)
+        if owner and owner.pk != variant.pk:
+            name = owner.variant_name or owner.product.name
+            return Response(
+                {"detail": _("Штрихкод {code} уже у товара «{name}»").format(code=code, name=name)},
+                status=status.HTTP_409_CONFLICT,
+            )
+        if owner is None:
+            ProductBarcode.objects.create(code=code, variant=variant)
+        return Response(_variant_card(variant, request.user, _default_warehouse(request.user)))
+
+
 class ScannerCreateAndAddAPIView(APIView):
     """
     Создание нового товара со сканера. Если переданы document и warehouse —

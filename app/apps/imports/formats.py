@@ -264,6 +264,7 @@ def parse_records(records: list[dict], field_map: dict):
         attr_key = by_lower.get(f"{mapped.get(field, '')}@currency".lower())
         if field in mapped and currency_field not in mapped and attr_key:
             mapped[currency_field] = attr_key
+    rates = _feed_rates(records, mapped, by_lower)
     known = set(mapped.values())
     items, skipped = [], 0
     for record in records:
@@ -274,7 +275,25 @@ def parse_records(records: list[dict], field_map: dict):
             items.append(item)
         else:
             skipped += 1
-    return items, {"columns": mapped, "skipped": skipped}
+    info = {"columns": mapped, "skipped": skipped}
+    if rates:
+        info["rates"] = rates
+    return items, info
+
+
+def _feed_rates(records: list[dict], mapped: dict, by_lower: dict) -> dict:
+    """Курс поставщика из самого прайса: <Price Currency="$" Rate="46.55"> → {"USD": "46.55"} (самый частый)."""
+    seen: dict[str, Counter] = {}
+    for field, currency_field in (("price", "currency"), ("cost", "cost_currency")):
+        rate_key = by_lower.get(f"{mapped.get(field, '')}@rate".lower())
+        currency_key = mapped.get(currency_field)
+        if field not in mapped or not rate_key or not currency_key:
+            continue
+        for record in records:
+            code, rate = _currency(record.get(currency_key)), to_decimal(record.get(rate_key))
+            if code and code != "UAH" and rate and rate > 0:
+                seen.setdefault(code, Counter())[str(rate.normalize())] += 1
+    return {code: counter.most_common(1)[0][0] for code, counter in seen.items()}
 
 
 def _flatten(obj, prefix=""):

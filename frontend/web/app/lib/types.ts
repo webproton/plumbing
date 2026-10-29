@@ -546,6 +546,7 @@ export interface ImportSource {
   partner_discount_percent: string;
   /** Своя знижка для брендів: { "KOER": 17.7 } */
   partner_discount_brands: Record<string, number>;
+  currency_rates: Record<string, number>;
   category: number | null;
   category_name: string | null;
   supplier: number | null;
