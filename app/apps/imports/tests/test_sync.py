@@ -453,3 +453,22 @@ def test_supplier_rate_from_feed_and_manual_override(seller):
     assert serializer.validated_data["options"] == {"items_tag": "Product", "feed_rates": {"USD": "46.55"}}
     bad = ImportSourceSerializer(source, data={"currency_rates": {"долар": "x"}}, partial=True)
     assert not bad.is_valid() and "currency_rates" in bad.errors
+
+
+def test_factory_barcodes_learned_from_price_list(seller):
+    """Прайс со штрихкодами: товар связался по артикулу — заводской штрихкод становится доп. штрихкодом для сканера."""
+    from app.apps.warehouse.inventory.barcode_scanner import find_variant_by_code
+    from app.apps.warehouse.models import ProductBarcode
+
+    variant = ProductVariantFactory(product__seller=seller, code="KR2675", barcode="2048179886469")
+    taken = ProductVariantFactory(product__seller=seller, code="OTHER", barcode="4820000000028")
+    feed = yml(
+        offer("A", "Група безпеки 1", "1256", sku="KR2675", barcode="4820123456789")
+        + offer("B", "Інший товар", "10", sku="NEW-1", barcode="4820000000028")  # код уже есть у товара — дубль не нужен
+    )
+    run = services.sync_source(make_source(seller, feed))
+    assert run.status == ImportRun.DONE, run.error
+    assert run.stats["barcodes_learned"] == 1
+    assert find_variant_by_code("4820123456789") == variant
+    assert find_variant_by_code("2048179886469") == variant  # внутренний номер для этикеток остаётся
+    assert not ProductBarcode.objects.filter(code="4820000000028").exists() and taken.barcode == "4820000000028"

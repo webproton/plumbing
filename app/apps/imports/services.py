@@ -205,6 +205,25 @@ def auto_link(source: ImportSource) -> int:
     return len(linked)
 
 
+def learn_barcodes(source: ImportSource) -> int:
+    """
+    Штрихкод из прайса → к связанному товару (доп. штрихкод для сканера). Товары, созданные раньше без заводского
+    штрихкода (у них внутренний «2…»), получают его из первого же прайса, где он есть. Занятые коды не трогаем.
+    """
+    pairs = {
+        code.strip(): vid
+        for code, vid in source.items.filter(variant__isnull=False).exclude(barcode="").values_list("barcode", "variant_id")
+        if code.strip()
+    }
+    if not pairs:
+        return 0
+    taken = {c.lower() for c in ProductBarcode.objects.filter(code__in=pairs).values_list("code", flat=True)}
+    taken |= {c.lower() for c in ProductVariant.objects.filter(barcode__in=pairs).values_list("barcode", flat=True)}
+    new = [ProductBarcode(code=code, variant_id=vid) for code, vid in pairs.items() if code.lower() not in taken]
+    ProductBarcode.objects.bulk_create(new, batch_size=BATCH, ignore_conflicts=True)
+    return len(new)
+
+
 def apply_updates(source: ImportSource, items=None) -> dict:
     """Цены и видимость связанных вариантов по данным поставщика."""
     pricing = Pricing(source)
@@ -344,6 +363,7 @@ def sync_source(source: ImportSource, run: ImportRun | None = None) -> ImportRun
         with transaction.atomic():
             stats = upsert_items(source, catalog.items, now)
             stats["linked_auto"] = auto_link(source)
+            stats["barcodes_learned"] = learn_barcodes(source)
             stats.update(apply_updates(source))
             stats["on_order_changed"] = refresh_supplier_stock(source_variant_ids(source))
     except (ConnectorError, FetchError, FormatError) as exc:
