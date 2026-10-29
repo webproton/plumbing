@@ -46,6 +46,7 @@ ITEM_FIELDS = [
     "old_price",
     "cost",
     "currency",
+    "cost_currency",
     "quantity",
     "available",
     "photos",

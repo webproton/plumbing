@@ -418,3 +418,11 @@ def test_cost_in_its_own_currency_and_rrp_price(seller):
     assert variant.cost_price == Decimal("10.4000")  # 0.26 $ × 40
     item = SupplierItem.objects.get(source=source, external_id__contains="1003390")
     assert (item.cost_currency, item.photos) == ("USD", ["https://b2b.example.com//gallery/product_gallery/a.webp"])
+
+    # повторная загрузка (позиция уже есть — обновляется, а не создаётся): валюта закупки не теряется
+    SupplierItem.objects.filter(pk=item.pk).update(cost_currency="")
+    replace_file(source, SEQUOIA.replace("0.26", "0.30").encode())
+    services.sync_source(source)
+    item.refresh_from_db()
+    variant.refresh_from_db()
+    assert (item.cost, item.cost_currency, variant.cost_price) == (Decimal("0.3000"), "USD", Decimal("12.0000"))
