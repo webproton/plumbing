@@ -88,23 +88,25 @@ class Pricing:
         return ((value / step).quantize(Decimal(1), rounding=ROUND_HALF_UP) * step).quantize(CENT)
 
     def cost(self, item) -> Decimal | None:
-        rate = self.rate(item.currency)
+        """Закупка в гривнах. Своя валюта закупки (опт в $ при РРЦ в грн), иначе — валюта прайса;
+        закупка, посчитанная из РРЦ минус скидка партнёра, — в валюте РРЦ."""
         cost = self.source.item_cost(item)
+        own = getattr(item, "cost_currency", "") if item.cost else ""
+        rate = self.rate(own or item.currency)
         return (cost * rate).quantize(Decimal("0.0001")) if cost and rate else None
 
     def sale(self, item) -> Decimal | None:
         rate = self.rate(item.currency)
-        if rate is None:
-            return None
+        price = item.price * rate if item.price and rate else None
         markup = Decimal(1) + self.source.markup_percent / Decimal(100)
-        cost = self.source.item_cost(item)
+        cost = self.cost(item)
         if self.source.price_mode == ImportSource.PRICE_MARKUP:
-            base = cost * markup if cost else item.price
+            base = cost * markup if cost else price
         else:
-            base = item.price or (cost * markup if cost else None)
+            base = price or (cost * markup if cost else None)
         if not base or base <= 0:
             return None
-        return self._round(base * rate)
+        return self._round(base)
 
     def old(self, item, sale: Decimal) -> Decimal | None:
         rate = self.rate(item.currency)
@@ -456,7 +458,7 @@ def publish_items(source: ImportSource, item_ids, *, category: Category | None =
             product = Product.objects.create(
                 name=item.name[:255],
                 seller=source.seller,
-                category=categories.category_for(item.name, item.category_name, item.params),
+                category=categories.category_for(item.name, item.category_name or item.brand, item.params),
                 description=item.description or None,
             )
             code_free = (

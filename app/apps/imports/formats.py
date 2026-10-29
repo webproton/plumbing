@@ -44,6 +44,7 @@ class SourceItem:
     old_price: Decimal | None = None
     cost: Decimal | None = None
     currency: str = ""
+    cost_currency: str = ""  # если закупка в другой валюте, чем цена (у Секвои: опт в $, РРЦ в грн)
     quantity: Decimal | None = None
     available: bool | None = None
     photos: list = field(default_factory=list)
@@ -151,12 +152,22 @@ def build_item(values: dict, params: dict | None = None) -> SourceItem | None:
         price=to_decimal(values.get("price")),
         old_price=to_decimal(values.get("old_price")),
         cost=to_decimal(values.get("cost")),
-        currency=to_text(values.get("currency"), 3).upper(),
+        currency=_currency(values.get("currency")),
+        cost_currency=_currency(values.get("cost_currency")),
         quantity=quantity,
         available=available,
         photos=to_urls(values.get("photos"))[:20],
         params={k: to_text(v, 500) for k, v in list((params or {}).items())[:MAX_PARAMS] if to_text(v)},
     )
+
+
+_CURRENCY_SIGNS = {"$": "USD", "ДОЛ": "USD", "€": "EUR", "ЄВРО": "EUR", "ЕВРО": "EUR", "ГРН": "UAH", "₴": "UAH"}
+
+
+def _currency(value) -> str:
+    """«$» → USD, «грн.» → UAH: прайсы пишут валюту как угодно, курсы в админке — по кодам."""
+    code = to_text(value, 10).strip().upper().rstrip(".")
+    return _CURRENCY_SIGNS.get(code, code)[:3]
 
 
 # ---------------------------------------------------------------------------
@@ -221,11 +232,17 @@ def read_table(content: bytes, fmt: str, field_map: dict, options: dict | None =
     header = rows[best_idx]
     known = set(best.values())
     extra_cols = [(i, to_text(h, 100)) for i, h in enumerate(header) if i not in known and to_text(h)]
-    parsed = []
+    parsed, group = [], ""
     for offset, row in enumerate(rows[best_idx + 1 :], start=best_idx + 2):
-        if not any(to_text(c) for c in row):
+        filled = [c for c in row if to_text(c)]
+        if not filled:
             continue
         values = {f: (row[i] if i < len(row) else None) for f, i in best.items()}
+        if len(filled) == 1 and not to_text(values.get("price")) and not to_text(values.get("sku")):
+            group = to_text(filled[0], 255)  # строка-группа прайса 1С — не товар
+            continue
+        if group and "category" not in best:
+            values["category"] = group
         extra = {h: row[i] for i, h in extra_cols if i < len(row) and to_text(row[i])}
         parsed.append((offset, values, extra))
     return ParsedTable(rows=parsed, columns={f: to_text(header[i]) for f, i in best.items()}, header_row=best_idx + 1)
@@ -242,6 +259,11 @@ def parse_records(records: list[dict], field_map: dict):
     if "name" not in columns and "sku" not in columns:
         raise FormatError(_("Не найдены поля с названием или артикулом товара — настройте соответствие полей"))
     mapped = {f: keys[i] for f, i in columns.items()}
+    by_lower = {k.lower(): k for k in keys}
+    for field, currency_field in (("price", "currency"), ("cost", "cost_currency")):
+        attr_key = by_lower.get(f"{mapped.get(field, '')}@currency".lower())
+        if field in mapped and currency_field not in mapped and attr_key:
+            mapped[currency_field] = attr_key
     known = set(mapped.values())
     items, skipped = [], 0
     for record in records:
@@ -332,9 +354,17 @@ def _xml_records(content: bytes, items_tag: str = "") -> list[dict]:
         if _local(el.tag) != items_tag:
             continue
         record = {f"@{k}": v for k, v in el.attrib.items()}
+        repeated = Counter(_local(child.tag) for child in el)
         for child in el:
             key = _local(child.tag)
             text = (child.text or "").strip()
+            if repeated[key] > 1 and child.attrib:
+                # <Price PriceType="РРЦ" Currency="UAH">15.6</Price> → «РРЦ»: 15.6, «РРЦ@Currency»: UAH
+                kind = next(iter(child.attrib.values())).strip() or key
+                record.setdefault(kind, text)
+                for attr, value in child.attrib.items():
+                    record.setdefault(f"{kind}@{attr}", value)
+                continue
             if key in record:
                 previous = record[key] if isinstance(record[key], list) else [record[key]]
                 record[key] = [*previous, text]
