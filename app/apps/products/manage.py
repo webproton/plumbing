@@ -18,15 +18,22 @@ from rest_framework.exceptions import ValidationError
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.response import Response
 
+from app.apps.storefronts.scope import depth
 from app.apps.warehouse.permissions import IsWarehouseStaff, get_active_seller
 from app.core.pagination import StandardPagination
 
 from .models import Brand, Category, Product, ProductPhoto, ProductVariant
+from .search import match_all
 from .services import brand_by_name, discount_fields, editable_products
 
 MAX_PHOTO_BYTES = 10 * 1024 * 1024
 PHOTO_FORMATS = {"JPEG": "jpg", "PNG": "png", "WEBP": "webp"}
-ORDERING = {"name": "name", "-name": "-name", "price": "price_min", "-price": "-price_min", "new": "-created", "updated": "-modified"}  # fmt: skip
+ORDERING = {"name": "name", "-name": "-name", "price": "price_min", "-price": "-price_min", "new": "-created", "updated": "-modified", "brand": "brand_name"}  # fmt: skip
+
+
+def in_category(category_id) -> Q:
+    """Категория вместе с подкатегориями (дерево — до 3 уровней): «Змішувачі» — и «для кухні», и «для ванни»."""
+    return Q(category_id=category_id) | Q(category__parent_id=category_id) | Q(category__parent__parent_id=category_id)
 
 
 class CanEditProduct(IsWarehouseStaff):
@@ -230,14 +237,20 @@ class ManageProductViewSet(viewsets.ModelViewSet):
             stock=Coalesce(Sum(F("variants__stock") - F("variants__reserved")), Decimal(0)),
             visible=Exists(visible),
         )
+        variants = ProductVariant.objects.filter(product=OuterRef("pk"))
         if q := p.get("q", "").strip():
             # Exists, а не JOIN по вариантам: иначе суммы остатков в аннотациях умножаются
-            by_code = ProductVariant.objects.filter(product=OuterRef("pk")).filter(
-                Q(code__icontains=q) | Q(barcode__icontains=q)
+            found = Exists(variants.filter(Q(code__icontains=q) | Q(barcode__icontains=q)))
+            words = match_all(  # слова в любом порядке, окончания, по-русски, синонимы (search.py)
+                q,
+                lambda w: Q(name__icontains=w)
+                | Exists(variants.filter(Q(variant_name__icontains=w) | Q(brand__name__icontains=w))),
             )
-            qs = qs.filter(Q(name__icontains=q) | Exists(by_code))
+            qs = qs.filter(found | words if words is not None else found)
         if category := p.get("category"):
-            qs = qs.filter(category_id=category) if category != "none" else qs.filter(category__isnull=True)
+            qs = qs.filter(in_category(category)) if category != "none" else qs.filter(category__isnull=True)
+        if brand := p.get("brand", "").strip():
+            qs = qs.filter(Exists(variants.filter(brand__name__iexact=brand)))
         if p.get("visible") in ("1", "0"):
             qs = qs.filter(visible=p["visible"] == "1")
         if p.get("no_photo") == "1":
@@ -245,7 +258,41 @@ class ManageProductViewSet(viewsets.ModelViewSet):
         if p.get("in_stock") == "1":
             qs = qs.filter(stock__gt=0)
         sku = ProductVariant.objects.filter(product=OuterRef("pk")).order_by("id").values("code")[:1]
-        return qs.annotate(sku=Subquery(sku)).order_by(ORDERING.get(p.get("ordering"), "-modified"), "-id")
+        brand_name = variants.exclude(brand__isnull=True).order_by("id").values("brand__name")[:1]
+        return qs.annotate(sku=Subquery(sku), brand_name=Subquery(brand_name)).order_by(
+            ORDERING.get(p.get("ordering"), "-modified"), "-id"
+        )
+
+    @action(detail=False, methods=["get"])
+    def facets(self, request):
+        """Для фильтров кабинета: разделы и категории с числом товаров (с подкатегориями) и бренды продавца."""
+        user = request.user
+        products = editable_products(user, get_active_seller(user))
+        direct = dict(products.values_list("category_id").annotate(n=Count("id")).exclude(category_id=None))
+        parents = dict(Category.objects.values_list("id", "parent_id"))
+        totals: dict[int, int] = {}
+        for category_id, n in direct.items():
+            node, hops = category_id, 0
+            while node and hops < 4:  # товар считается и в разделе, и в направлении выше
+                totals[node] = totals.get(node, 0) + n
+                node, hops = parents.get(node), hops + 1
+        categories = [
+            {"id": c.pk, "name": c.name, "count": totals[c.pk], "depth": depth(c)}
+            for c in Category.objects.filter(pk__in=totals).select_related("parent__parent")
+        ]
+        brands = (
+            ProductVariant.objects.filter(product__in=products, brand__isnull=False)
+            .exclude(brand__name="")
+            .values("brand__name")
+            .annotate(n=Count("product", distinct=True))
+            .order_by("-n", "brand__name")
+        )
+        return Response(
+            {
+                "categories": sorted(categories, key=lambda c: (c["depth"], -c["count"], c["name"])),
+                "brands": [{"name": b["brand__name"], "count": b["n"]} for b in brands],
+            }
+        )
 
     def perform_create(self, serializer):
         user = self.request.user

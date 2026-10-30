@@ -166,3 +166,45 @@ def test_bulk_and_delete(client, seller):
 
     only = reverse("products:manage-variant-detail", args=[p1.variants.first().pk])
     assert client.delete(only).status_code == 400  # единственный вариант
+
+
+def _names(client, **params):
+    return sorted(p["name"] for p in client.get(reverse(LIST), params).json()["results"])
+
+
+def test_smart_search_brand_and_subcategories(client, seller):
+    """Поиск как ищут люди: порядок слов, окончания, по-русски, синонимы; бренд; категория — с подкатегориями."""
+    mixers = CategoryFactory(name="Змішувачі")
+    kitchen = CategoryFactory(name="Змішувачі для кухні", parent=mixers)
+    koer, grohe = Brand.objects.create(name="KOER"), Brand.objects.create(name="Grohe")
+    ProductVariantFactory(product__seller=seller, product__name="Змішувач для кухні латунний", product__category=kitchen,
+                          brand=koer, code="KR-1")
+    ProductVariantFactory(product__seller=seller, product__name="Водонагрівач 80 л", brand=grohe, code="WH-80")
+    ProductVariantFactory(product__seller=seller, product__name="Група безпеки 1\"", brand=koer, code="KR2675")
+    ProductVariantFactory(product__name="Змішувач чужий", product__category=kitchen)  # другого продавца
+
+    assert _names(client, q="кухня змішувач") == ["Змішувач для кухні латунний"]
+    assert _names(client, q="смеситель для кухни") == ["Змішувач для кухні латунний"]
+    assert _names(client, q="бойлер") == ["Водонагрівач 80 л"]
+    assert _names(client, q="группа безопасности") == ['Група безпеки 1"']
+    assert _names(client, q="koer") == sorted(["Змішувач для кухні латунний", 'Група безпеки 1"'])
+    assert _names(client, q="KR2675") == ['Група безпеки 1"']
+    assert _names(client, q="раковина") == []
+    assert _names(client, brand="koer") == sorted(["Змішувач для кухні латунний", 'Група безпеки 1"'])
+    assert _names(client, category=mixers.pk) == ["Змішувач для кухні латунний"]  # с подкатегорией
+    rows = client.get(reverse(LIST), {"ordering": "brand"}).json()["results"]
+    assert [r["name"] for r in rows][0] == "Водонагрівач 80 л"  # Grohe раньше KOER
+
+
+def test_facets_count_with_parents_and_brands(client, seller):
+    mixers = CategoryFactory(name="Змішувачі")
+    kitchen = CategoryFactory(name="Для кухні", parent=mixers)
+    koer = Brand.objects.create(name="KOER")
+    for _ in range(2):
+        ProductVariantFactory(product__seller=seller, product__category=kitchen, brand=koer)
+    ProductVariantFactory(product__category=kitchen, brand=koer)  # чужой — не считается
+    data = client.get(reverse("products:manage-product-facets")).json()
+    counts = {c["name"]: (c["count"], c["depth"]) for c in data["categories"]}
+    assert counts["Для кухні"][0] == 2 and counts["Змішувачі"][0] == 2
+    assert counts["Змішувачі"][1] < counts["Для кухні"][1]
+    assert data["brands"] == [{"name": "KOER", "count": 2}]

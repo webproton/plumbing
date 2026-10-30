@@ -1,8 +1,9 @@
 import { Eye, EyeOff, FolderInput, ImageOff, Package, Plus, Printer } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { data, Form, useNavigation, useSearchParams } from "react-router";
 
 import { Pagination } from "~/components/Pagination";
+import { SearchSelect } from "~/components/SearchSelect";
 import { Table, TableWrap, Td, Th } from "~/components/seller/Table";
 import {
   Alert,
@@ -20,25 +21,28 @@ import { Link, useLocalPath, useT } from "~/i18n/react";
 import { ApiError } from "~/lib/api.server";
 import { formatPrice, formatQty, pluralize } from "~/lib/format";
 import { pageOf, pagesOf, paged, requireSeller } from "~/lib/seller.server";
-import type { Category, ManageProductRow, Paginated } from "~/lib/types";
+import type { Category, ManageProductRow, Paginated, ProductFacets } from "~/lib/types";
+import { categoryOptions } from "~/lib/categories";
 import { thumb } from "~/lib/thumb";
 
 import type { Route } from "./+types/products";
 
 export const meta: Route.MetaFunction = ({ matches }) => [{ title: tFromMatches(matches)("prod.nav") }];
 
-const SORTS = ["updated", "new", "name", "price", "-price"] as const;
+const SORTS = ["updated", "new", "name", "brand", "price", "-price"] as const;
+const QUICK_SECTIONS = 10;
 
 export async function loader({ request, context }: Route.LoaderArgs) {
   const api = requireSeller(request, context);
   const q = new URL(request.url).searchParams;
   const page = pageOf(request);
-  const [products, categories] = await Promise.all([
+  const [products, categories, facets] = await Promise.all([
     paged(
       api.get<Paginated<ManageProductRow>>("/manage/products/", {
         query: {
           q: q.get("q") || undefined,
           category: q.get("category") || undefined,
+          brand: q.get("brand") || undefined,
           visible: q.get("visible") || undefined,
           no_photo: q.get("no_photo") || undefined,
           in_stock: q.get("in_stock") || undefined,
@@ -48,8 +52,9 @@ export async function loader({ request, context }: Route.LoaderArgs) {
       }),
     ),
     api.get<Category[]>("/category/"),
+    api.get<ProductFacets>("/manage/products/facets/").catch(() => ({ categories: [], brands: [] }) as ProductFacets),
   ]);
-  return { ...products, page, pages: pagesOf(products), categories };
+  return { ...products, page, pages: pagesOf(products), categories, facets };
 }
 
 export async function action({ request, context }: Route.ActionArgs) {
@@ -119,19 +124,13 @@ function Rows({ results, categories }: { results: ManageProductRow[]; categories
         >
           <EyeOff className="size-3.5" aria-hidden /> {t("prod.bulk.hide")}
         </Button>
-        <Select
+        <SearchSelect
           name="category"
-          defaultValue=""
-          className="w-52 py-1.5 text-sm"
-          aria-label={t("prod.bulk.toCategory")}
-        >
-          <option value="">{t("prod.bulk.toCategory")}</option>
-          {categories.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name}
-            </option>
-          ))}
-        </Select>
+          options={categoryOptions(categories)}
+          placeholder={t("prod.bulk.toCategory")}
+          ariaLabel={t("prod.bulk.toCategory")}
+          className="w-56 text-sm"
+        />
         <Button
           type="submit"
           name="intent"
@@ -246,9 +245,23 @@ function Rows({ results, categories }: { results: ManageProductRow[]; categories
 }
 
 export default function Products({ loaderData, actionData }: Route.ComponentProps) {
-  const { results, page, pages, categories } = loaderData;
+  const { results, page, pages, categories, facets } = loaderData;
   const t = useT();
   const [params] = useSearchParams();
+  const local = useLocalPath();
+  const filterForm = useRef<HTMLFormElement>(null);
+  const counts = new Map(facets.categories.map((c) => [c.id, c.count]));
+  const sections = facets.categories.filter((c) => c.depth === 1).slice(0, QUICK_SECTIONS);
+  const brandOptions = facets.brands.map((b) => ({ value: b.name, label: b.name, hint: String(b.count) }));
+  // выбор в списке с поиском — сразу показать (форма GET; значение скрытого поля обновится к следующему тику)
+  const apply = () => setTimeout(() => filterForm.current?.requestSubmit(), 0);
+  const withCategory = (id?: number) => {
+    const next = new URLSearchParams(params);
+    next.delete("page");
+    if (id) next.set("category", String(id));
+    else next.delete("category");
+    return local(`/seller/products?${next}`);
+  };
 
   return (
     <div className="space-y-5">
@@ -259,7 +272,25 @@ export default function Products({ loaderData, actionData }: Route.ComponentProp
         </ButtonLink>
       </div>
 
-      <Form method="get" className="flex flex-wrap items-center gap-3">
+      {sections.length > 1 && (
+        <nav className="flex flex-wrap gap-2" aria-label={t("prod.col.category")}>
+          {[{ id: 0, name: t("prod.quick.all"), count: 0 }, ...sections].map((s) => {
+            const active = s.id ? params.get("category") === String(s.id) : !params.get("category");
+            return (
+              <Link
+                key={s.id}
+                to={withCategory(s.id || undefined)}
+                className={`rounded-full border px-3 py-1 text-sm ${active ? "border-brand-600 bg-brand-600 text-white" : "border-line bg-white hover:border-brand-500"}`}
+              >
+                {s.name}
+                {s.count > 0 && <span className={active ? "ml-1.5 opacity-80" : "ml-1.5 text-muted"}>{s.count}</span>}
+              </Link>
+            );
+          })}
+        </nav>
+      )}
+
+      <Form ref={filterForm} method="get" className="flex flex-wrap items-center gap-3">
         <Input
           name="q"
           defaultValue={params.get("q") ?? ""}
@@ -267,20 +298,29 @@ export default function Products({ loaderData, actionData }: Route.ComponentProp
           className="w-64 py-2"
           aria-label={t("nav.search")}
         />
-        <Select
+        <SearchSelect
+          key={`c${params.get("category") ?? ""}`}
           name="category"
+          options={[
+            { value: "none", label: t("prod.noCategory") },
+            ...categoryOptions(categories, counts),
+          ]}
           defaultValue={params.get("category") ?? ""}
-          className="w-52 py-2"
-          aria-label={t("prod.col.category")}
-        >
-          <option value="">{t("prod.allCategories")}</option>
-          <option value="none">{t("prod.noCategory")}</option>
-          {categories.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name}
-            </option>
-          ))}
-        </Select>
+          placeholder={t("prod.allCategories")}
+          ariaLabel={t("prod.col.category")}
+          className="w-56"
+          onChange={apply}
+        />
+        <SearchSelect
+          key={`b${params.get("brand") ?? ""}`}
+          name="brand"
+          options={brandOptions}
+          defaultValue={params.get("brand") ?? ""}
+          placeholder={t("prod.allBrands")}
+          ariaLabel={t("prod.brand")}
+          className="w-48"
+          onChange={apply}
+        />
         <Select
           name="visible"
           defaultValue={params.get("visible") ?? ""}

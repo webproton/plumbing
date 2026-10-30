@@ -610,6 +610,12 @@ export interface SupplierCategory {
 
 // ---------- редактор товаров (кабинет) ----------
 
+/** Фильтры кабинета (/manage/products/facets/): категории с числом товаров (с подкатегориями) и бренды */
+export interface ProductFacets {
+  categories: { id: number; name: string; count: number; depth: number }[];
+  brands: { name: string; count: number }[];
+}
+
 export interface ManageProductRow {
   id: number;
   name: string;
