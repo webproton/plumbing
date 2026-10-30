@@ -21,6 +21,7 @@ import { ApiError } from "~/lib/api.server";
 import { formatPrice, formatQty, pluralize } from "~/lib/format";
 import { pageOf, pagesOf, paged, requireSeller } from "~/lib/seller.server";
 import type { Category, ManageProductRow, Paginated } from "~/lib/types";
+import { thumb } from "~/lib/thumb";
 
 import type { Route } from "./+types/products";
 
@@ -196,7 +197,7 @@ function Rows({ results, categories }: { results: ManageProductRow[]; categories
                   <Link to={`/seller/products/${p.id}`} className="flex items-center gap-3">
                     {p.photo ? (
                       <img
-                        src={p.photo}
+                        src={thumb(p.photo, 160)}
                         alt=""
                         loading="lazy"
                         className="border-line size-11 shrink-0 rounded-lg border object-contain"
