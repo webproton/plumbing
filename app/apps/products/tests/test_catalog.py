@@ -124,7 +124,9 @@ def test_search_like_people_type(client):
     """Покупатель ищет по-своему: по-русски, другими словами, в другом порядке — находит."""
     _product("Змішувач для кухні Koer")
     _product("Водонагрівач електричний 50 л")
+    _product("Фільтр для води потрійний")
     find = lambda q: [p["name"] for p in _results(client.get(reverse("products:product-list"), {"search": q}))]  # noqa: E731
     assert find("смеситель кухня") == ["Змішувач для кухні Koer"]
     assert find("бойлер 50") == ["Водонагрівач електричний 50 л"]
+    assert find("фильтр для воды") == ["Фільтр для води потрійний"]
     assert find("унитаз") == []

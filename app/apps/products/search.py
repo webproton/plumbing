@@ -19,12 +19,12 @@ MAX_WORDS = 6
 
 
 def stem(word: str) -> str:
-    """Основа без окончания: «кухні»/«кухня»/«кухни» → «кухн». Короткие слова и коды — как есть."""
+    """Основа без окончания: «кухні»/«кухня»/«кухни» → «кухн», «воды»/«вода» → «вод». Коды — как есть."""
     word = word.lower().replace("ё", "е").replace("’", "'").strip("'-.")
-    if len(word) <= 4 or any(ch.isdigit() for ch in word):
+    if len(word) <= 3 or any(ch.isdigit() for ch in word):
         return word
-    for _ in range(2):
-        if len(word) > 4 and word[-1] in _ENDINGS:
+    for _ in range(2 if len(word) > 4 else 1):  # от коротких слов отрезаем не больше одной буквы
+        if len(word) > 3 and word[-1] in _ENDINGS:
             word = word[:-1]
     return word
 
@@ -111,7 +111,10 @@ def query_words(query: str) -> list[set[str]]:
         base = stem(word)
         if base in {"для", "на", "из", "из-под", "под", "від", "под", "з", "із", "до", "в", "и", "і", "та"}:
             continue
-        result.append({base, *SYNONYMS.get(base, ())})
+        options = {base, *SYNONYMS.get(base, ())}
+        if "ы" in base or "э" in base:  # рус. «трубы», «экран» → укр. «труби», «екран»
+            options.add(base.replace("ы", "и").replace("э", "е"))
+        result.append(options)
     return result
 
 
