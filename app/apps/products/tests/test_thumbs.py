@@ -9,6 +9,13 @@ from django.test import Client
 from PIL import Image
 
 
+@pytest.fixture(autouse=True)
+def media_root(settings, tmp_path):
+    """Каждый тест — в своей пустой папке: копия от прошлого запуска не должна «найтись» вместо новой."""
+    settings.MEDIA_ROOT = str(tmp_path)
+    return tmp_path
+
+
 def _png(path: Path, size=(1200, 900)):
     path.parent.mkdir(parents=True, exist_ok=True)
     Image.new("RGBA", size, (200, 30, 30, 255)).save(path, "PNG")
@@ -24,6 +31,7 @@ def test_thumb_made_once_smaller_and_webp():
 
     cached = Path(settings.MEDIA_ROOT) / "thumbs" / "400" / "products" / "pump-1.png.webp"
     assert cached.is_file()
+    assert cached.stat().st_mode & 0o044 == 0o044  # читают все — его отдаёт nginx, а не владелец файла
     stamp = cached.stat().st_mtime_ns
     assert client.get("/media/thumbs/400/products/pump-1.png.webp").status_code == 200
     assert cached.stat().st_mtime_ns == stamp  # второй раз не пересоздаётся

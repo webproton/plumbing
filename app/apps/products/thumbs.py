@@ -35,6 +35,7 @@ def make_thumb(source: Path, target: Path, width: int) -> None:
         try:
             with os.fdopen(fd, "wb") as out:
                 image.save(out, "WEBP", quality=QUALITY, method=4)
+            os.chmod(tmp, 0o644)  # mkstemp создаёт 0600 — nginx (другой пользователь) не смог бы отдать файл
             os.replace(tmp, target)
         except BaseException:
             Path(tmp).unlink(missing_ok=True)
