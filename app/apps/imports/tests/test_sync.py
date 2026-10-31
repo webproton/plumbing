@@ -472,3 +472,31 @@ def test_factory_barcodes_learned_from_price_list(seller):
     assert find_variant_by_code("4820123456789") == variant
     assert find_variant_by_code("2048179886469") == variant  # внутренний номер для этикеток остаётся
     assert not ProductBarcode.objects.filter(code="4820000000028").exists() and taken.barcode == "4820000000028"
+
+
+def test_one_product_two_suppliers_main_offer(seller):
+    """Насос у двух поставщиков: цена — от того, у кого есть и дешевле закупка, в любом порядке синхронизации;
+    закончился у него — цена от второго; скрываем, только когда нет ни у кого."""
+    variant = ProductVariantFactory(product__seller=seller, code="PUMP-1", price=Decimal("1"), available=True)
+    a = make_source(seller, yml(offer("A1", "Насос", "150", sku="PUMP-1", cost="100", qty="5")),
+                    price_rounding=Decimal("0.01"), hide_when_unavailable=True)
+    b = make_source(seller, yml(offer("B1", "Насос", "140", sku="PUMP-1", cost="90", qty="3")),
+                    price_rounding=Decimal("0.01"), hide_when_unavailable=True)
+    for source in (b, a):  # B (дешевле) синхронизирован раньше — A не перебивает его цену
+        services.sync_source(source)
+    variant.refresh_from_db()
+    assert (variant.price, variant.cost_price) == (Decimal("140.00"), Decimal("90.0000"))
+
+    replace_file(b, yml(offer("B1", "Насос", "140", sku="PUMP-1", cost="90", qty="0", available="false")))
+    services.sync_source(b)  # у B закончился → главный A, хотя синхронизировался B
+    variant.refresh_from_db()
+    assert (variant.price, variant.cost_price, variant.available) == (Decimal("150.00"), Decimal("100.0000"), True)
+
+    replace_file(a, yml(offer("A1", "Насос", "150", sku="PUMP-1", cost="100", qty="0", available="false")))
+    services.sync_source(a)  # нет ни у кого → скрыт
+    variant.refresh_from_db()
+    assert variant.available is False
+    replace_file(b, yml(offer("B1", "Насос", "140", sku="PUMP-1", cost="90", qty="2")))
+    services.sync_source(b)  # снова есть у B → показан, цена B
+    variant.refresh_from_db()
+    assert (variant.available, variant.price) == (True, Decimal("140.00"))
