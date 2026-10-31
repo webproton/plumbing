@@ -118,3 +118,17 @@ def test_long_supplier_name_fits_slug_fields():
     product = Product.objects.create(name=name[:255])
     variant = ProductVariant.objects.create(product=product, variant_name=name[:255], price=10)
     assert len(product.slug) <= 255 and len(variant.slug) <= 255
+
+
+def test_search_like_people_type(client):
+    """Покупатель ищет по-своему: по-русски, другими словами, в другом порядке — находит."""
+    _product("Змішувач для кухні Koer")
+    _product("Водонагрівач електричний 50 л")
+    _product("Фільтр для води потрійний")
+    _product("Кран кульовий 1/2 Koer")
+    find = lambda q: [p["name"] for p in _results(client.get(reverse("products:product-list"), {"search": q}))]  # noqa: E731
+    assert find("смеситель кухня") == ["Змішувач для кухні Koer"]
+    assert find("бойлер 50") == ["Водонагрівач електричний 50 л"]
+    assert find("фильтр для воды") == ["Фільтр для води потрійний"]
+    assert find("кран шаровый") == ["Кран кульовий 1/2 Koer"]
+    assert find("унитаз") == []

@@ -93,6 +93,10 @@ class ImportSource(models.Model):
     partner_discount_brands = models.JSONField(
         default=dict, blank=True, help_text='Скидка партнёра по брендам: {"KOER": 17.7, "Grohe": 25}'
     )
+    # курс у каждого поставщика свой (не как в обменнике): вручную > из прайса (Rate="46.55") > общий из админки
+    currency_rates = models.JSONField(
+        default=dict, blank=True, help_text='Курс поставщика к гривне: {"USD": 46.55, "EUR": 50.1}'
+    )
     category = models.ForeignKey(
         Category, on_delete=models.SET_NULL, null=True, blank=True, help_text="Категория для новых товаров"
     )
@@ -166,6 +170,7 @@ class SupplierItem(models.Model):
     old_price = models.DecimalField(max_digits=14, decimal_places=4, null=True, blank=True)
     cost = models.DecimalField(max_digits=14, decimal_places=4, null=True, blank=True)  # закупочная
     currency = models.CharField(max_length=3, blank=True)
+    cost_currency = models.CharField(max_length=3, blank=True)  # пусто — как у цены
     quantity = models.DecimalField(max_digits=12, decimal_places=3, null=True, blank=True)  # остаток у поставщика
     available = models.BooleanField(null=True)
     photos = models.JSONField(default=list, blank=True)

@@ -46,6 +46,7 @@ ITEM_FIELDS = [
     "old_price",
     "cost",
     "currency",
+    "cost_currency",
     "quantity",
     "available",
     "photos",
@@ -77,6 +78,8 @@ class Pricing:
     def __init__(self, source: ImportSource):
         self.source = source
         self.rates = {r.code.upper(): r.rate for r in CurrencyRate.objects.all()}
+        for own in ((source.options or {}).get("feed_rates") or {}, source.currency_rates or {}):
+            self.rates.update({code.upper(): Decimal(str(rate)) for code, rate in own.items() if rate})
         self.rates["UAH"] = Decimal(1)
 
     def rate(self, currency: str) -> Decimal | None:
@@ -88,23 +91,25 @@ class Pricing:
         return ((value / step).quantize(Decimal(1), rounding=ROUND_HALF_UP) * step).quantize(CENT)
 
     def cost(self, item) -> Decimal | None:
-        rate = self.rate(item.currency)
+        """Закупка в гривнах. Своя валюта закупки (опт в $ при РРЦ в грн), иначе — валюта прайса;
+        закупка, посчитанная из РРЦ минус скидка партнёра, — в валюте РРЦ."""
         cost = self.source.item_cost(item)
+        own = getattr(item, "cost_currency", "") if item.cost else ""
+        rate = self.rate(own or item.currency)
         return (cost * rate).quantize(Decimal("0.0001")) if cost and rate else None
 
     def sale(self, item) -> Decimal | None:
         rate = self.rate(item.currency)
-        if rate is None:
-            return None
+        price = item.price * rate if item.price and rate else None
         markup = Decimal(1) + self.source.markup_percent / Decimal(100)
-        cost = self.source.item_cost(item)
+        cost = self.cost(item)
         if self.source.price_mode == ImportSource.PRICE_MARKUP:
-            base = cost * markup if cost else item.price
+            base = cost * markup if cost else price
         else:
-            base = item.price or (cost * markup if cost else None)
+            base = price or (cost * markup if cost else None)
         if not base or base <= 0:
             return None
-        return self._round(base * rate)
+        return self._round(base)
 
     def old(self, item, sale: Decimal) -> Decimal | None:
         rate = self.rate(item.currency)
@@ -200,23 +205,77 @@ def auto_link(source: ImportSource) -> int:
     return len(linked)
 
 
+def learn_barcodes(source: ImportSource) -> int:
+    """
+    Штрихкод из прайса → к связанному товару (доп. штрихкод для сканера). Товары, созданные раньше без заводского
+    штрихкода (у них внутренний «2…»), получают его из первого же прайса, где он есть. Занятые коды не трогаем.
+    """
+    pairs = {
+        code.strip(): vid
+        for code, vid in source.items.filter(variant__isnull=False).exclude(barcode="").values_list("barcode", "variant_id")
+        if code.strip()
+    }
+    if not pairs:
+        return 0
+    taken = {c.lower() for c in ProductBarcode.objects.filter(code__in=pairs).values_list("code", flat=True)}
+    taken |= {c.lower() for c in ProductVariant.objects.filter(barcode__in=pairs).values_list("barcode", flat=True)}
+    new = [ProductBarcode(code=code, variant_id=vid) for code, vid in pairs.items() if code.lower() not in taken]
+    ProductBarcode.objects.bulk_create(new, batch_size=BATCH, ignore_conflicts=True)
+    return len(new)
+
+
+def _in_stock(item) -> bool:
+    return not item.missing and bool(item.available or (item.quantity and item.quantity > 0))
+
+
+def _linked_offers(variant_ids):
+    return SupplierItem.objects.filter(
+        variant_id__in=variant_ids, status=SupplierItem.LINKED, missing=False, source__is_active=True
+    ).select_related("source")
+
+
+def main_offers(variant_ids) -> dict[int, SupplierItem]:
+    """
+    Один товар у нескольких поставщиков: чья цена главная на витрине. {вариант: позиция поставщика}.
+    Главный — у кого есть в наличии и дешевле закупка в гривнах (по курсу этого поставщика); ни у кого нет —
+    у кого дешевле закупка. Цену задают только джерела с «Оновлювати ціни».
+    """
+    pricing: dict[int, Pricing] = {}
+    best: dict[int, tuple] = {}
+    for item in _linked_offers(variant_ids).filter(source__update_prices=True):
+        cost = pricing.setdefault(item.source_id, Pricing(item.source)).cost(item)
+        key = (not _in_stock(item), cost is None, cost or 0, item.source_id)
+        if item.variant_id not in best or key < best[item.variant_id][0]:
+            best[item.variant_id] = (key, item)
+    return {vid: item for vid, (_key, item) in best.items()}
+
+
 def apply_updates(source: ImportSource, items=None) -> dict:
-    """Цены и видимость связанных вариантов по данным поставщика."""
-    pricing = Pricing(source)
-    stats = {"price_changed": 0, "hidden": 0, "shown": 0}
+    """Цены и видимость связанных вариантов. Если товар есть у нескольких поставщиков — цена от главного
+    (main_offers), а скрывается товар, только когда его нет ни у кого и нет на своём складе."""
+    stats = {"price_changed": 0, "hidden": 0, "shown": 0, "price_from_other": 0}
     qs = items if items is not None else source.items.filter(status=SupplierItem.LINKED, variant__isnull=False)
     allowed = set(editable_variants(source.seller).values_list("id", flat=True))
+    linked = [item for item in qs.select_related("variant") if item.variant and item.variant_id in allowed]
+    variant_ids = {item.variant_id for item in linked}
+    main = main_offers(variant_ids)
+    stocked = {item.variant_id for item in _linked_offers(variant_ids) if _in_stock(item)}
+    # скрыт синхронизацией любого поставщика — вернуть может любой, у кого товар снова есть
+    hidden: dict[int, dict[int, SupplierItem]] = {}
+    for flagged in SupplierItem.objects.filter(variant_id__in=variant_ids, hidden_by_sync=True):
+        hidden.setdefault(flagged.variant_id, {})[flagged.pk] = flagged
+    pricing: dict[int, Pricing] = {}
     flags_changed = []
 
-    for item in qs.select_related("variant"):
+    for item in linked:
         variant = item.variant
-        if variant is None or variant.pk not in allowed:
-            continue
         updates = {}
-        if source.update_prices and not item.missing:
-            sale = pricing.sale(item)
+        offer = main.get(variant.pk)
+        if offer is not None:
+            prices = pricing.setdefault(offer.source_id, Pricing(offer.source))
+            sale = prices.sale(offer)
             if sale is not None:
-                fields = discount_fields(sale, pricing.old(item, sale))
+                fields = discount_fields(sale, prices.old(offer, sale))
                 if (variant.price, variant.original_price, variant.discount) != (
                     fields["price"],
                     fields["original_price"],
@@ -224,23 +283,29 @@ def apply_updates(source: ImportSource, items=None) -> dict:
                 ):
                     updates.update(fields)
                     stats["price_changed"] += 1
-                cost = pricing.cost(item)
+                    stats["price_from_other"] += offer.source_id != source.pk
+                cost = prices.cost(offer)
                 if cost is not None and cost != variant.cost_price:
                     updates["cost_price"] = cost
 
         if source.hide_when_unavailable:
-            supplier_has = not item.missing and bool(item.available or (item.quantity and item.quantity > 0))
+            supplier_has = variant.pk in stocked  # у любого из поставщиков, не только у этого
             own_stock = variant.stock - variant.reserved > 0
             if not supplier_has and not own_stock and variant.available:
                 updates["available"] = False
                 item.hidden_by_sync = True
                 flags_changed.append(item)
                 stats["hidden"] += 1
-            elif (supplier_has or own_stock) and item.hidden_by_sync:
-                updates["available"] = True
-                item.hidden_by_sync = False
-                flags_changed.append(item)
-                stats["shown"] += 1
+            elif supplier_has or own_stock:
+                flagged = hidden.pop(variant.pk, {})
+                if item.hidden_by_sync:
+                    flagged[item.pk] = item
+                if flagged:
+                    updates["available"] = True
+                    for hidden_item in flagged.values():
+                        hidden_item.hidden_by_sync = False
+                        flags_changed.append(hidden_item)
+                    stats["shown"] += 1
 
         if updates:
             # update() вместо save(): save() пересчитывает цену по скидке и генерирует картинки штрихкодов
@@ -332,9 +397,14 @@ def sync_source(source: ImportSource, run: ImportRun | None = None) -> ImportRun
         catalog = get_connector(source).fetch()
         if not catalog.items:
             raise FormatError(_("Источник не вернул ни одного товара"))
+        feed_rates = catalog.info.get("rates") or {}
+        if feed_rates != (source.options or {}).get("feed_rates", {}):
+            source.options = {**(source.options or {}), "feed_rates": feed_rates}
+            source.save(update_fields=["options"])
         with transaction.atomic():
             stats = upsert_items(source, catalog.items, now)
             stats["linked_auto"] = auto_link(source)
+            stats["barcodes_learned"] = learn_barcodes(source)
             stats.update(apply_updates(source))
             stats["on_order_changed"] = refresh_supplier_stock(source_variant_ids(source))
     except (ConnectorError, FetchError, FormatError) as exc:
@@ -347,6 +417,7 @@ def sync_source(source: ImportSource, run: ImportRun | None = None) -> ImportRun
     stats["format"] = catalog.info.get("format", "")
     stats["skipped"] = catalog.info.get("skipped", 0)
     stats["duplicates"] = catalog.info.get("duplicates", 0)
+    stats["rates"] = catalog.info.get("rates", {})
     return _finish(source, run, now, stats=stats)
 
 
@@ -456,7 +527,7 @@ def publish_items(source: ImportSource, item_ids, *, category: Category | None =
             product = Product.objects.create(
                 name=item.name[:255],
                 seller=source.seller,
-                category=categories.category_for(item.name, item.category_name, item.params),
+                category=categories.category_for(item.name, item.category_name or item.brand, item.params),
                 description=item.description or None,
             )
             code_free = (

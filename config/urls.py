@@ -4,6 +4,7 @@ from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import include, path
 
+from app.apps.products.thumbs import media_thumb
 from app.core.views import health
 
 # Все API-маршруты живут под /api/ (nginx проксирует /api/ на Django без переписывания пути).
@@ -31,6 +32,8 @@ urlpatterns = [
     path("api/", include(api_urlpatterns)),
     path("admin/", admin.site.urls),
     path("account/", include("allauth.urls")),
+    # уменьшенные копии фото: nginx отдаёт готовые сам, сюда — только первый запрос (app/apps/products/thumbs.py)
+    path("media/thumbs/<int:width>/<path:path>", media_thumb, name="media_thumb"),
 ]
 
 if settings.DEBUG:

@@ -1,4 +1,6 @@
 from django.db.models import Q
+
+from .search import match_all
 from django_filters import rest_framework as filters
 
 from .models import (
@@ -160,13 +162,16 @@ class ProductFilters(filters.FilterSet):
         )
 
     def search_filter(self, queryset, name, value):
-        """Поиск по названию товара/варианта, артикулу и штрихкоду."""
+        """Поиск по названию товара/варианта и бренду (слова в любом порядке, по-русски, синонимы — search.py),
+        артикулу и штрихкоду."""
         value = value.strip()
         if not value:
             return queryset
-        return queryset.filter(
-            Q(name__icontains=value)
-            | Q(variants__variant_name__icontains=value)
-            | Q(variants__code__iexact=value)
-            | Q(variants__barcode__iexact=value)
-        ).distinct()
+        found = Q(variants__code__iexact=value) | Q(variants__barcode__iexact=value)
+        words = match_all(
+            value,
+            lambda w: Q(name__icontains=w)
+            | Q(variants__variant_name__icontains=w)
+            | Q(variants__brand__name__icontains=w),
+        )
+        return queryset.filter(found | words if words is not None else found).distinct()

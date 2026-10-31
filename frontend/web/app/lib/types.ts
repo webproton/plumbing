@@ -546,6 +546,7 @@ export interface ImportSource {
   partner_discount_percent: string;
   /** Своя знижка для брендів: { "KOER": 17.7 } */
   partner_discount_brands: Record<string, number>;
+  currency_rates: Record<string, number>;
   category: number | null;
   category_name: string | null;
   supplier: number | null;
@@ -608,6 +609,12 @@ export interface SupplierCategory {
 }
 
 // ---------- редактор товаров (кабинет) ----------
+
+/** Фильтры кабинета (/manage/products/facets/): категории с числом товаров (с подкатегориями) и бренды */
+export interface ProductFacets {
+  categories: { id: number; name: string; count: number; depth: number }[];
+  brands: { name: string; count: number }[];
+}
 
 export interface ManageProductRow {
   id: number;

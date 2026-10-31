@@ -7,6 +7,7 @@ import { requireUser } from "~/lib/auth.server";
 import { apiContext } from "~/lib/context.server";
 import { formatDate, formatPrice, statusTone } from "~/lib/format";
 import type { OrderListItem } from "~/lib/types";
+import { thumb } from "~/lib/thumb";
 
 import type { Route } from "./+types/orders";
 
@@ -37,7 +38,7 @@ export default function Orders({ loaderData }: Route.ComponentProps) {
             <Link to={`/account/orders/${o.id}`} className="flex flex-wrap items-center gap-4 rounded-2xl border border-line bg-white p-4 hover:border-brand-500">
               <div className="flex -space-x-3">
                 {o.list_of_product_images.slice(0, 3).map((img) => (
-                  <img key={img.variant_id} src={img.photo} alt="" className="size-12 rounded-lg border-2 border-white bg-surface object-contain" />
+                  <img key={img.variant_id} src={thumb(img.photo, 160)} alt="" className="size-12 rounded-lg border-2 border-white bg-surface object-contain" />
                 ))}
               </div>
               <div className="flex-1">

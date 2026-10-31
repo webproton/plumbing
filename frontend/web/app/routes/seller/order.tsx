@@ -20,6 +20,7 @@ import { ApiError, LONG_TIMEOUT } from "~/lib/api.server";
 import { formatDateTime, formatPrice, formatQty, paymentTone, statusTone } from "~/lib/format";
 import { requireSeller } from "~/lib/seller.server";
 import type { ManageOrder, PaymentStatus } from "~/lib/types";
+import { thumb } from "~/lib/thumb";
 
 import type { Route } from "./+types/order";
 
@@ -172,7 +173,7 @@ export default function OrderPage({ loaderData, actionData }: Route.ComponentPro
                     <div className="flex items-center gap-3">
                       {it.photo ? (
                         <img
-                          src={it.photo}
+                          src={thumb(it.photo, 160)}
                           alt=""
                           loading="lazy"
                           className="border-line size-11 shrink-0 rounded-lg border object-contain"

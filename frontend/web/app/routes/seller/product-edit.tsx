@@ -2,7 +2,8 @@ import { ExternalLink, ImagePlus, Plus, Printer, Save, Send, Star, Trash2 } from
 import { data, Form, useFetcher, useNavigation } from "react-router";
 
 import { VariantFields, variantPayload } from "~/components/seller/VariantFields";
-import { Alert, Badge, Button, Card, Field, Input, PageTitle, Select, Textarea } from "~/components/ui";
+import { Alert, Badge, Button, Card, Field, Input, PageTitle, Textarea } from "~/components/ui";
+import { SearchSelect } from "~/components/SearchSelect";
 import { langFromRequest, makeT, tFromMatches } from "~/i18n";
 import { Link, useLang, useLocalPath, useT } from "~/i18n/react";
 import { localRedirect } from "~/i18n/server";
@@ -10,6 +11,7 @@ import { ApiError, LONG_TIMEOUT } from "~/lib/api.server";
 import { formatDateTime, formatQty } from "~/lib/format";
 import { requireSeller } from "~/lib/seller.server";
 import type { Category, ManageProduct, ManageVariant } from "~/lib/types";
+import { categoryOptions } from "~/lib/categories";
 
 import type { Route } from "./+types/product-edit";
 
@@ -233,14 +235,13 @@ export default function ProductEdit({ loaderData, actionData }: Route.ComponentP
             </Field>
             <Field label={t("prod.field.category")} error={errorsFor("product").category}>
               {(p) => (
-                <Select {...p} name="category" defaultValue={product.category ?? ""}>
-                  <option value="">{t("prod.noCategory")}</option>
-                  {categories.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </Select>
+                <SearchSelect
+                  name="category"
+                  options={categoryOptions(categories)}
+                  defaultValue={product.category ? String(product.category) : ""}
+                  placeholder={t("prod.noCategory")}
+                  id={p.id}
+                />
               )}
             </Field>
           </div>

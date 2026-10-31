@@ -138,3 +138,62 @@ def test_descriptions_become_plain_text():
     assert a.description == "2-ге місце 13 кг" and b.description == ""
     assert to_plain_text("<p>Тиск < 6 бар</p><ul><li>DN 15</li><li>DN 20</li></ul>") == "Тиск < 6 бар\nDN 15\nDN 20"
     assert to_plain_text("Рядок 1<br>Рядок 2") == "Рядок 1\nРядок 2"
+
+
+SEQUOIA = """<?xml version="1.0" encoding="UTF-8"?>
+<Catalog>
+ <Product>
+  <SKU>1003390</SKU><Article></Article><Brand>HOT RIGHT PPR пайка фітинг</Brand>
+  <Thumbnail>https://b2b.example.com//gallery/product_gallery/a.webp</Thumbnail>
+  <Name>Муфта  40 {360/15}</Name>
+  <Price PriceType="Wholesale price" Currency="$" Rate="46.55">0.26</Price>
+  <Price PriceType="РРЦ" Currency="UAH" Rate="1">15.600</Price>
+  <Stock Branch="Дніпро">238</Stock>
+ </Product>
+ <Product>
+  <SKU>1010071</SKU><Article></Article><Brand>STA кран</Brand><Thumbnail></Thumbnail>
+  <Name>Кран кульовий 1/2</Name>
+  <Price PriceType="Wholesale price" Currency="$" Rate="46.55">2.5</Price>
+  <Price PriceType="РРЦ" Currency="UAH" Rate="1">150</Price>
+ </Product>
+</Catalog>"""
+
+
+def test_xml_with_typed_prices_and_thumbnails():
+    """Секвоя: две <Price> — опт в $ и РРЦ в грн (различаются атрибутом), фото — в <Thumbnail>."""
+    items, info = parse_items(SEQUOIA.encode(), "auto")
+    by_sku = {i.sku: i for i in items}
+    first = by_sku["1003390"]
+    assert (first.price, first.currency) == (Decimal("15.6000"), "UAH")
+    assert (first.cost, first.cost_currency) == (Decimal("0.2600"), "USD")
+    assert first.photos == ["https://b2b.example.com//gallery/product_gallery/a.webp"]
+    assert first.quantity == Decimal("238")
+    assert first.brand == "HOT RIGHT PPR пайка фітинг"
+    assert by_sku["1010071"].photos == [] and by_sku["1010071"].price == Decimal("150")
+    assert (info["columns"]["price"], info["columns"]["cost"]) == ("РРЦ", "Wholesale price")
+
+
+def test_1c_price_list_with_group_rows():
+    """Санвел (выгрузка 1С): служебные строки над шапкой, группы — отдельными строками, «Номенклатура», «Ваша ціна»."""
+    wb = Workbook()
+    ws = wb.active
+    ws.append(["Постачальник:", "SanWell"])
+    ws.append(["Вид прайс-листа:", "Прайс-лист із вашими цінами"])
+    ws.append([])
+    ws.append(["Група"])
+    ws.append(["Номенклатура", "Код", "Ціна, РРЦ", "Ваша ціна", "Вал.", "Од.вим."])
+    ws.append(["Системи очищення води"])
+    ws.append(["Потрійний фільтр Ecosoft Standard", "45062", 2340.0, "1 800,000", "UAH", "шт"])
+    ws.append(["Змішувачі"])
+    ws.append(["Змішувач для кухні", "71001", 1500, "1 100,50", "грн", "шт"])
+    buf = io.BytesIO()
+    wb.save(buf)
+    items, info = parse_items(buf.getvalue(), "xlsx")
+    by_sku = {i.sku: i for i in items}
+    water = by_sku["45062"]
+    assert water.name == "Потрійний фільтр Ecosoft Standard"
+    assert (water.price, water.cost, water.currency) == (Decimal("2340.0000"), Decimal("1800.0000"), "UAH")
+    assert water.category == "Системи очищення води"
+    assert (by_sku["71001"].category, by_sku["71001"].currency, by_sku["71001"].cost) == (
+        "Змішувачі", "UAH", Decimal("1100.5000"))
+    assert len(items) == 2 and info["columns"]["name"] == "Номенклатура"

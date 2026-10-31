@@ -403,3 +403,100 @@ def test_stale_runs_are_failed(seller):
     assert services.fail_stale_runs() == 1
     run.refresh_from_db()
     assert run.status == ImportRun.FAILED
+
+
+def test_cost_in_its_own_currency_and_rrp_price(seller):
+    """Секвоя: продаём по РРЦ (грн), закупка — опт в $ по курсу (из прайса — 46.55), а не «0,26 грн»."""
+    from app.apps.imports.tests.test_formats import SEQUOIA
+
+    CurrencyRate.objects.create(code="USD", rate=Decimal("40"))
+    variant = ProductVariantFactory(product__seller=seller, code="1003390", price=Decimal("1"))
+    source = make_source(seller, SEQUOIA.encode(), price_rounding=Decimal("0.01"))
+    services.sync_source(source)
+    variant.refresh_from_db()
+    assert variant.price == Decimal("15.60")  # РРЦ
+    assert variant.cost_price == Decimal("12.1030")  # 0.26 $ × 46.55 — курс из прайса важнее общего (40)
+    item = SupplierItem.objects.get(source=source, external_id__contains="1003390")
+    assert (item.cost_currency, item.photos) == ("USD", ["https://b2b.example.com//gallery/product_gallery/a.webp"])
+
+    # повторная загрузка (позиция уже есть — обновляется, а не создаётся): валюта закупки не теряется
+    SupplierItem.objects.filter(pk=item.pk).update(cost_currency="")
+    replace_file(source, SEQUOIA.replace("0.26", "0.30").encode())
+    services.sync_source(source)
+    item.refresh_from_db()
+    variant.refresh_from_db()
+    assert (item.cost, item.cost_currency, variant.cost_price) == (Decimal("0.3000"), "USD", Decimal("13.9650"))
+
+
+def test_supplier_rate_from_feed_and_manual_override(seller):
+    """Курс у поставщика свой: Секвоя пишет Rate="46.55" прямо в прайсе; вручную в джерелі — важнее; общий — последним."""
+    from app.apps.imports.tests.test_formats import SEQUOIA
+
+    CurrencyRate.objects.create(code="USD", rate=Decimal("40"))
+    variant = ProductVariantFactory(product__seller=seller, code="1003390", price=Decimal("1"))
+    source = make_source(seller, SEQUOIA.encode(), price_rounding=Decimal("0.01"))
+    run = services.sync_source(source)
+    variant.refresh_from_db()
+    source.refresh_from_db()
+    assert run.stats["rates"] == {"USD": "46.55"} and source.options["feed_rates"] == {"USD": "46.55"}
+    assert variant.cost_price == Decimal("12.1030")  # 0.26 $ × 46.55 (курс поставщика, не общий 40)
+
+    source.currency_rates = {"USD": 45}
+    source.save()
+    replace_file(source, SEQUOIA.replace("0.26", "0.30").encode())
+    services.sync_source(source)
+    variant.refresh_from_db()
+    assert variant.cost_price == Decimal("13.5000")  # 0.30 × 45 — ручной курс важнее курса из прайса
+
+    serializer = ImportSourceSerializer(source, data={"options": {"items_tag": "Product"}}, partial=True)
+    assert serializer.is_valid(), serializer.errors
+    assert serializer.validated_data["options"] == {"items_tag": "Product", "feed_rates": {"USD": "46.55"}}
+    bad = ImportSourceSerializer(source, data={"currency_rates": {"долар": "x"}}, partial=True)
+    assert not bad.is_valid() and "currency_rates" in bad.errors
+
+
+def test_factory_barcodes_learned_from_price_list(seller):
+    """Прайс со штрихкодами: товар связался по артикулу — заводской штрихкод становится доп. штрихкодом для сканера."""
+    from app.apps.warehouse.inventory.barcode_scanner import find_variant_by_code
+    from app.apps.warehouse.models import ProductBarcode
+
+    variant = ProductVariantFactory(product__seller=seller, code="KR2675", barcode="2048179886469")
+    taken = ProductVariantFactory(product__seller=seller, code="OTHER", barcode="4820000000028")
+    feed = yml(
+        offer("A", "Група безпеки 1", "1256", sku="KR2675", barcode="4820123456789")
+        + offer("B", "Інший товар", "10", sku="NEW-1", barcode="4820000000028")  # код уже есть у товара — дубль не нужен
+    )
+    run = services.sync_source(make_source(seller, feed))
+    assert run.status == ImportRun.DONE, run.error
+    assert run.stats["barcodes_learned"] == 1
+    assert find_variant_by_code("4820123456789") == variant
+    assert find_variant_by_code("2048179886469") == variant  # внутренний номер для этикеток остаётся
+    assert not ProductBarcode.objects.filter(code="4820000000028").exists() and taken.barcode == "4820000000028"
+
+
+def test_one_product_two_suppliers_main_offer(seller):
+    """Насос у двух поставщиков: цена — от того, у кого есть и дешевле закупка, в любом порядке синхронизации;
+    закончился у него — цена от второго; скрываем, только когда нет ни у кого."""
+    variant = ProductVariantFactory(product__seller=seller, code="PUMP-1", price=Decimal("1"), available=True)
+    a = make_source(seller, yml(offer("A1", "Насос", "150", sku="PUMP-1", cost="100", qty="5")),
+                    price_rounding=Decimal("0.01"), hide_when_unavailable=True)
+    b = make_source(seller, yml(offer("B1", "Насос", "140", sku="PUMP-1", cost="90", qty="3")),
+                    price_rounding=Decimal("0.01"), hide_when_unavailable=True)
+    for source in (b, a):  # B (дешевле) синхронизирован раньше — A не перебивает его цену
+        services.sync_source(source)
+    variant.refresh_from_db()
+    assert (variant.price, variant.cost_price) == (Decimal("140.00"), Decimal("90.0000"))
+
+    replace_file(b, yml(offer("B1", "Насос", "140", sku="PUMP-1", cost="90", qty="0", available="false")))
+    services.sync_source(b)  # у B закончился → главный A, хотя синхронизировался B
+    variant.refresh_from_db()
+    assert (variant.price, variant.cost_price, variant.available) == (Decimal("150.00"), Decimal("100.0000"), True)
+
+    replace_file(a, yml(offer("A1", "Насос", "150", sku="PUMP-1", cost="100", qty="0", available="false")))
+    services.sync_source(a)  # нет ни у кого → скрыт
+    variant.refresh_from_db()
+    assert variant.available is False
+    replace_file(b, yml(offer("B1", "Насос", "140", sku="PUMP-1", cost="90", qty="2")))
+    services.sync_source(b)  # снова есть у B → показан, цена B
+    variant.refresh_from_db()
+    assert (variant.available, variant.price) == (True, Decimal("140.00"))

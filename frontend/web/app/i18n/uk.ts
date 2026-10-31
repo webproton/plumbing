@@ -13,6 +13,8 @@ const base = {
   "common.toHome": "На головну",
   "common.save": "Зберегти",
   "common.show": "Показати",
+  "ui.clear": "Очистити",
+  "ui.noMatches": "Нічого не знайдено",
   "common.back": "Назад",
   "common.forward": "Вперед",
   "common.pages": "Сторінки",

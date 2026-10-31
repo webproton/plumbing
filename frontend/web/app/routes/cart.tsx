@@ -10,6 +10,7 @@ import { apiContext } from "~/lib/context.server";
 import { formatPrice, formatQty } from "~/lib/format";
 import { sessionContext } from "~/lib/session.server";
 import type { CartItem } from "~/lib/types";
+import { thumb } from "~/lib/thumb";
 
 import type { Route } from "./+types/cart";
 
@@ -110,7 +111,7 @@ function CartRow({ item }: { item: CartItem }) {
   return (
     <li className="flex gap-4 rounded-2xl border border-line bg-white p-4">
       <div className="grid size-20 shrink-0 place-items-center overflow-hidden rounded-xl bg-surface sm:size-24">
-        {item.photo ? <img src={item.photo} alt="" className="size-full object-contain p-1" /> : <ImageOff className="size-6 text-muted" />}
+        {item.photo ? <img src={thumb(item.photo, 160)} alt="" className="size-full object-contain p-1" /> : <ImageOff className="size-6 text-muted" />}
       </div>
       <div className="flex flex-1 flex-col gap-2">
         <div className="flex justify-between gap-3">

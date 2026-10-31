@@ -11,6 +11,7 @@ import { availabilityOf } from "~/lib/availability";
 import { requireUser } from "~/lib/auth.server";
 import { apiContext } from "~/lib/context.server";
 import type { WishlistItem } from "~/lib/types";
+import { thumb } from "~/lib/thumb";
 
 import type { Route } from "./+types/wishlist";
 
@@ -67,7 +68,7 @@ function WishlistCard({ item }: { item: WishlistItem }) {
   if (fetcher.formData) return null; // оптимистично убираем карточку
   return (
     <li className="flex gap-4 rounded-2xl border border-line bg-white p-4">
-      {v.photo && <img src={v.photo} alt="" className="size-20 rounded-xl bg-surface object-contain" />}
+      {v.photo && <img src={thumb(v.photo, 160)} alt="" className="size-20 rounded-xl bg-surface object-contain" />}
       <div className="flex flex-1 flex-col gap-2">
         <Link to={`/product/${item.productSlug}?v=${v.id}`} className="font-medium hover:text-brand-600">
           {v.product_name}

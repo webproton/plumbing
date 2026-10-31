@@ -3,6 +3,7 @@ from django.db.models import F, Sum
 
 from . import stock
 from .models import (
+    CurrencyRate,
     InventoryDocument,
     InvoiceColumnProfile,
     StockBalance,
@@ -172,3 +173,13 @@ class SupplierQuoteAdmin(admin.ModelAdmin):
     search_fields = ("variant__variant_name", "variant__product__name", "variant__code", "supplier__name")
     autocomplete_fields = ("variant",)
     raw_id_fields = ("created_by",)
+
+
+@admin.register(CurrencyRate)
+class CurrencyRateAdmin(admin.ModelAdmin):
+    """Курсы к гривне: по ним прайсы поставщиков в $ и € (цены и закупка) переводятся в гривны при синхронизации."""
+
+    list_display = ("code", "rate", "updated_at")
+    list_editable = ("rate",)
+    ordering = ("code",)
+

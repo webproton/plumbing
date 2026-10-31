@@ -3,6 +3,7 @@ import { Link, useT } from "~/i18n/react";
 
 import { availabilityOf, onOrderLabel } from "~/lib/availability";
 import type { ProductListItem } from "~/lib/types";
+import { thumb } from "~/lib/thumb";
 
 import { AddToCartButton } from "./AddToCartButton";
 import { Price } from "./Price";
@@ -18,7 +19,7 @@ export function ProductCard({ product }: { product: ProductListItem }) {
       <Link to={`/product/${product.slug}`} prefetch="intent" className="relative block aspect-square bg-surface">
         {image ? (
           <img
-            src={image}
+            src={thumb(image, 400)}
             alt={product.name}
             loading="lazy"
             className="size-full object-contain p-4 transition-transform group-hover:scale-105"

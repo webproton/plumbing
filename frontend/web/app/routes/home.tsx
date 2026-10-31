@@ -8,6 +8,7 @@ import { Link, useT } from "~/i18n/react";
 import { apiContext } from "~/lib/context.server";
 import { shopJsonLd } from "~/lib/seo";
 import type { ProductListItem } from "~/lib/types";
+import { thumb } from "~/lib/thumb";
 import { useRootData, type RootData } from "~/root";
 
 import type { Route } from "./+types/home";
@@ -92,7 +93,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                 to={`/catalog?category=${c.slug}`}
                 className="flex flex-col items-center gap-2 rounded-2xl border border-line bg-white p-4 text-center text-sm font-medium hover:border-brand-500 hover:text-brand-700"
               >
-                {c.photo && <img src={c.photo} alt="" className="h-16 object-contain" loading="lazy" />}
+                {c.photo && <img src={thumb(c.photo, 160)} alt="" className="h-16 object-contain" loading="lazy" />}
                 {c.name}
               </Link>
             ))}

@@ -148,3 +148,16 @@ def test_other_seller_cannot_touch_quote(seller, variant):
     stranger = APIClient()
     stranger.force_authenticate(SellerFactory().user)
     assert stranger.delete(reverse("warehouse:supplier-quote-detail", args=[quote.pk])).status_code == 404
+
+
+@pytest.mark.django_db
+def test_currency_rates_are_editable_in_admin(client):
+    from django.contrib.auth import get_user_model
+
+
+    admin_user = get_user_model().objects.create_superuser("rates@example.com", "Str0ngPass!")
+    client.force_login(admin_user)
+    assert client.get("/admin/warehouse/currencyrate/").status_code == 200
+    response = client.post("/admin/warehouse/currencyrate/add/", {"code": "USD", "rate": "41.20"})
+    assert response.status_code == 302
+    assert CurrencyRate.objects.get(code="USD").rate == Decimal("41.20")

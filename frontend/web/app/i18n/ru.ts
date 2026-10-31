@@ -13,6 +13,8 @@ const base: Omit<Dict, keyof typeof sellerRu | keyof typeof importRu | keyof typ
   "common.toHome": "На главную",
   "common.save": "Сохранить",
   "common.show": "Показать",
+  "ui.clear": "Очистить",
+  "ui.noMatches": "Ничего не найдено",
   "common.back": "Назад",
   "common.forward": "Вперёд",
   "common.pages": "Страницы",

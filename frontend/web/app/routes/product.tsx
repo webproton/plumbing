@@ -15,6 +15,7 @@ import { apiContext } from "~/lib/context.server";
 import { formatQty } from "~/lib/format";
 import { breadcrumbJsonLd, plainText } from "~/lib/seo";
 import type { ProductDetail, Variant } from "~/lib/types";
+import { thumb } from "~/lib/thumb";
 import { useRootData, type RootData } from "~/root";
 
 import type { Route } from "./+types/product";
@@ -132,7 +133,7 @@ export default function ProductPage({ loaderData }: Route.ComponentProps) {
         <div className="space-y-3">
           <div className="grid aspect-square place-items-center overflow-hidden rounded-3xl border border-line bg-white">
             {images[active] ? (
-              <img src={images[active]} alt={product.name} className="size-full object-contain p-6" />
+              <img src={thumb(images[active], 800)} alt={product.name} className="size-full object-contain p-6" />
             ) : (
               <ImageOff className="size-12 text-muted" aria-hidden />
             )}
@@ -148,7 +149,7 @@ export default function ProductPage({ loaderData }: Route.ComponentProps) {
                   aria-pressed={i === active}
                   className={`size-20 shrink-0 overflow-hidden rounded-xl border bg-white ${i === active ? "border-brand-500 ring-2 ring-brand-100" : "border-line"}`}
                 >
-                  <img src={src} alt="" className="size-full object-contain p-1" loading="lazy" />
+                  <img src={thumb(src, 160)} alt="" className="size-full object-contain p-1" loading="lazy" />
                 </button>
               ))}
             </div>
