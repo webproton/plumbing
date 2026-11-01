@@ -258,6 +258,34 @@ export default function SellerStats({ loaderData }: Route.ComponentProps) {
           )}
         </section>
 
+        {stats.by_channel.length > 0 && (
+          <section className="space-y-3">
+            <h2 className="text-lg font-semibold">{t("st.byChannel")}</h2>
+            <TableWrap>
+              <Table>
+                <thead>
+                  <tr>
+                    <Th>{t("st.col.channel")}</Th>
+                    <Th align="right">{t("st.orders")}</Th>
+                    <Th align="right">{t("st.revenue")}</Th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {stats.by_channel.map((c) => (
+                    <tr key={c.channel}>
+                      <Td>{c.label}</Td>
+                      <Td align="right">{c.orders}</Td>
+                      <Td align="right" className="whitespace-nowrap">
+                        {formatPrice(c.revenue)}
+                      </Td>
+                    </tr>
+                  ))}
+                </tbody>
+              </Table>
+            </TableWrap>
+          </section>
+        )}
+
         <section className="space-y-3">
           <h2 className="text-lg font-semibold">{t("st.topCategories")}</h2>
           {stats.top_categories.length ? (

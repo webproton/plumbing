@@ -172,6 +172,17 @@ class Order(models.Model):
     )
     # язык витрины при оформлении — на нём уходят письма покупателю
     language = models.CharField(max_length=5, default="uk", verbose_name="Язык покупателя")
+    # откуда заказ: сайт, бот или продажа на точке (касса в кабинете продавца) — для статистики продаж
+    CHANNEL = Choices(("site", _("Сайт")), ("bot", _("Telegram-бот")), ("pos", _("На місці")))
+    channel = models.CharField(
+        max_length=10, choices=CHANNEL, default=CHANNEL.site, db_index=True, verbose_name="Откуда заказ"
+    )
+    # как заплатили на точке; у заказов с сайта пусто (там payment_type / payment_status)
+    PAYMENT_METHOD = Choices(("cash", _("Готівка")), ("card", _("Картка")), ("iban", _("Переказ на IBAN ФОП")))
+    payment_method = models.CharField(
+        max_length=10, choices=PAYMENT_METHOD, blank=True, default="", verbose_name="Способ оплаты"
+    )
+    discount_percent = models.PositiveSmallIntegerField(default=0, verbose_name="Скидка, %")
 
     class Meta:
         ordering = ["-creation_date"]

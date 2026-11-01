@@ -20,10 +20,11 @@ from rest_framework.exceptions import ValidationError
 from app.apps.imports.services import order_suppliers
 from app.apps.products.models import ProductVariant
 from app.apps.warehouse import stock
+from app.apps.warehouse.permissions import get_active_seller
 from app.core.tasks import enqueue
 
 from . import customer_notifications
-from .models import Cart, CustomerNotification, Order, OrderItem
+from .models import Cart, CartItems, CustomerNotification, Order, OrderItem
 from .tasks import notify_order_created_task
 
 logger = logging.getLogger(__name__)
@@ -58,10 +59,14 @@ def _split_on_order(lines) -> set[int]:
 
 
 @transaction.atomic
-def create_order_from_cart(cart: Cart, *, user=None, **order_fields) -> Order:
+def create_order_from_cart(
+    cart: Cart, *, user=None, allow_on_order=True, notify=True, discount_percent=0, **order_fields
+) -> Order:
     """
     Оформляет заказ: фиксирует позиции и цены, резервирует товар. Всё или ничего.
     Корзина блокируется — двойной клик / параллельный запрос не создаст второй заказ.
+    allow_on_order=False — только свой остаток (касса: товар в руках, «под заказ» не продаём);
+    discount_percent — скидка в цене каждой позиции (прибыль в статистике считается от цены продажи).
     """
     cart = Cart.objects.select_for_update().get(pk=cart.pk)
     if Order.objects.filter(cart=cart).exists():
@@ -78,7 +83,7 @@ def create_order_from_cart(cart: Cart, *, user=None, **order_fields) -> Order:
             raise ValidationError({"cart": _("У товара «{name}» не указана цена").format(name=ci.product.name)})
         lines.append((ci, variant))
 
-    on_order = _split_on_order(lines)
+    on_order = _split_on_order(lines) if allow_on_order else set()
     own = [(variant, ci.quantity) for ci, variant in lines if variant.pk not in on_order]
     if own:
         stock.reserve(own)
@@ -91,6 +96,7 @@ def create_order_from_cart(cart: Cart, *, user=None, **order_fields) -> Order:
         # всё «под заказ» — резервировать нечего
         stock_state=Order.STOCK_STATE.reserved if own else Order.STOCK_STATE.none,
         total_price=Decimal("0"),
+        discount_percent=discount_percent,
         **order_fields,
     )
     items = [
@@ -100,7 +106,7 @@ def create_order_from_cart(cart: Cart, *, user=None, **order_fields) -> Order:
             variant=variant,
             name=variant.variant_name or ci.product.name or "",
             sku=variant.code or "",
-            unit_price=variant.price,
+            unit_price=_discounted(variant.price, discount_percent),
             unit_cost=variant.cost_price,
             quantity=ci.quantity,
             on_order=variant.pk in on_order,
@@ -113,8 +119,82 @@ def create_order_from_cart(cart: Cart, *, user=None, **order_fields) -> Order:
     order.save(update_fields=["total_price"])
 
     # письмо и Telegram — в фоне, чтобы не задерживать ответ покупателю
-    transaction.on_commit(lambda: enqueue(notify_order_created_task, order.pk, run_inline_on_failure=True))
+    if notify:
+        transaction.on_commit(lambda: enqueue(notify_order_created_task, order.pk, run_inline_on_failure=True))
     return order
+
+
+def _discounted(price: Decimal, percent: int) -> Decimal:
+    return (price * (100 - percent) / 100).quantize(Decimal("0.01")) if percent else price
+
+
+POS_DISCOUNTS = (0, 1, 2, 3, 4, 5)
+
+
+def _qty(value) -> str:
+    """Decimal("1.000") → «1», Decimal("2.500") → «2.5» — для сообщения продавцу."""
+    return f"{Decimal(value or 0).normalize():f}"
+
+
+@transaction.atomic
+def create_pos_sale(user, lines, *, payment_method: str, discount_percent: int = 0) -> Order:
+    """
+    Продажа на точке «человеку с улицы» (касса в кабинете продавца): без покупателя, доставки и писем.
+    lines: [(variant_id, количество)]. Оплачено сразу, заказ «Завершён», товар тут же списан со своего склада.
+    Своего остатка по учёту не хватает — ошибка с подсказкой (сначала приход или пересчёт), продажа не проходит.
+    """
+    seller = get_active_seller(user)
+    if seller is None and not user.is_superuser:
+        raise ValidationError({"detail": _("Продавать может только одобренный продавец")})
+    if payment_method not in Order.PAYMENT_METHOD:
+        raise ValidationError({"payment_method": _("Оберіть спосіб оплати: готівка, картка або переказ")})
+    if discount_percent not in POS_DISCOUNTS:
+        raise ValidationError({"discount_percent": _("Знижка на місці — від 0 до 5 %")})
+    quantities: dict[int, int] = {}
+    for variant_id, qty in lines:
+        try:
+            variant_id, qty = int(variant_id), int(qty)
+        except (TypeError, ValueError):
+            raise ValidationError({"lines": _("Неправильна позиція продажу")}) from None
+        if qty <= 0:
+            raise ValidationError({"lines": _("Кількість має бути більше нуля")})
+        quantities[variant_id] = quantities.get(variant_id, 0) + qty
+    if not quantities:
+        raise ValidationError({"lines": _("Додайте хоча б один товар")})
+    variants = {v.pk: v for v in ProductVariant.objects.select_related("product").filter(pk__in=quantities)}
+    for variant_id in quantities:
+        variant = variants.get(variant_id)
+        if variant is None or (seller is not None and variant.product.seller_id != seller.pk):
+            raise ValidationError({"lines": _("Товар не знайдено серед ваших (id {id})").format(id=variant_id)})
+
+    cart = Cart.objects.create(customer=None)
+    CartItems.objects.bulk_create(
+        CartItems(cart=cart, product=variants[vid].product, variant=variants[vid], quantity=qty)
+        for vid, qty in quantities.items()
+    )
+    try:
+        order = create_order_from_cart(
+            cart,
+            allow_on_order=False,
+            notify=False,
+            discount_percent=discount_percent,
+            customer_name=_("Покупець на місці"),
+            address=_("Продаж на місці"),
+            channel=Order.CHANNEL.pos,
+            payment_method=payment_method,
+            payment_status=Order.PAYMENT_STATUS.paid_for,
+            manager=user,
+        )
+    except stock.InsufficientStockError as error:
+        variant = variants.get(error.context.get("variant_id"))
+        raise ValidationError({
+            "lines": _("«{name}»: за обліком на складі {available}, а продаєте {qty}. Спершу оприходуйте товар "
+                       "або виправте залишок у Сканері → «Інвентаризація».").format(
+                name=(variant.variant_name or variant.product.name) if variant else "?",
+                available=_qty(error.context.get("available")), qty=_qty(error.context.get("requested")),
+            )
+        }) from None
+    return change_status(order, Order.STATUS.completed, user=user)
 
 
 @transaction.atomic

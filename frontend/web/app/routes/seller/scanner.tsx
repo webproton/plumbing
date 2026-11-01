@@ -1,6 +1,6 @@
-import { CheckCircle2, Link2, PackagePlus, ScanBarcode, TriangleAlert } from "lucide-react";
+import { CheckCircle2, Link2, Minus, PackagePlus, Plus, ScanBarcode, Store, TriangleAlert, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { data, useFetcher, useSearchParams } from "react-router";
+import { data, Link, useFetcher, useSearchParams } from "react-router";
 
 import { CameraScanner } from "~/components/seller/CameraScanner";
 import { VariantPicker } from "~/components/seller/VariantPicker";
@@ -10,7 +10,7 @@ import { useT } from "~/i18n/react";
 import { ApiError } from "~/lib/api.server";
 import { formatPrice, formatQty } from "~/lib/format";
 import { requireSeller } from "~/lib/seller.server";
-import type { InvoiceDoc, Paginated, ScanCard } from "~/lib/types";
+import type { InvoiceDoc, ManageOrder, Money, Paginated, ScanCard } from "~/lib/types";
 import { formObject } from "~/lib/validation";
 
 import type { Route } from "./+types/scanner";
@@ -32,7 +32,8 @@ type ScanResult =
   | { ts: number; intent: "receive"; found: true; name: string; sku: string | null; docQty: string; code: string }
   | { ts: number; intent: "create"; found: true; card: ScanCard }
   | { ts: number; intent: "attach"; found: true; card: ScanCard; code: string; docQty: string | null }
-  | { ts: number; intent: "count"; found: true; changed: boolean; name: string };
+  | { ts: number; intent: "count"; found: true; changed: boolean; name: string }
+  | { ts: number; intent: "sell"; found: true; orderId: number; total: Money | null };
 
 const num = (v: string | undefined) => (v ?? "").replace(/\s/g, "").replace(",", ".");
 
@@ -85,6 +86,15 @@ export async function action({ request, context }: Route.ActionArgs) {
       });
       return { ts, intent: "create", found: true, card } satisfies ScanResult;
     }
+    if (v.intent === "sell") {
+      // касса на точке: продажа без покупателя — оплачено, завершено, товар списан со склада
+      const order = await api.post<ManageOrder>("/orders/manage/pos-sale/", {
+        lines: JSON.parse(v.lines || "[]"),
+        payment_method: v.payment_method,
+        discount_percent: Number(v.discount) || 0,
+      });
+      return { ts, intent: "sell", found: true, orderId: order.id, total: order.total_price } satisfies ScanResult;
+    }
     if (v.intent === "count") {
       const r = await api.post<{ changed: boolean }>("/warehouse/stock-movements/inventory/", {
         variant: Number(v.variant),
@@ -103,8 +113,26 @@ export async function action({ request, context }: Route.ActionArgs) {
   return data({ ts, error: t("error.generic") }, { status: 400 });
 }
 
-const MODES = ["find", "receive", "count"] as const;
+const MODES = ["find", "sell", "receive", "count"] as const;
 type Mode = (typeof MODES)[number];
+
+const DISCOUNTS = [0, 1, 2, 3, 4, 5] as const;
+const PAYMENTS = ["cash", "card", "iban"] as const;
+type Payment = (typeof PAYMENTS)[number];
+
+interface SaleLine {
+  variant_id: number;
+  name: string;
+  sku: string | null;
+  price: Money;
+  qty: number;
+  available: Money;
+}
+
+/** Цена со скидкой — как на сервере: скидка в цене каждой позиции, копейки округляются */
+const unitCents = (price: Money, discount: number) => Math.round((Number(price) * 100 * (100 - discount)) / 100);
+const saleTotal = (lines: SaleLine[], discount: number) =>
+  lines.reduce((sum, l) => sum + unitCents(l.price, discount) * l.qty, 0) / 100;
 
 interface LogEntry {
   ts: number;
@@ -127,6 +155,10 @@ export default function Scanner({ loaderData }: Route.ComponentProps) {
   const [unknown, setUnknown] = useState<string | null>(null); // штрихкод, которого нет в базе
   const [card, setCard] = useState<ScanCard | null>(null);
   const [seenTs, setSeenTs] = useState(0);
+  const [sale, setSale] = useState<SaleLine[]>([]);
+  const [discount, setDiscount] = useState(0);
+  const [payment, setPayment] = useState<Payment | "">("");
+  const [lastSale, setLastSale] = useState<{ id: number; total: Money | null } | null>(null);
 
   const submitCode = (value: string) => {
     const c = value.trim();
@@ -142,8 +174,32 @@ export default function Scanner({ loaderData }: Route.ComponentProps) {
   if (result && result.ts !== seenTs) {
     setSeenTs(result.ts);
     const push = (tone: LogEntry["tone"], text: string) => setLog((l) => [{ ts: result.ts, tone, text }, ...l].slice(0, 30));
+    const addToSale = (found: ScanCard) => {
+      if (found.price == null) {
+        push("danger", t("wh.sale.noPrice", { name: found.name }));
+        return;
+      }
+      const price = found.price;
+      setLastSale(null);
+      setSale((lines) =>
+        lines.some((l) => l.variant_id === found.variant_id)
+          ? lines.map((l) => (l.variant_id === found.variant_id ? { ...l, qty: l.qty + 1 } : l))
+          : [...lines, { variant_id: found.variant_id, name: found.name, sku: found.sku, price, qty: 1, available: found.available }],
+      );
+      push("success", t("wh.sale.added", { name: found.name }));
+    };
     if ("error" in result) {
       push("danger", result.error);
+    } else if (result.intent === "find" && mode === "sell") {
+      setUnknown(result.found ? null : result.code);
+      if (result.found) addToSale(result.card);
+      else push("danger", t("wh.scan.notFound", { code: result.code }));
+    } else if (result.intent === "sell") {
+      setSale([]);
+      setDiscount(0);
+      setPayment("");
+      setLastSale({ id: result.orderId, total: result.total });
+      push("success", t("wh.sale.done", { id: result.orderId, total: formatPrice(result.total) }));
     } else if (result.intent === "find") {
       setCard(result.found ? result.card : null);
       setUnknown(result.found ? null : result.code);
@@ -158,10 +214,12 @@ export default function Scanner({ loaderData }: Route.ComponentProps) {
       setUnknown(null);
       if (mode === "find") setCard(result.card);
       push("success", t("wh.scan.attached", { code: result.code, name: result.card.name }));
+      if (mode === "sell") addToSale(result.card);
       if (result.docQty) push("success", t("wh.scan.received", { name: result.card.name, qty: formatQty(result.docQty) }));
     } else if (result.intent === "create") {
       setUnknown(null);
       push("success", t("wh.scan.created", { name: result.card.name }));
+      if (mode === "sell") addToSale(result.card);
     } else if (result.intent === "count") {
       setCard(null);
       push("success", `${result.name}: ${result.changed ? t("wh.scan.countFixed") : t("wh.scan.countSame")}`);
@@ -278,6 +336,32 @@ export default function Scanner({ loaderData }: Route.ComponentProps) {
         />
       )}
 
+      {mode === "sell" && (
+        <SaleCard
+          lines={sale}
+          discount={discount}
+          payment={payment}
+          lastSale={lastSale}
+          busy={busy}
+          onQty={(id, qty) => setSale((lines) => lines.map((l) => (l.variant_id === id ? { ...l, qty: Math.max(1, qty) } : l)))}
+          onRemove={(id) => setSale((lines) => lines.filter((l) => l.variant_id !== id))}
+          onClear={() => setSale([])}
+          onDiscount={setDiscount}
+          onPayment={setPayment}
+          onSubmit={() =>
+            fetcher.submit(
+              {
+                intent: "sell",
+                lines: JSON.stringify(sale.map((l) => ({ variant: l.variant_id, quantity: l.qty }))),
+                payment_method: payment,
+                discount: String(discount),
+              },
+              { method: "post" },
+            )
+          }
+        />
+      )}
+
       {card && mode === "find" && <ProductCard card={card} />}
       {card && mode === "count" && (
         <CountForm
@@ -300,6 +384,125 @@ export default function Scanner({ loaderData }: Route.ComponentProps) {
         </ul>
       )}
     </div>
+  );
+}
+
+function SaleCard(props: {
+  lines: SaleLine[];
+  discount: number;
+  payment: Payment | "";
+  lastSale: { id: number; total: Money | null } | null;
+  busy: boolean;
+  onQty: (variantId: number, qty: number) => void;
+  onRemove: (variantId: number) => void;
+  onClear: () => void;
+  onDiscount: (discount: number) => void;
+  onPayment: (payment: Payment) => void;
+  onSubmit: () => void;
+}) {
+  const { lines, discount, payment, lastSale, busy } = props;
+  const t = useT();
+  const chip = (active: boolean) =>
+    `rounded-xl border px-3.5 py-2 text-sm font-medium ${active ? "border-brand-500 bg-brand-50 text-brand-700" : "border-line bg-white hover:border-brand-500"}`;
+  const full = lines.reduce((sum, l) => sum + Number(l.price) * l.qty, 0);
+  const total = saleTotal(lines, discount);
+  return (
+    <Card className="space-y-4 p-5">
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="flex items-center gap-2 text-lg font-semibold">
+          <Store className="size-5" aria-hidden />
+          {t("wh.sale.title")}
+        </h2>
+        {lines.length > 0 && (
+          <Button variant="ghost" size="sm" onClick={props.onClear}>
+            {t("wh.sale.clear")}
+          </Button>
+        )}
+      </div>
+
+      {lastSale && lines.length === 0 && (
+        <Alert tone="success">
+          {t("wh.sale.done", { id: lastSale.id, total: formatPrice(lastSale.total) })}{" "}
+          <Link to={`/seller/orders/${lastSale.id}`} className="font-medium underline">
+            {t("wh.sale.openOrder")}
+          </Link>
+        </Alert>
+      )}
+
+      {lines.length === 0 ? (
+        <p className="text-muted text-sm">{t("wh.sale.empty")}</p>
+      ) : (
+        <ul className="divide-line divide-y">
+          {lines.map((l) => (
+            <li key={l.variant_id} className="flex flex-wrap items-center gap-3 py-2.5">
+              <div className="min-w-0 flex-1">
+                <p className="font-medium">{l.name}</p>
+                <p className="text-muted text-xs">
+                  {[l.sku, formatPrice(l.price)].filter(Boolean).join(" · ")}
+                  {Number(l.available) < l.qty && (
+                    <span className="text-danger"> · {t("wh.sale.stockLow", { qty: formatQty(l.available) })}</span>
+                  )}
+                </p>
+              </div>
+              <div className="flex items-center gap-1">
+                <Button variant="secondary" size="sm" aria-label="−1" onClick={() => props.onQty(l.variant_id, l.qty - 1)}>
+                  <Minus className="size-4" aria-hidden />
+                </Button>
+                <Input
+                  value={String(l.qty)}
+                  onChange={(e) => props.onQty(l.variant_id, Number(e.target.value.replace(/\D/g, "")) || 1)}
+                  inputMode="numeric"
+                  aria-label={t("wh.col.qty")}
+                  className="w-16 text-center"
+                />
+                <Button variant="secondary" size="sm" aria-label="+1" onClick={() => props.onQty(l.variant_id, l.qty + 1)}>
+                  <Plus className="size-4" aria-hidden />
+                </Button>
+              </div>
+              <p className="w-24 text-right font-medium whitespace-nowrap">{formatPrice(String((unitCents(l.price, discount) * l.qty) / 100))}</p>
+              <Button variant="ghost" size="sm" aria-label={t("wh.sale.remove")} onClick={() => props.onRemove(l.variant_id)}>
+                <X className="size-4" aria-hidden />
+              </Button>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <div className="space-y-2">
+        <p className="text-sm font-medium">{t("wh.sale.discount")}</p>
+        <div className="flex flex-wrap gap-2">
+          {DISCOUNTS.map((d) => (
+            <button key={d} type="button" aria-pressed={d === discount} className={chip(d === discount)} onClick={() => props.onDiscount(d)}>
+              {d === 0 ? t("wh.sale.noDiscount") : `−${d} %`}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <p className="text-sm font-medium">{t("wh.sale.payment")}</p>
+        <div className="flex flex-wrap gap-2">
+          {PAYMENTS.map((p) => (
+            <button key={p} type="button" aria-pressed={p === payment} className={chip(p === payment)} onClick={() => props.onPayment(p)}>
+              {t(`wh.sale.pay.${p}` as TKey)}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line pt-4">
+        <div>
+          <p className="text-muted text-sm">{t("wh.sale.total")}</p>
+          <p className="text-2xl font-semibold">{formatPrice(String(total))}</p>
+          {discount > 0 && lines.length > 0 && (
+            <p className="text-muted text-xs line-through">{formatPrice(String(full))}</p>
+          )}
+        </div>
+        <Button size="lg" loading={busy} disabled={lines.length === 0 || !payment} onClick={props.onSubmit}>
+          {payment ? t("wh.sale.submit") : t("wh.sale.choosePayment")}
+        </Button>
+      </div>
+    </Card>
   );
 }
 

@@ -128,6 +128,11 @@ export default function Orders({ loaderData }: Route.ComponentProps) {
                     </Td>
                     <Td>
                       <Badge tone={paymentTone(o.payment_status)}>{o.payment_status_display}</Badge>
+                      {o.channel === "pos" && (
+                        <p className="text-muted mt-1 text-xs">
+                          {t("ord.channel.pos")} · {o.payment_method_display}
+                        </p>
+                      )}
                     </Td>
                     <Td>
                       <Badge tone={statusTone(o.status_order)}>{o.status_display}</Badge>
