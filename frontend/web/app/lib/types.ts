@@ -287,6 +287,7 @@ export interface SalesStats {
   };
   low_stock: { variant_id: number; product_id: number; name: string; available: Money; sold: Money }[];
   on_order_open: { lines: number; orders: number };
+  by_channel: { channel: "site" | "bot" | "pos"; label: string; revenue: Money; orders: number }[];
 }
 
 export interface WarehouseDashboard {
@@ -690,6 +691,13 @@ export interface ManageOrderRow {
   stock_state: "none" | "reserved" | "written_off" | "released";
   items_count: number;
   manager_email: string | null;
+  /** откуда заказ: сайт, бот или продажа на точке (касса в сканере) */
+  channel: "site" | "bot" | "pos";
+  channel_display: string;
+  /** как заплатили на точке; у заказов с сайта пусто */
+  payment_method: "" | "cash" | "card" | "iban";
+  payment_method_display: string;
+  discount_percent: number;
 }
 
 export interface ManageOrder extends ManageOrderRow {

@@ -67,7 +67,7 @@ def test_iban_and_card_without_discount():
         data = _client(seller.user).post(reverse(SALE), {"lines": [{"variant": tap.pk, "quantity": 1}],
                                                          "payment_method": method}, format="json").json()
         assert (data["payment_method"], data["total_price"], data["discount_percent"]) == (method, "100.00", 0)
-    assert Order.objects.get(payment_method="iban").get_payment_method_display() == "Переказ на рахунок ФОП"
+    assert Order.objects.get(payment_method="iban").get_payment_method_display() == "Переказ на IBAN ФОП"
 
 
 def test_not_enough_stock_and_bad_input_sell_nothing():
@@ -81,7 +81,8 @@ def test_not_enough_stock_and_bad_input_sell_nothing():
 
     short = sell(lines=[{"variant": tap.pk, "quantity": 3}])
     assert short.status_code == 400
-    assert "Сифон" in str(short.json()) and "Перерахунок" in str(short.json())
+    assert "Сифон" in str(short.json()) and "Інвентаризація" in str(short.json())
+    assert "на складі 1, а продаєте 3" in str(short.json())  # без «1.000»
     assert sell(lines=[{"variant": foreign.pk, "quantity": 1}]).status_code == 400  # чужой товар не продать
     assert sell(lines=[]).status_code == 400
     assert sell(lines=[{"variant": tap.pk, "quantity": 0}]).status_code == 400

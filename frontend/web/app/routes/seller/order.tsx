@@ -106,6 +106,7 @@ export default function OrderPage({ loaderData, actionData }: Route.ComponentPro
         </PageTitle>
         <Badge tone={statusTone(order.status_order)}>{order.status_display}</Badge>
         <Badge tone={paymentTone(order.payment_status)}>{order.payment_status_display}</Badge>
+        {order.channel === "pos" && <Badge tone="info">{t("ord.channel.pos")}</Badge>}
         <span className="text-muted text-sm">{t(`ord.stock.${order.stock_state}` as TKey)}</span>
       </div>
       {actionData && !actionData.ok && <Alert tone="danger">{actionData.error}</Alert>}
@@ -142,9 +143,16 @@ export default function OrderPage({ loaderData, actionData }: Route.ComponentPro
         <Card className="space-y-1.5 p-5 text-sm">
           <h2 className="mb-1 font-semibold">{t("ord.delivery")}</h2>
           <p>{order.address}</p>
-          <p className="text-muted">
-            {t("ord.paymentType")}: {order.payment_type_display}
-          </p>
+          {order.channel === "pos" ? (
+            <p className="text-muted">
+              {t("ord.paymentMethod")}: {order.payment_method_display}
+              {order.discount_percent > 0 && ` · ${t("ord.discount", { value: order.discount_percent })}`}
+            </p>
+          ) : (
+            <p className="text-muted">
+              {t("ord.paymentType")}: {order.payment_type_display}
+            </p>
+          )}
           {order.comment && (
             <>
               <h3 className="pt-2 font-semibold">{t("ord.comment")}</h3>

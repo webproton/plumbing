@@ -131,6 +131,11 @@ def _discounted(price: Decimal, percent: int) -> Decimal:
 POS_DISCOUNTS = (0, 1, 2, 3, 4, 5)
 
 
+def _qty(value) -> str:
+    """Decimal("1.000") → «1», Decimal("2.500") → «2.5» — для сообщения продавцу."""
+    return f"{Decimal(value or 0).normalize():f}"
+
+
 @transaction.atomic
 def create_pos_sale(user, lines, *, payment_method: str, discount_percent: int = 0) -> Order:
     """
@@ -184,9 +189,9 @@ def create_pos_sale(user, lines, *, payment_method: str, discount_percent: int =
         variant = variants.get(error.context.get("variant_id"))
         raise ValidationError({
             "lines": _("«{name}»: за обліком на складі {available}, а продаєте {qty}. Спершу оприходуйте товар "
-                       "або виправте залишок у режимі «Перерахунок».").format(
+                       "або виправте залишок у Сканері → «Інвентаризація».").format(
                 name=(variant.variant_name or variant.product.name) if variant else "?",
-                available=error.context.get("available"), qty=error.context.get("requested"),
+                available=_qty(error.context.get("available")), qty=_qty(error.context.get("requested")),
             )
         }) from None
     return change_status(order, Order.STATUS.completed, user=user)

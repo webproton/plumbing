@@ -178,7 +178,7 @@ class Order(models.Model):
         max_length=10, choices=CHANNEL, default=CHANNEL.site, db_index=True, verbose_name="Откуда заказ"
     )
     # как заплатили на точке; у заказов с сайта пусто (там payment_type / payment_status)
-    PAYMENT_METHOD = Choices(("cash", _("Готівка")), ("card", _("Картка")), ("iban", _("Переказ на рахунок ФОП")))
+    PAYMENT_METHOD = Choices(("cash", _("Готівка")), ("card", _("Картка")), ("iban", _("Переказ на IBAN ФОП")))
     payment_method = models.CharField(
         max_length=10, choices=PAYMENT_METHOD, blank=True, default="", verbose_name="Способ оплаты"
     )

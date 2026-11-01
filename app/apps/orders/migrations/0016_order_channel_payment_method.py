@@ -23,6 +23,6 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='order',
             name='payment_method',
-            field=models.CharField(blank=True, choices=[('cash', 'Готівка'), ('card', 'Картка'), ('iban', 'Переказ на рахунок ФОП')], default='', max_length=10, verbose_name='Способ оплаты'),
+            field=models.CharField(blank=True, choices=[('cash', 'Готівка'), ('card', 'Картка'), ('iban', 'Переказ на IBAN ФОП')], default='', max_length=10, verbose_name='Способ оплаты'),
         ),
     ]
