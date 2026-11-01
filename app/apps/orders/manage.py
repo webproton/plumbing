@@ -24,7 +24,7 @@ from app.core.pagination import StandardPagination
 from . import customer_notifications
 from .invoice import generate_invoice
 from .models import CustomerNotification, Order, OrderItem
-from .services import change_status
+from .services import change_status, create_pos_sale
 from .stats import PERIODS, sales_stats
 
 S = Order.STATUS
@@ -90,6 +90,8 @@ class OrderRowSerializer(serializers.ModelSerializer):
     status_display = serializers.CharField(source="get_status_order_display", read_only=True)
     payment_status_display = serializers.CharField(source="get_payment_status_display", read_only=True)
     payment_type_display = serializers.CharField(source="get_payment_type_display", read_only=True)
+    channel_display = serializers.CharField(source="get_channel_display", read_only=True)
+    payment_method_display = serializers.CharField(source="get_payment_method_display", read_only=True)
     items_count = serializers.IntegerField(read_only=True)
     manager_email = serializers.CharField(source="manager.email", read_only=True, default=None)
 
@@ -98,7 +100,8 @@ class OrderRowSerializer(serializers.ModelSerializer):
         fields = [
             "id", "creation_date", "customer_name", "phone_number", "email", "address", "total_price",
             "status_order", "status_display", "payment_status", "payment_status_display", "payment_type",
-            "payment_type_display", "stock_state", "items_count", "manager_email",
+            "payment_type_display", "stock_state", "items_count", "manager_email", "channel", "channel_display",
+            "payment_method", "payment_method_display", "discount_percent",
         ]  # fmt: skip
 
 
@@ -166,6 +169,8 @@ class ManageOrderViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, views
                 qs = qs.filter(status_order=p["status"])
             if p.get("payment") in Order.PAYMENT_STATUS:
                 qs = qs.filter(payment_status=p["payment"])
+            if p.get("channel") in Order.CHANNEL:
+                qs = qs.filter(channel=p["channel"])
             if q := p.get("q", "").strip():
                 digits = "".join(ch for ch in q if ch.isdigit())
                 cond = Q(customer_name__icontains=q) | Q(email__icontains=q)
@@ -187,6 +192,25 @@ class ManageOrderViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, views
         return Response(
             OrderDetailSerializer(self.get_queryset().get(pk=order.pk), context=self.get_serializer_context()).data
         )
+
+    @action(detail=False, methods=["post"], url_path="pos-sale")
+    def pos_sale(self, request):
+        """Касса на точке: {"lines": [{"variant": id, "quantity": 2}], "payment_method": "cash|card|iban",
+        "discount_percent": 0..5} → продажа оплачена, завершена, товар списан."""
+        lines = request.data.get("lines") or []
+        if not isinstance(lines, list):
+            raise ValidationError({"lines": _("Неправильний список товарів")})
+        try:
+            discount = int(request.data.get("discount_percent") or 0)
+        except (TypeError, ValueError):
+            discount = -1
+        order = create_pos_sale(
+            request.user,
+            [(line.get("variant"), line.get("quantity")) for line in lines if isinstance(line, dict)],
+            payment_method=str(request.data.get("payment_method") or ""),
+            discount_percent=discount,
+        )
+        return self._respond(order)
 
     @action(detail=True, methods=["post"])
     def status(self, request, pk=None):

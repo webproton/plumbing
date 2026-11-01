@@ -120,6 +120,11 @@ def sales_stats(user, days: int = 30, now=None) -> dict:
         .order_by("free", "-sold")[:TOP]
     )
     on_order = items.filter(on_order=True).exclude(order__status_order__in=CLOSED)
+    channels = (
+        sold.values(channel=F("order__channel"))
+        .annotate(revenue=Sum(LINE), orders=Count("order_id", distinct=True))
+        .order_by("-revenue")
+    )
 
     return {
         "period": {"days": days, "from": timezone.localdate(start), "to": timezone.localdate(end)},
@@ -132,6 +137,11 @@ def sales_stats(user, days: int = 30, now=None) -> dict:
                 "orders": len((by_day.get(d) or {}).get("orders", ())),
             }
             for d in days_list
+        ],
+        "by_channel": [
+            {"channel": row["channel"], "label": str(Order.CHANNEL[row["channel"]]), "revenue": _money(row["revenue"]),
+             "orders": row["orders"]}
+            for row in channels
         ],
         "top_products": [
             {**row, "revenue": _money(row["revenue"]), "profit": _money(row["profit"])} for row in top_products
