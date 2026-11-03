@@ -163,7 +163,7 @@ All configuration is done through environment variables — see `.env.example`.
 ## Tests
 
 ```bash
-pytest                                   # backend: 253 tests (needs PostgreSQL)
+pytest                                   # backend: 341 tests (needs PostgreSQL; settings — config.settings_test)
 cd frontend/web && npm run check         # types, ESLint, 38 Vitest tests
 ruff check app config
 ```
