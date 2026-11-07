@@ -1,4 +1,4 @@
-import { CheckCircle2, Link2, Minus, PackagePlus, Plus, ScanBarcode, Store, TriangleAlert, X } from "lucide-react";
+import { Camera, CheckCircle2, Link2, Minus, PackagePlus, Plus, ScanBarcode, Store, TriangleAlert, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { data, Link, useFetcher, useSearchParams } from "react-router";
 
@@ -7,10 +7,10 @@ import { VariantPicker } from "~/components/seller/VariantPicker";
 import { Alert, Badge, Button, Card, Field, Input, PageTitle, Select } from "~/components/ui";
 import { langFromRequest, makeT, tFromMatches, type TKey } from "~/i18n";
 import { useT } from "~/i18n/react";
-import { ApiError } from "~/lib/api.server";
+import { ApiError, LONG_TIMEOUT } from "~/lib/api.server";
 import { formatPrice, formatQty } from "~/lib/format";
 import { requireSeller } from "~/lib/seller.server";
-import type { InvoiceDoc, ManageOrder, Money, Paginated, ScanCard } from "~/lib/types";
+import type { Category, InvoiceDoc, ManageOrder, Money, Paginated, ScanCard, Supplier } from "~/lib/types";
 import { formObject } from "~/lib/validation";
 
 import type { Route } from "./+types/scanner";
@@ -20,10 +20,14 @@ export const meta: Route.MetaFunction = ({ matches }) => [{ title: tFromMatches(
 
 export async function loader({ request, context }: Route.LoaderArgs) {
   const api = requireSeller(request, context);
-  const docs = await api
-    .get<Paginated<InvoiceDoc>>("/warehouse/inventory-documents/", { query: { page_size: 100 } })
-    .catch(() => null);
-  return { openDocs: (docs?.results ?? []).filter((d) => !d.processed) };
+  // справочники для «Створити товар»: не загрузились — форма работает и без них
+  const [docs, suppliers, categories, brands] = await Promise.all([
+    api.get<Paginated<InvoiceDoc>>("/warehouse/inventory-documents/", { query: { page_size: 100 } }).catch(() => null),
+    api.get<Supplier[]>("/warehouse/suppliers/").catch(() => [] as Supplier[]),
+    api.get<Category[]>("/category/").catch(() => [] as Category[]),
+    api.get<string[]>("/manage/brands/").catch(() => [] as string[]),
+  ]);
+  return { openDocs: (docs?.results ?? []).filter((d) => !d.processed), suppliers, categories, brands };
 }
 
 type ScanResult =
@@ -40,7 +44,8 @@ const num = (v: string | undefined) => (v ?? "").replace(/\s/g, "").replace(",",
 export async function action({ request, context }: Route.ActionArgs) {
   const api = requireSeller(request, context);
   const t = makeT(langFromRequest(request));
-  const v = formObject(await request.formData());
+  const form = await request.formData();
+  const v = formObject(form);
   const ts = Date.now();
   const code = (v.code ?? "").trim();
   try {
@@ -75,15 +80,17 @@ export async function action({ request, context }: Route.ActionArgs) {
       return { ts, intent: "attach", found: true, card, code, docQty } satisfies ScanResult;
     }
     if (v.intent === "create") {
-      const card = await api.post<ScanCard>("/warehouse/stock-movements/create_and_add/", {
-        barcode: code,
-        name: v.name,
-        price: num(v.price) || 0,
-        cost_price: num(v.cost_price) || 0,
-        quantity: num(v.quantity) || 1,
-        document: Number(v.document) || undefined,
-        warehouse: Number(v.warehouse) || undefined,
-      });
+      // multipart: вместе с полями уходит фото (уже уменьшенное в браузере)
+      const body = new FormData();
+      body.append("barcode", code);
+      for (const key of ["price", "cost_price", "quantity"]) if (num(v[key])) body.append(key, num(v[key]));
+      for (const key of ["name", "supplier", "category", "brand_name", "available", "document", "warehouse"]) {
+        const value = (v[key] ?? "").trim();
+        if (value) body.append(key, value);
+      }
+      const photo = form.get("photo");
+      if (photo instanceof File && photo.size > 0) body.append("photo", photo);
+      const card = await api.post<ScanCard>("/warehouse/stock-movements/create_and_add/", body, { timeoutMs: LONG_TIMEOUT });
       return { ts, intent: "create", found: true, card } satisfies ScanResult;
     }
     if (v.intent === "sell") {
@@ -140,8 +147,15 @@ interface LogEntry {
   text: string;
 }
 
+/** Что выбрано при прошлом создании: товары обычно заводят пачкой от одного поставщика */
+interface CreateDefaults {
+  supplier: string;
+  category: string;
+  brand_name: string;
+}
+
 export default function Scanner({ loaderData }: Route.ComponentProps) {
-  const { openDocs } = loaderData;
+  const { openDocs, suppliers, categories, brands } = loaderData;
   const me = useSellerMe();
   const t = useT();
   const [params, setParams] = useSearchParams();
@@ -159,6 +173,7 @@ export default function Scanner({ loaderData }: Route.ComponentProps) {
   const [discount, setDiscount] = useState(0);
   const [payment, setPayment] = useState<Payment | "">("");
   const [lastSale, setLastSale] = useState<{ id: number; total: Money | null } | null>(null);
+  const [createDefaults, setCreateDefaults] = useState<CreateDefaults>({ supplier: "", category: "", brand_name: "" });
 
   const submitCode = (value: string) => {
     const c = value.trim();
@@ -218,6 +233,7 @@ export default function Scanner({ loaderData }: Route.ComponentProps) {
       if (result.docQty) push("success", t("wh.scan.received", { name: result.card.name, qty: formatQty(result.docQty) }));
     } else if (result.intent === "create") {
       setUnknown(null);
+      if (mode === "find") setCard(result.card);
       push("success", t("wh.scan.created", { name: result.card.name }));
       if (mode === "sell") addToSale(result.card);
     } else if (result.intent === "count") {
@@ -328,10 +344,22 @@ export default function Scanner({ loaderData }: Route.ComponentProps) {
       )}
       {unknown && mode !== "count" && (
         <CreateProduct
+          key={unknown}
           code={unknown}
           warehouse={warehouse}
           documentId={mode === "receive" ? documentId : ""}
-          onSubmit={(fields) => fetcher.submit({ intent: "create", ...fields }, { method: "post" })}
+          suppliers={suppliers}
+          categories={categories}
+          brands={brands}
+          defaults={createDefaults}
+          onSubmit={(form) => {
+            setCreateDefaults({
+              supplier: String(form.get("supplier") ?? ""),
+              category: String(form.get("category") ?? ""),
+              brand_name: String(form.get("brand_name") ?? ""),
+            });
+            fetcher.submit(form, { method: "post", encType: "multipart/form-data" });
+          }}
           busy={busy}
         />
       )}
@@ -593,42 +621,197 @@ function AttachBarcode({ code, busy, onSubmit }: { code: string; busy: boolean; 
   );
 }
 
+/** Фото с телефона (5–10 МБ) → JPEG до 1600 px: грузится за секунды и по мобильному интернету */
+async function shrinkPhoto(file: File, max = 1600): Promise<Blob> {
+  const bitmap = await createImageBitmap(file).catch(() => null);
+  if (!bitmap) return file; // браузер не разобрал формат — отправим как есть, сервер проверит
+  const scale = Math.min(1, max / Math.max(bitmap.width, bitmap.height));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.round(bitmap.width * scale);
+  canvas.height = Math.round(bitmap.height * scale);
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return file;
+  ctx.fillStyle = "#fff"; // прозрачный PNG в JPEG — на белом, а не на чёрном
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+  bitmap.close();
+  return new Promise((resolve) => canvas.toBlob((blob) => resolve(blob ?? file), "image/jpeg", 0.85));
+}
+
+/** Категории для товара — только конечные (направления и разделы — папки), с разделом впереди:
+ *  «Запчастини › Насоси» и «Водопостачання і каналізація › Насоси і насосні станції» не путаются */
+function categoryOptions(categories: Category[]) {
+  const bySlug = new Map(categories.map((c) => [c.slug, c.name]));
+  const parents = new Set(categories.map((c) => c.parent).filter(Boolean));
+  return categories
+    .filter((c) => !parents.has(c.slug))
+    .map((c) => {
+      const parent = c.parent ? bySlug.get(c.parent) : undefined;
+      return { id: c.id, label: parent ? `${parent} › ${c.name}` : c.name };
+    })
+    .sort((a, b) => a.label.localeCompare(b.label, "uk"));
+}
+
+/** Новый товар со сканера: всё, что нужно сразу — фото, цены, количество, поставщик, категория, бренд */
 function CreateProduct({
   code,
   warehouse,
   documentId,
+  suppliers,
+  categories,
+  brands,
+  defaults,
   onSubmit,
   busy,
 }: {
   code: string;
   warehouse: string;
   documentId: string;
-  onSubmit: (fields: Record<string, string>) => void;
+  suppliers: Supplier[];
+  categories: Category[];
+  brands: string[];
+  defaults: CreateDefaults;
+  onSubmit: (form: FormData) => void;
   busy: boolean;
 }) {
   const t = useT();
+  const [photo, setPhoto] = useState<{ blob: Blob; url: string } | null>(null);
+  const [preparing, setPreparing] = useState(false);
+  const [qty, setQty] = useState("1");
+  const [supplier, setSupplier] = useState(defaults.supplier);
+
+  useEffect(() => () => (photo ? URL.revokeObjectURL(photo.url) : undefined), [photo]);
+
+  const pickPhoto = async (file: File | undefined) => {
+    if (!file) return;
+    setPreparing(true);
+    const blob = await shrinkPhoto(file);
+    setPhoto({ blob, url: URL.createObjectURL(blob) });
+    setPreparing(false);
+  };
+
+  const stockHint = documentId
+    ? t("wh.scan.new.qtyDoc")
+    : Number(qty.replace(",", ".")) > 0
+      ? supplier
+        ? t("wh.scan.new.qtyIn")
+        : t("wh.scan.new.qtyShelf")
+      : t("wh.scan.new.qtyNone");
+
   return (
     <Alert tone="info">
       <form
-        className="space-y-3"
+        className="space-y-4"
         onSubmit={(e) => {
           e.preventDefault();
-          const f = Object.fromEntries(new FormData(e.currentTarget)) as Record<string, string>;
-          onSubmit({ ...f, code, warehouse, document: documentId });
+          const form = new FormData(e.currentTarget);
+          if (photo) form.append("photo", photo.blob, "photo.jpg");
+          form.append("intent", "create");
+          form.append("code", code);
+          form.append("warehouse", warehouse);
+          form.append("document", documentId);
+          onSubmit(form);
         }}
       >
         <p className="flex items-center gap-2 font-semibold">
           <PackagePlus className="size-4" aria-hidden /> {t("wh.scan.createTitle", { code })}
         </p>
-        <div className="grid gap-3 sm:grid-cols-4">
-          <Input name="name" required placeholder={t("wh.col.product")} aria-label={t("wh.col.product")} className="sm:col-span-2" />
-          <Input name="cost_price" inputMode="decimal" placeholder={t("wh.col.cost")} aria-label={t("wh.col.cost")} />
-          <Input name="price" inputMode="decimal" placeholder={t("wh.col.price")} aria-label={t("wh.col.price")} />
+
+        <div className="flex flex-col gap-4 sm:flex-row">
+          <div className="flex shrink-0 flex-row items-center gap-3 sm:flex-col sm:items-start">
+            {/* без capture: на телефоне — «камера или галерея», на ПК — выбор файла */}
+            <label className="border-line hover:border-brand-500 relative flex size-28 cursor-pointer flex-col items-center justify-center gap-1 overflow-hidden rounded-xl border border-dashed bg-white text-center text-xs text-muted">
+              {photo ? (
+                <img src={photo.url} alt="" className="size-full object-cover" />
+              ) : (
+                <>
+                  <Camera className="size-7" aria-hidden />
+                  {preparing ? t("wh.scan.new.photoBusy") : t("wh.scan.new.photo")}
+                </>
+              )}
+              <input
+                type="file"
+                accept="image/*"
+                className="sr-only"
+                aria-label={t("wh.scan.new.photo")}
+                onChange={(e) => {
+                  void pickPhoto(e.target.files?.[0]);
+                  e.target.value = "";
+                }}
+              />
+            </label>
+            {photo && (
+              <Button type="button" variant="ghost" size="sm" onClick={() => setPhoto(null)}>
+                <X className="size-4" aria-hidden /> {t("wh.scan.new.photoRemove")}
+              </Button>
+            )}
+          </div>
+
+          <div className="grid flex-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="sm:col-span-2 lg:col-span-3">
+              <Field label={t("wh.col.product")}>
+                {(p) => <Input {...p} name="name" required maxLength={255} autoFocus className="h-11" />}
+              </Field>
+            </div>
+            <Field label={t("wh.col.price")}>
+              {(p) => <Input {...p} name="price" inputMode="decimal" placeholder="0" className="h-11" />}
+            </Field>
+            <Field label={t("wh.col.cost")}>
+              {(p) => <Input {...p} name="cost_price" inputMode="decimal" placeholder="0" className="h-11" />}
+            </Field>
+            <Field label={t("wh.col.qty")} hint={stockHint}>
+              {(p) => (
+                <Input {...p} name="quantity" inputMode="decimal" value={qty} onChange={(e) => setQty(e.target.value)} className="h-11" />
+              )}
+            </Field>
+            {!documentId && (
+              <Field label={t("wh.col.supplier")}>
+                {(p) => (
+                  <Select {...p} name="supplier" value={supplier} onChange={(e) => setSupplier(e.target.value)} className="h-11">
+                    <option value="">{t("wh.scan.new.noSupplier")}</option>
+                    {suppliers.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name}
+                      </option>
+                    ))}
+                  </Select>
+                )}
+              </Field>
+            )}
+            <Field label={t("prod.field.category")}>
+              {(p) => (
+                <Select {...p} name="category" defaultValue={defaults.category} className="h-11">
+                  <option value="">{t("prod.noCategory")}</option>
+                  {categoryOptions(categories).map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.label}
+                    </option>
+                  ))}
+                </Select>
+              )}
+            </Field>
+            <Field label={t("prod.field.brand")}>
+              {(p) => <Input {...p} name="brand_name" list="scan-brands" defaultValue={defaults.brand_name} maxLength={255} className="h-11" />}
+            </Field>
+            <datalist id="scan-brands">
+              {brands.map((b) => (
+                <option key={b} value={b} />
+              ))}
+            </datalist>
+          </div>
         </div>
-        {documentId && <Input name="quantity" inputMode="decimal" defaultValue="1" aria-label={t("wh.col.qty")} className="w-32" />}
-        <Button type="submit" size="sm" loading={busy}>
-          {t("wh.scan.create")}
-        </Button>
+
+        <label className="flex items-center gap-2 text-sm">
+          <input type="checkbox" name="available" value="1" className="accent-brand-600 size-5" />
+          {t("prod.field.visible")}
+        </label>
+
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
+          <Button type="submit" size="lg" loading={busy} disabled={preparing} className="w-full sm:w-auto">
+            {t("wh.scan.create")}
+          </Button>
+          <p className="text-xs text-muted">{t("wh.scan.new.later")}</p>
+        </div>
       </form>
     </Alert>
   );
