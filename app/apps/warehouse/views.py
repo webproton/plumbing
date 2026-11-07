@@ -1,5 +1,5 @@
 import logging
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 
 from django.conf import settings
 from django.contrib.admin.views.decorators import staff_member_required
@@ -16,8 +16,10 @@ from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from app.apps.products.models import Product, ProductVariant
+from app.apps.products.manage import _image
+from app.apps.products.models import Category, Product, ProductVariant
 from app.apps.products.serializers import ProductVariantSerializer
+from app.apps.products.services import brand_by_name
 from app.core.pagination import StandardPagination
 
 from . import stock, supplier_prices
@@ -136,14 +138,21 @@ def _variant_card(variant, user, warehouse=None):
     return data
 
 
-def _create_variant(request, *, name, barcode, sku, price, cost_price, product_id, photo=None):
+def _create_variant(
+    request, *, name, barcode, sku, price, cost_price, product_id, photo=None, category=None, brand_name="", available=False
+):
     seller = get_active_seller(request.user)
+    if photo:
+        ext = _image(photo)  # не картинка или больше 10 МБ — понятная ошибка, товар не создаётся
     if product_id:
         product = get_object_or_404(Product, pk=product_id)
         if not request.user.is_superuser and product.seller_id not in (None, getattr(seller, "pk", None)):
             raise PermissionDenied(_("Товар принадлежит другому продавцу"))
     else:
-        product = Product.objects.create(name=name, seller=seller)
+        product = Product.objects.create(name=name, seller=seller, category=category)
+        if photo:  # фото нового товара — главное, как при создании в разделе «Товары»
+            product.photo.save(f"{product.slug or product.pk}.{ext}", photo, save=True)
+            photo = None
     variant = ProductVariant.objects.create(
         product=product,
         variant_name=name,
@@ -152,7 +161,8 @@ def _create_variant(request, *, name, barcode, sku, price, cost_price, product_i
         price=Decimal(str(price or 0)),
         cost_price=Decimal(str(cost_price or 0)),
         photo=photo,
-        available=False,  # новый товар скрыт из каталога до проверки карточки
+        brand=brand_by_name(brand_name),
+        available=available,  # по умолчанию скрыт из каталога до проверки карточки
     )
     ProductBarcode.objects.get_or_create(code=str(barcode).strip(), defaults={"variant": variant})
     return variant
@@ -218,8 +228,9 @@ class ScannerAttachBarcodeAPIView(APIView):
 
 class ScannerCreateAndAddAPIView(APIView):
     """
-    Создание нового товара со сканера. Если переданы document и warehouse —
-    сразу приходуется указанное количество по этому документу.
+    Создание нового товара со сканера: название, цены, фото, категория, бренд, «показывать в каталоге».
+    Количество: с document — в эту накладную; без неё — на склад (warehouse или основной):
+    с supplier — приход от поставщика, без — оприходование как при инвентаризации.
     """
 
     permission_classes = [IsWarehouseStaff]
@@ -241,6 +252,22 @@ class ScannerCreateAndAddAPIView(APIView):
                     {"detail": _("Товар с кодом {code} уже существует").format(code=code)},
                     status=status.HTTP_409_CONFLICT,
                 )
+        try:
+            quantity = Decimal(str(data.get("quantity") or 0).replace(",", "."))
+        except InvalidOperation:
+            raise ValidationError({"quantity": _("Количество — число, например 1 или 2.5")}) from None
+        if quantity < 0:
+            raise ValidationError({"quantity": _("Количество не может быть отрицательным")})
+        supplier = None
+        if data.get("supplier"):
+            supplier = Supplier.objects.filter(pk=data.get("supplier"), is_active=True).first()
+            if supplier is None:
+                raise ValidationError({"supplier": _("Поставщик не найден")})
+        category = None
+        if data.get("category"):
+            category = Category.objects.filter(pk=data.get("category")).first()
+            if category is None:
+                raise ValidationError({"category": _("Категория не найдена")})
 
         variant = _create_variant(
             request,
@@ -251,6 +278,9 @@ class ScannerCreateAndAddAPIView(APIView):
             cost_price=data.get("cost_price"),
             product_id=data.get("product"),
             photo=request.FILES.get("photo"),
+            category=category,
+            brand_name=data.get("brand_name") or "",
+            available=str(data.get("available", "")).lower() in ("1", "true", "on"),
         )
 
         document_id = data.get("document")
@@ -270,6 +300,22 @@ class ScannerCreateAndAddAPIView(APIView):
                 price_per_unit=variant.cost_price,
                 comment="Новый товар со сканера",
             )
+            variant.refresh_from_db()
+            return Response(_variant_card(variant, request.user, warehouse), status=status.HTTP_201_CREATED)
+
+        if quantity > 0:
+            warehouse = (
+                _ensure_own_warehouse(request.user, get_object_or_404(Warehouse, pk=data.get("warehouse")))
+                if data.get("warehouse")
+                else _default_warehouse(request.user)
+            )
+            if warehouse is None:
+                raise ValidationError({"warehouse": _("Сначала создайте склад")})
+            if supplier:
+                stock.receive(variant, warehouse, quantity, user=request.user, supplier=supplier,
+                              price_per_unit=variant.cost_price, comment="Новый товар со сканера")
+            else:  # поставщик неизвестен (остаток с полки) — оприходование, как при инвентаризации
+                stock.adjust(variant, warehouse, quantity, user=request.user, comment="Новый товар со сканера")
             variant.refresh_from_db()
             return Response(_variant_card(variant, request.user, warehouse), status=status.HTTP_201_CREATED)
 

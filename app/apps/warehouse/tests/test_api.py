@@ -191,6 +191,87 @@ def test_scanner_create_and_receive(client, wh):
     assert again.status_code == 409
 
 
+def _png():
+    from PIL import Image
+
+    buf = BytesIO()
+    Image.new("RGB", (40, 30), "white").save(buf, format="PNG")
+    return SimpleUploadedFile("photo.png", buf.getvalue(), content_type="image/png")
+
+
+def test_scanner_create_full_card(client, wh):
+    """Со сканера — сразу полная карточка: фото, категория, бренд, видимость, количество от поставщика."""
+    from app.apps.products.tests.factories import CategoryFactory
+
+    supplier, category = SupplierFactory(), CategoryFactory()
+    resp = client.post(
+        reverse("warehouse:scanner_create"),
+        {
+            "barcode": "4820000000999",
+            "name": "Змішувач Ромашка",
+            "price": "1250",
+            "cost_price": "800",
+            "quantity": "2",
+            "supplier": supplier.pk,
+            "category": category.pk,
+            "brand_name": "Ромашка",
+            "available": "1",
+            "photo": _png(),
+        },
+        format="multipart",
+    )
+    assert resp.status_code == 201, resp.json()
+    variant = ProductVariant.objects.get(barcode="4820000000999")
+    assert variant.available is True
+    assert variant.brand.name == "Ромашка"
+    assert variant.product.category == category
+    assert variant.product.photo  # главное фото товара, как в разделе «Товары»
+    assert resp.json()["photo"]
+    assert variant.stock == 2
+    movement = StockMovement.objects.get(variant=variant)
+    assert (movement.movement_type, movement.supplier, movement.warehouse) == (StockMovement.IN, supplier, wh)
+    assert movement.price_per_unit == Decimal("800")
+
+
+def test_scanner_create_quantity_without_supplier(client, wh):
+    """Поставщик неизвестен — остаток с полки оприходуется как при инвентаризации."""
+    resp = client.post(
+        reverse("warehouse:scanner_create"), {"barcode": "111222333", "name": "Кран", "quantity": "3"}, format="json"
+    )
+    assert resp.status_code == 201, resp.json()
+    variant = ProductVariant.objects.get(barcode="111222333")
+    assert variant.stock == 3
+    assert variant.available is False  # без галочки — скрыт до проверки карточки
+    assert StockMovement.objects.get(variant=variant).movement_type == StockMovement.ADJUSTMENT
+    assert resp.json()["stock_current"] is not None
+
+
+def test_scanner_create_zero_quantity_only_card(client, wh):
+    resp = client.post(
+        reverse("warehouse:scanner_create"), {"barcode": "111222444", "name": "Кран", "quantity": "0"}, format="json"
+    )
+    assert resp.status_code == 201
+    assert not StockMovement.objects.filter(variant__barcode="111222444").exists()
+
+
+@pytest.mark.parametrize(
+    "extra",
+    [
+        {"photo": SimpleUploadedFile("x.png", b"not an image", content_type="image/png")},
+        {"supplier": 999999},
+        {"category": 999999},
+        {"quantity": "-1"},
+        {"quantity": "два"},
+    ],
+)
+def test_scanner_create_bad_fields_create_nothing(client, wh, extra):
+    resp = client.post(
+        reverse("warehouse:scanner_create"), {"barcode": "555000111", "name": "Кран", **extra}, format="multipart"
+    )
+    assert resp.status_code == 400, resp.json()
+    assert not ProductVariant.objects.filter(barcode="555000111").exists()
+
+
 # --- проведение накладной ----------------------------------------------
 
 
