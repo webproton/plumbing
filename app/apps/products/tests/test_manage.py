@@ -196,6 +196,20 @@ def test_smart_search_brand_and_subcategories(client, seller):
     assert [r["name"] for r in rows][0] == "Водонагрівач 80 л"  # Grohe раньше KOER
 
 
+def test_search_glued_or_spaced(client, seller):
+    """Кабинет продавца: «twbkt» находит «TWB KT», «kr2675» — артикул «KR-26.75», бренд «Grohe Pro» — по «grohepro»."""
+    pro = Brand.objects.create(name="Grohe Pro")
+    ProductVariantFactory(product__seller=seller, product__name="Змішувач TWB KT 35", code="X1")
+    ProductVariantFactory(product__seller=seller, product__name="Група безпеки", code="KR-26.75")
+    ProductVariantFactory(product__seller=seller, product__name="Душова лійка", brand=pro, code="X2")
+    ProductVariantFactory(product__name="Змішувач TWB KT чужий")  # другого продавця — не видно
+
+    assert _names(client, q="twbkt") == ["Змішувач TWB KT 35"]
+    assert _names(client, q="TWB-KT") == ["Змішувач TWB KT 35"]
+    assert _names(client, q="kr2675") == ["Група безпеки"]
+    assert _names(client, q="grohepro") == ["Душова лійка"]
+
+
 def test_facets_count_with_parents_and_brands(client, seller):
     mixers = CategoryFactory(name="Змішувачі")
     kitchen = CategoryFactory(name="Для кухні", parent=mixers)

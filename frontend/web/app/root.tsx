@@ -63,6 +63,11 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     lang,
     siteName: storefront?.name || config.siteName,
     storefront,
+    // сотрудник открыл витрину ссылкой ?store=… — сайт её запомнил (cookie), и «Каталог» показывает только её товары.
+    // Полоса «Вітрина … · До всього магазину» — только сотрудникам: покупатели витрины клиента (bpump из бота) её не видят
+    storeByLink: Boolean(
+      storefront && !storefront.domain && session.get("store") && session.get("user")?.staff,
+    ),
     tagline: storefrontTagline(storefront, lang),
     navCategories: navCategories(categories, storefront),
     publicUrl: originFor(storefront?.domain),
@@ -118,7 +123,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <AnalyticsHead settings={data?.settings ?? null} />
       </head>
       <body className="flex min-h-dvh flex-col">
-        {data?.storefront?.is_demo && <DemoBar name={data.storefront.name} />}
+        {data?.storefront && (data.storefront.is_demo || data.storeByLink) && (
+          <DemoBar name={data.storefront.name} demo={data.storefront.is_demo} />
+        )}
         <Header
           siteName={data?.siteName ?? "LUXORA"}
           user={data?.user ?? null}
@@ -128,7 +135,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
         />
         <NavigationProgress />
         <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:py-8">{children}</main>
-        <Footer siteName={data?.siteName ?? "LUXORA"} tagline={data?.tagline} settings={data?.settings ?? null} />
+        <Footer
+          siteName={data?.siteName ?? "LUXORA"}
+          tagline={data?.tagline}
+          settings={data?.settings ?? null}
+        />
         <ScrollRestoration />
         <Scripts />
       </body>
@@ -142,7 +153,7 @@ function NavigationProgress() {
   return (
     <div
       aria-hidden
-      className={`fixed inset-x-0 top-0 z-50 h-0.5 bg-brand-500 transition-opacity duration-300 ${
+      className={`bg-brand-500 fixed inset-x-0 top-0 z-50 h-0.5 transition-opacity duration-300 ${
         navigation.state === "idle" ? "opacity-0" : "animate-pulse opacity-100"
       }`}
     />
@@ -177,7 +188,9 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
     <EmptyState icon={ServerCrash} title={t("error.server.title")}>
       <p className="mb-4">{t("error.server.text")}</p>
       {import.meta.env.DEV && error instanceof Error && (
-        <pre className="mb-4 max-w-full overflow-x-auto rounded-lg bg-surface p-3 text-left text-xs">{error.stack}</pre>
+        <pre className="bg-surface mb-4 max-w-full overflow-x-auto rounded-lg p-3 text-left text-xs">
+          {error.stack}
+        </pre>
       )}
       <ButtonLink to="/">{t("common.toHome")}</ButtonLink>
     </EmptyState>

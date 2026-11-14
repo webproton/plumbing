@@ -19,6 +19,7 @@ from django.db.models import Exists, OuterRef, Q
 
 from app.apps.imports.models import SupplierItem
 from app.apps.products.models import ProductVariant
+from app.apps.products.search import compact_q
 
 from .models import CurrencyRate, StockMovement, SupplierQuote
 
@@ -223,12 +224,14 @@ def comparison(seller, *, search: str = "", multi: bool = False, sort: str = "sp
     variants = ProductVariant.objects.filter(pk__in=ids).select_related("product")
     search = search.strip()
     if search:
-        variants = variants.filter(
+        found = (
             Q(variant_name__icontains=search)
             | Q(product__name__icontains=search)
             | Q(code__icontains=search)
             | Q(barcode=search)
         )
+        glued = compact_q(search, "variant_name", "product__name", "code")
+        variants = variants.filter(found | glued if glued is not None else found)  # «twbkt» = «TWB KT»
     variants = list(variants)
     offers = collect_offers([v.pk for v in variants], seller)
     rows = [summarize(v, offers.get(v.pk, [])) for v in variants]

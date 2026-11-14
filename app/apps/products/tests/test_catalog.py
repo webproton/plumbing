@@ -68,6 +68,20 @@ def test_search_by_sku(client):
     assert names == ["Сифон"]
 
 
+def test_search_glued_or_spaced(client):
+    """Код пишут слитно или раздельно: «twbkt» находит «TWB KT», «ab125» — артикул «AB-12/5»."""
+    _product("Змішувач TWB KT 35 хром")
+    siphon = _product("Сифон")
+    ProductVariant.objects.filter(product=siphon).update(code="AB-12/5")
+    _product("Кран")
+    find = lambda q: [p["name"] for p in _results(client.get(reverse("products:product-list"), {"search": q}))]  # noqa: E731
+    for query in ("twbkt", "TWBKT", "twb-kt", "twb kt", "twb.kt 35"):
+        assert find(query) == ["Змішувач TWB KT 35 хром"], query
+    assert find("ab125") == ["Сифон"]
+    assert find("ab 12 5") == ["Сифон"]
+    assert find("zz") == []  # короткий запрос не превращается в «всё подряд»
+
+
 def test_variant_stock_flags(client):
     product = _product("Кран")
     variant = product.variants.get()

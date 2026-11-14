@@ -21,9 +21,10 @@ import {
   Button,
   ButtonLink,
   Card,
+  applyOnPick,
   EmptyState,
-  Input,
   PageTitle,
+  SearchBox,
   Select,
 } from "~/components/ui";
 import { langFromRequest, makeT, tFromMatches, type TKey } from "~/i18n";
@@ -483,19 +484,19 @@ export default function SourcePage({ loaderData, actionData }: Route.ComponentPr
         ))}
       </nav>
 
-      <Form method="get" className="flex flex-wrap items-center gap-3">
+      <Form method="get" onChange={applyOnPick} className="flex flex-wrap items-center gap-3">
         <input type="hidden" name="status" value={tab} />
-        <Input
+        <SearchBox
           name="q"
           defaultValue={params.get("q") ?? ""}
           placeholder={t("src.items.search")}
-          className="w-64 py-2"
+          className="w-full sm:w-[28rem]"
           aria-label={t("nav.search")}
         />
         <Select
           name="category"
           defaultValue={params.get("category") ?? ""}
-          className="w-56 py-2"
+          className="max-w-64 py-2"
           aria-label={t("src.items.category")}
         >
           <option value="">{t("src.items.allCategories")}</option>
@@ -527,9 +528,6 @@ export default function SourcePage({ loaderData, actionData }: Route.ComponentPr
           />
           {t("src.items.onlyMissing")}
         </label>
-        <Button type="submit" variant="secondary" size="sm">
-          {t("common.show")}
-        </Button>
       </Form>
 
       {items.results.length === 0 ? (

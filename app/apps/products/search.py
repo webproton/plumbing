@@ -6,12 +6,13 @@
 - по-русски: «смеситель», «водонагреватель», «группа безопасности» → украинские названия;
 - синонимы: «бойлер» = «водонагрівач», «раковина» = «умивальник».
 Каждое слово запроса должно найтись (в названии, бренде, артикуле); у слова — несколько вариантов написания.
+- слитно или раздельно: «twbkt» = «TWB KT» = «TWB-KT» = «twb.kt» (compact_q, лукап __compact).
 """
 
 import re
 from collections.abc import Callable
 
-from django.db.models import Q
+from django.db.models import CharField, Lookup, Q, TextField
 
 _WORD = re.compile(r"[\w'’\-.]+", re.UNICODE)
 _ENDINGS = set("аеєиіїоуюяыэёьй")
@@ -144,3 +145,52 @@ def match_all(query: str, field_q: Callable[[str], Q]) -> Q | None:
             any_option |= field_q(option)
         result &= any_option
     return result
+
+
+# --- слитно или раздельно: «twbkt» находит «TWB KT», «TWB-KT», «twb.kt», «AB-12/5» — «ab125» ---
+# разделители: пробел, неразрывный пробел, дефисы и тире, точка, запятая, слеши, подчёркивание, апострофы
+SEPARATORS = (" ", " ", "-", "‑", "–", ".", ",", "/", "\\", "_", "'", "’", "ʼ")
+MIN_COMPACT = 3  # короче — совпадёт почти со всем
+
+
+def compact(text: str) -> str:
+    """Без регистра, пробелов, дефисов, точек, слешей и апострофов."""
+    text = (text or "").lower()
+    for sep in SEPARATORS:
+        text = text.replace(sep, "")
+    return text
+
+
+class Compact(Lookup):
+    """field__compact="twbkt": поле без разделителей (как compact) содержит строку. Работает и через связи
+    (variants__code__compact). SQL — вложенные REPLACE, индекс не нужен: те же затраты, что у icontains."""
+
+    lookup_name = "compact"
+    prepare_rhs = False
+
+    def as_sql(self, compiler, connection):
+        lhs, params = self.process_lhs(compiler, connection)
+        sql = f"LOWER({lhs})"
+        params = list(params)
+        for sep in SEPARATORS:
+            sql = f"REPLACE({sql}, %s, %s)"
+            params += [sep, ""]
+        value = connection.ops.prep_for_like_query(compact(str(self.rhs)))
+        return f"{sql} LIKE %s ESCAPE '\\'", [*params, f"%{value}%"]
+
+
+def register_lookups() -> None:
+    CharField.register_lookup(Compact)
+    TextField.register_lookup(Compact)
+
+
+def compact_q(query: str, *fields: str) -> Q | None:
+    """Q «любое из полей содержит запрос без разделителей». None — запрос слишком короткий."""
+    value = compact(query)
+    if len(value) < MIN_COMPACT:
+        return None
+    result = Q()
+    for field in fields:
+        result |= Q(**{f"{field}__compact": value})
+    return result
+

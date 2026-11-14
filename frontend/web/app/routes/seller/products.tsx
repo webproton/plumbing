@@ -7,13 +7,14 @@ import { SearchSelect } from "~/components/SearchSelect";
 import { Table, TableWrap, Td, Th } from "~/components/seller/Table";
 import {
   Alert,
+  applyOnPick,
   Badge,
   Button,
   ButtonLink,
   buttonClass,
   EmptyState,
-  Input,
   PageTitle,
+  SearchBox,
   Select,
 } from "~/components/ui";
 import { langFromRequest, makeT, tFromMatches, type TKey } from "~/i18n";
@@ -52,7 +53,9 @@ export async function loader({ request, context }: Route.LoaderArgs) {
       }),
     ),
     api.get<Category[]>("/category/"),
-    api.get<ProductFacets>("/manage/products/facets/").catch(() => ({ categories: [], brands: [] }) as ProductFacets),
+    api
+      .get<ProductFacets>("/manage/products/facets/")
+      .catch(() => ({ categories: [], brands: [] }) as ProductFacets),
   ]);
   return { ...products, page, pages: pagesOf(products), categories, facets };
 }
@@ -266,7 +269,9 @@ export default function Products({ loaderData, actionData }: Route.ComponentProp
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-start justify-between gap-4">
-        <PageTitle subtitle={t("prod.subtitle")} help="products">{t("prod.nav")}</PageTitle>
+        <PageTitle subtitle={t("prod.subtitle")} help="products">
+          {t("prod.nav")}
+        </PageTitle>
         <ButtonLink to="/seller/products/new">
           <Plus className="size-4" aria-hidden /> {t("prod.add")}
         </ButtonLink>
@@ -280,31 +285,35 @@ export default function Products({ loaderData, actionData }: Route.ComponentProp
               <Link
                 key={s.id}
                 to={withCategory(s.id || undefined)}
-                className={`rounded-full border px-3 py-1 text-sm ${active ? "border-brand-600 bg-brand-600 text-white" : "border-line bg-white hover:border-brand-500"}`}
+                className={`rounded-full border px-3 py-1 text-sm ${active ? "border-brand-600 bg-brand-600 text-white" : "border-line hover:border-brand-500 bg-white"}`}
               >
                 {s.name}
-                {s.count > 0 && <span className={active ? "ml-1.5 opacity-80" : "ml-1.5 text-muted"}>{s.count}</span>}
+                {s.count > 0 && (
+                  <span className={active ? "ml-1.5 opacity-80" : "text-muted ml-1.5"}>{s.count}</span>
+                )}
               </Link>
             );
           })}
         </nav>
       )}
 
-      <Form ref={filterForm} method="get" className="flex flex-wrap items-center gap-3">
-        <Input
+      <Form
+        ref={filterForm}
+        method="get"
+        onChange={applyOnPick}
+        className="flex flex-wrap items-center gap-3"
+      >
+        <SearchBox
           name="q"
           defaultValue={params.get("q") ?? ""}
           placeholder={t("prod.search")}
-          className="w-64 py-2"
+          className="w-full sm:w-[28rem]"
           aria-label={t("nav.search")}
         />
         <SearchSelect
           key={`c${params.get("category") ?? ""}`}
           name="category"
-          options={[
-            { value: "none", label: t("prod.noCategory") },
-            ...categoryOptions(categories, counts),
-          ]}
+          options={[{ value: "none", label: t("prod.noCategory") }, ...categoryOptions(categories, counts)]}
           defaultValue={params.get("category") ?? ""}
           placeholder={t("prod.allCategories")}
           ariaLabel={t("prod.col.category")}
@@ -324,7 +333,7 @@ export default function Products({ loaderData, actionData }: Route.ComponentProp
         <Select
           name="visible"
           defaultValue={params.get("visible") ?? ""}
-          className="w-40 py-2"
+          className="max-w-44 py-2"
           aria-label={t("prod.visibility")}
         >
           <option value="">{t("prod.visibility.all")}</option>
@@ -334,7 +343,7 @@ export default function Products({ loaderData, actionData }: Route.ComponentProp
         <Select
           name="ordering"
           defaultValue={params.get("ordering") ?? "updated"}
-          className="w-48 py-2"
+          className="max-w-56 py-2"
           aria-label={t("catalog.sort")}
         >
           {SORTS.map((s) => (
@@ -363,9 +372,6 @@ export default function Products({ loaderData, actionData }: Route.ComponentProp
           />
           {t("prod.inStock")}
         </label>
-        <Button type="submit" variant="secondary" size="sm">
-          {t("common.show")}
-        </Button>
       </Form>
 
       {actionData?.message && <Alert tone={actionData.ok ? "success" : "danger"}>{actionData.message}</Alert>}

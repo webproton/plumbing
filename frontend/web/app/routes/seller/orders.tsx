@@ -3,7 +3,7 @@ import { Form, useSearchParams } from "react-router";
 
 import { Pagination } from "~/components/Pagination";
 import { Table, TableWrap, Td, Th } from "~/components/seller/Table";
-import { Badge, Button, EmptyState, Input, PageTitle } from "~/components/ui";
+import { Badge, EmptyState, PageTitle, SearchBox } from "~/components/ui";
 import { tFromMatches, type TKey } from "~/i18n";
 import { Link, useLang, useT } from "~/i18n/react";
 import { formatDateTime, formatPrice, paymentTone, pluralize, statusTone } from "~/lib/format";
@@ -55,7 +55,9 @@ export default function Orders({ loaderData }: Route.ComponentProps) {
 
   return (
     <div className="space-y-5">
-      <PageTitle subtitle={t("ord.subtitle")} help="orders">{t("ord.nav")}</PageTitle>
+      <PageTitle subtitle={t("ord.subtitle")} help="orders">
+        {t("ord.nav")}
+      </PageTitle>
       <nav className="flex flex-wrap gap-2" aria-label={t("catalog.filters")}>
         {TABS.map((s) => {
           const n = s === "all" ? total : (counts[s] ?? 0);
@@ -73,16 +75,13 @@ export default function Orders({ loaderData }: Route.ComponentProps) {
       </nav>
       <Form method="get" className="flex flex-wrap items-center gap-3">
         <input type="hidden" name="status" value={tab} />
-        <Input
+        <SearchBox
           name="q"
           defaultValue={params.get("q") ?? ""}
           placeholder={t("ord.search")}
-          className="w-72 py-2"
+          className="w-full sm:w-[28rem]"
           aria-label={t("nav.search")}
         />
-        <Button type="submit" variant="secondary" size="sm">
-          {t("common.show")}
-        </Button>
       </Form>
 
       {results.length === 0 ? (

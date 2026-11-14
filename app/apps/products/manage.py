@@ -23,7 +23,7 @@ from app.apps.warehouse.permissions import IsWarehouseStaff, get_active_seller
 from app.core.pagination import StandardPagination
 
 from .models import Brand, Category, Product, ProductPhoto, ProductVariant
-from .search import match_all
+from .search import compact_q, match_all
 from .services import brand_by_name, discount_fields, editable_products
 
 MAX_PHOTO_BYTES = 10 * 1024 * 1024
@@ -246,7 +246,11 @@ class ManageProductViewSet(viewsets.ModelViewSet):
                 lambda w: Q(name__icontains=w)
                 | Exists(variants.filter(Q(variant_name__icontains=w) | Q(brand__name__icontains=w))),
             )
-            qs = qs.filter(found | words if words is not None else found)
+            if words is not None:
+                found |= words
+            if (glued := compact_q(q, "code", "barcode", "variant_name", "brand__name")) is not None:
+                found |= Q(name__compact=q) | Exists(variants.filter(glued))  # «twbkt» = «TWB KT»
+            qs = qs.filter(found)
         if category := p.get("category"):
             qs = qs.filter(in_category(category)) if category != "none" else qs.filter(category__isnull=True)
         if brand := p.get("brand", "").strip():

@@ -27,7 +27,8 @@ A small retailer buys from many suppliers and sells online. Before this project,
 
 **Storefront** (Ukrainian by default, Russian at `/ru`)
 - Catalog with search by name/SKU, category and price filters, sorting; product variants; forms keep working
-  without JavaScript.
+  without JavaScript. Search ignores spaces, hyphens, dots and slashes in codes and names: `twbkt` finds `TWB KT`,
+  `ab125` finds `AB-12/5` (catalog, seller cabinet, warehouse — `products/search.py`, lookup `__compact`).
 - SEO: server-rendered pages, `sitemap.xml` and `robots.txt`, canonical URLs without sort/filter parameters,
   `hreflang` for Ukrainian/Russian, schema.org markup (Product, BreadcrumbList, Store) and Open Graph previews.
 - Guest cart merged into the account on login; idempotent checkout; Nova Poshta city/branch picker with delivery
@@ -164,7 +165,7 @@ All configuration is done through environment variables — see `.env.example`.
 
 ```bash
 pytest                                   # backend: 349 tests (needs PostgreSQL; settings — config.settings_test)
-cd frontend/web && npm run check         # types, ESLint, 38 Vitest tests
+cd frontend/web && npm run check         # types, ESLint, 50 Vitest tests
 ruff check app config
 ```
 

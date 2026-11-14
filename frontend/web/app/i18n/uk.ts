@@ -6,7 +6,8 @@ import { sellerUk } from "./seller.uk";
 const base = {
   // загальне
   "site.tagline": "Сантехніка та меблі з доставкою по Україні",
-  "site.description": "Сантехніка, опалення, генератори та меблі: змішувачі, труби, котли, бойлери. Наявність на складі, доставка Новою Поштою по Україні.",
+  "site.description":
+    "Сантехніка, опалення, генератори та меблі: змішувачі, труби, котли, бойлери. Наявність на складі, доставка Новою Поштою по Україні.",
   "common.currencyFrom": "від ",
   "common.notAvailable": "—",
   "common.toCatalog": "Перейти до каталогу",
@@ -40,6 +41,8 @@ const base = {
   "demo.bar": "Демо-вітрина «{name}»",
   "demo.others": "Інші тематики",
   "demo.exit": "Вийти з демо",
+  "store.bar": "Вітрина «{name}»",
+  "store.exit": "До всього магазину",
   "demo.empty": "Демо-вітрин ще немає — їх створює команда seed_storefronts.",
   "nav.menu": "Меню",
   "nav.catalog": "Каталог",
@@ -48,6 +51,7 @@ const base = {
   "nav.deliveryPayment": "Доставка й оплата",
   "nav.contacts": "Контакти",
   "nav.search": "Пошук",
+  "search.find": "Знайти",
   "nav.searchPlaceholder": "Пошук за назвою або артикулом",
   "nav.searchLabel": "Пошук товарів",
   "nav.wishlist": "Обране",
@@ -203,7 +207,8 @@ const base = {
   "auth.register.submit": "Створити акаунт",
   "auth.register.haveAccount": "Вже є акаунт?",
   "auth.register.sentTitle": "Перевірте пошту",
-  "auth.register.sentText": "Ми надіслали лист на {email}. Перейдіть за посиланням з листа, щоб підтвердити адресу.",
+  "auth.register.sentText":
+    "Ми надіслали лист на {email}. Перейдіть за посиланням з листа, щоб підтвердити адресу.",
   "auth.confirm.ok": "Email підтверджено",
   "auth.confirm.okNotice": "Email підтверджено — тепер можна увійти.",
   "auth.confirm.bad": "Посилання недійсне",
@@ -261,11 +266,14 @@ const base = {
   "page.delivery.npText":
     "Відправляємо в день підтвердження замовлення (у робочі дні). Термін — 1–3 дні, вартість — за тарифами перевізника.",
   "page.delivery.pickup": "Самовивіз",
-  "page.delivery.pickupText": "Заберіть замовлення зі складу після дзвінка менеджера — товар буде зібрано та перевірено.",
+  "page.delivery.pickupText":
+    "Заберіть замовлення зі складу після дзвінка менеджера — товар буде зібрано та перевірено.",
   "page.delivery.payment": "Оплата",
-  "page.delivery.paymentText": "Повна оплата або передоплата 50 % за реквізитами, які надішле менеджер після підтвердження.",
+  "page.delivery.paymentText":
+    "Повна оплата або передоплата 50 % за реквізитами, які надішле менеджер після підтвердження.",
   "page.delivery.return": "Повернення",
-  "page.delivery.returnText": "Товар належної якості можна повернути протягом 14 днів, якщо він не був у використанні.",
+  "page.delivery.returnText":
+    "Товар належної якості можна повернути протягом 14 днів, якщо він не був у використанні.",
   "page.contacts.title": "Контакти",
   "page.contacts.hours": "Пн–Пт 9:00–18:00",
   "page.contacts.unavailable": "Контакти тимчасово недоступні.",
