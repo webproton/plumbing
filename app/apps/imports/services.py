@@ -598,14 +598,18 @@ def item_search_q(query: str) -> Q:
     return found
 
 
-def search_supplier_items(user, seller, query: str, limit: int = 20) -> dict:
-    """Позиции поставщиков продавца, которых ещё нет в его каталоге (не связаны), по запросу.
-    → {"count", "results": [{id, name, sku, brand, source, price (грн), raw_price, currency, quantity, available, photo}], "suggestion"}"""
+def search_supplier_items(user, seller, query: str, limit: int = 20, everything: bool = False) -> dict:
+    """Позиции поставщиков продавца по запросу. По умолчанию — только те, которых ещё нет в каталоге (новые);
+    everything=True — все загруженные источники: и уже товары («у каталозі»), и пропущенные (поиск кабинета).
+    → {"count", "results": [{id, name, sku, brand, source, status, product_id, price (грн), raw_price, currency,
+    quantity, available, photo}], "suggestion"}"""
     sources = sources_for(user, seller)
-    base = SupplierItem.objects.filter(source__in=sources, missing=False, status=SupplierItem.NEW).select_related("source")
+    base = SupplierItem.objects.filter(source__in=sources, missing=False).select_related("source", "variant")
+    if not everything:
+        base = base.filter(status=SupplierItem.NEW)
     found, suggestion = base.filter(item_search_q(query)), None
     if not found.exists():
-        key = f"search:vocab:items:{'all' if user.is_superuser else (seller.pk if seller else 0)}"
+        key = f"search:vocab:items:{'all' if user.is_superuser else (seller.pk if seller else 0)}:{int(everything)}"
         texts = lambda: (t for row in base.values_list("name", "sku", "brand") for t in row)  # noqa: E731
         fixed = suggest(query, cached_vocab(key, texts))
         if fixed and (retry := base.filter(item_search_q(fixed))).exists():
@@ -621,6 +625,8 @@ def search_supplier_items(user, seller, query: str, limit: int = 20) -> dict:
                 "sku": item.sku,
                 "brand": item.brand,
                 "source": {"id": item.source_id, "name": item.source.name},
+                "status": item.status,
+                "product_id": item.variant.product_id if item.variant_id else None,  # уже товар — ссылка на карточку
                 "price": str(price) if price is not None else None,
                 "raw_price": str(item.price) if item.price is not None else None,
                 "currency": item.currency,

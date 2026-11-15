@@ -34,6 +34,7 @@ export default [
     ...prefix("seller", [
       layout("routes/seller/layout.tsx", [
         index("routes/seller/index.tsx"),
+        route("search", "routes/seller/search.tsx"),
         route("products", "routes/seller/products.tsx"),
         route("products/new", "routes/seller/product-new.tsx"),
         route("products/:id", "routes/seller/product-edit.tsx"),

@@ -263,12 +263,16 @@ class ImportSourceViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=["get"], url_path="search-items")
     def search_items(self, request):
-        """Позиции всех поставщиков продавца, которых ещё нет в каталоге: ?q= (до 20, с подсказкой при опечатке)."""
+        """Позиции всех поставщиков продавца: ?q= (до 20, с подсказкой при опечатке). По умолчанию — которых ещё
+        нет в каталоге; ?all=1 — все загруженные источники, и уже товары тоже (поиск в меню кабинета, до 50)."""
         q = request.query_params.get("q", "").strip()
         if not q:
             return Response({"count": 0, "results": [], "suggestion": None})
-        user = request.user
-        return Response(services.search_supplier_items(user, get_active_seller(user), q))
+        user, everything = request.user, request.query_params.get("all") == "1"
+        found = services.search_supplier_items(
+            user, get_active_seller(user), q, limit=50 if everything else 20, everything=everything
+        )
+        return Response(found)
 
     @action(detail=True, methods=["get"])
     def categories(self, request, pk=None):

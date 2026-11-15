@@ -24,6 +24,25 @@ export const cabinetUk = {
   "prod.sort.-price": "Спочатку дорогі",
   "prod.empty": "Товарів не знайдено",
   "prod.emptyText": "Додайте товар вручну, завантажте шаблон в «Імпорті товарів» або проведіть накладну.",
+  "search.cabinet.title": "Пошук по кабінету",
+  "search.cabinet.subtitle":
+    "Ваші товари і всі завантажені джерела товарів (прайси, фіди постачальників) — навіть те, чого немає на складі.",
+  "search.cabinet.placeholder": "Назва, артикул, штрихкод або бренд",
+  "search.cabinet.short": "Пошук усюди",
+  "search.cabinet.nothing": "За «{query}» нічого не знайшли",
+  "search.cabinet.nothingText":
+    "Ні серед ваших товарів, ні в джерелах товарів. Спробуйте коротше: частину артикула або одне слово.",
+  "search.own.title": "Ваші товари: {n}",
+  "search.own.all": "Усі {n} у «Товарах» →",
+  "search.own.visible": "на сайті",
+  "search.own.hidden": "прихований",
+  "search.own.stock": "залишок {n}",
+  "search.sources.title": "У джерелах товарів: {n}",
+  "search.sources.hint":
+    "Позиції з усіх ваших прайсів і фідів постачальників. Ще не товар — «Створити товар»; вже у каталозі — «Відкрити товар».",
+  "search.sources.inCatalog": "вже у каталозі",
+  "search.sources.ignored": "пропущено",
+  "search.sources.openProduct": "Відкрити товар",
   "prod.suppliers.title": "Є у постачальників — ще не у вашому каталозі: {n}",
   "prod.suppliers.hint":
     "Це позиції з прайсів і фідів постачальників, а не ваш склад. Натисніть «Створити товар» — і він з'явиться у вашому каталозі.",

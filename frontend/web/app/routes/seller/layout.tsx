@@ -17,18 +17,17 @@ import {
   Truck,
   Warehouse,
 } from "lucide-react";
-import { createContext, data, Outlet, useRouteLoaderData } from "react-router";
+import { createContext, data, Form, Outlet, useRouteLoaderData, useSearchParams } from "react-router";
 
+import { SearchBox } from "~/components/ui";
 import { tFromMatches, type TKey } from "~/i18n";
-import { NavLink, useT } from "~/i18n/react";
+import { NavLink, useLocalPath, useT } from "~/i18n/react";
 import { requireSeller } from "~/lib/seller.server";
 import type { WarehouseMe } from "~/lib/types";
 
 import type { Route } from "./+types/layout";
 
-export const meta: Route.MetaFunction = ({ matches }) => [
-  { title: tFromMatches(matches)("wh.title") },
-];
+export const meta: Route.MetaFunction = ({ matches }) => [{ title: tFromMatches(matches)("wh.title") }];
 
 const sellerContext = createContext<WarehouseMe>();
 
@@ -80,6 +79,8 @@ const ADMIN_NAV = { to: "/seller/settings", label: "set.nav" as TKey, icon: Sett
 export default function SellerLayout({ loaderData }: Route.ComponentProps) {
   const { me } = loaderData;
   const t = useT();
+  const local = useLocalPath();
+  const [params] = useSearchParams();
 
   const link = ({ isActive }: { isActive: boolean }) =>
     `flex items-center gap-2 whitespace-nowrap rounded-xl px-3 py-2 text-sm font-medium ${isActive ? "bg-brand-50 text-brand-700" : "hover:bg-brand-50"}`;
@@ -89,6 +90,18 @@ export default function SellerLayout({ loaderData }: Route.ComponentProps) {
     <div className="grid grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[14rem_minmax(0,1fr)]">
       <aside className="border-line self-start rounded-2xl border bg-white p-3 lg:sticky lg:top-24">
         <p className="truncate px-3 pb-2 text-sm font-semibold">{me.seller?.shop_name ?? t("wh.admin")}</p>
+        {/* поиск по всему кабинету: свои товары и все загруженные источники товаров — с любой страницы */}
+        <Form method="get" action={local("/seller/search")} className="px-1 pb-3">
+          <SearchBox
+            key={params.get("q") ?? ""}
+            name="q"
+            defaultValue={params.get("q") ?? ""}
+            placeholder={t("search.cabinet.short")}
+            aria-label={t("search.cabinet.title")}
+            compact
+            className="w-full"
+          />
+        </Form>
         <nav className="flex gap-1 overflow-x-auto lg:flex-col" aria-label={t("wh.title")}>
           {(me.is_superuser ? [...NAV, ADMIN_NAV] : NAV).map(({ to, label, icon: Icon, end }) => (
             <NavLink key={to} to={to} end={end} className={link}>

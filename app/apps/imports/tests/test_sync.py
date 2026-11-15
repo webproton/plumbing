@@ -530,6 +530,9 @@ def test_search_supplier_items_everywhere_with_typos(seller):
     typo = find("twb")
     assert typo["suggestion"] == "tbw" and typo["results"][0]["name"] == "Змішувач TBW-KT-35"
     assert find("кран кульовий")["count"] == 0  # уже товар каталога
+    linked = client.get(url, {"q": "кран кульовий", "all": "1"}).json()  # поиск кабинета: все источники
+    assert linked["count"] == 1 and linked["results"][0]["status"] == "linked" and linked["results"][0]["product_id"]
+    assert client.get(url, {"q": "gebo", "all": "1"}).json()["results"][0]["status"] == "new"
 
 
 def test_publish_explains_missing_currency_rate(seller):
