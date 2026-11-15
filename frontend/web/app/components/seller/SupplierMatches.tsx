@@ -1,4 +1,4 @@
-import { ImageOff, Plus, Truck } from "lucide-react";
+import { ImageOff, Package, Plus, Truck } from "lucide-react";
 import { Form, useNavigation } from "react-router";
 
 import { Button, ButtonLink } from "~/components/ui";
@@ -11,6 +11,9 @@ export interface SupplierMatch {
   sku: string;
   brand: string;
   source: { id: number; name: string };
+  /** new — ещё не товар; linked — уже в каталоге (product_id); ignored — пропущена на странице поставщика */
+  status?: "new" | "linked" | "ignored";
+  product_id?: number | null;
   /** цена продажи в гривнах по правилам поставщика; null — нет цены или курса валюты */
   price: string | null;
   raw_price: string | null;
@@ -27,7 +30,16 @@ export interface SupplierSearch {
 }
 
 /** Есть у поставщика, но ещё не в каталоге продавца: нашли по поиску в «Товарах» — можно сразу создать товар. */
-export function SupplierMatches({ data, query }: { data: SupplierSearch | null; query: string }) {
+export function SupplierMatches({
+  data,
+  query,
+  everywhere = false,
+}: {
+  data: SupplierSearch | null;
+  query: string;
+  /** поиск кабинета: все загруженные источники, и уже товары тоже */
+  everywhere?: boolean;
+}) {
   const t = useT();
   const busy = useNavigation().state === "submitting";
   if (!data || data.count === 0) return null;
@@ -36,11 +48,11 @@ export function SupplierMatches({ data, query }: { data: SupplierSearch | null; 
       <div className="space-y-1">
         <h2 className="flex items-center gap-2 font-semibold">
           <Truck className="text-brand-600 size-5" aria-hidden />
-          {t("prod.suppliers.title", { n: data.count })}
+          {t(everywhere ? "search.sources.title" : "prod.suppliers.title", { n: data.count })}
         </h2>
         <p className="text-muted text-sm">
           {data.suggestion ? t("prod.suppliers.suggested", { query, suggestion: data.suggestion }) + " " : ""}
-          {t("prod.suppliers.hint")}
+          {t(everywhere ? "search.sources.hint" : "prod.suppliers.hint")}
         </p>
       </div>
       <ul className="divide-line border-line divide-y overflow-hidden rounded-xl border bg-white">
@@ -66,6 +78,8 @@ export function SupplierMatches({ data, query }: { data: SupplierSearch | null; 
                   {[item.sku, item.brand].filter(Boolean).join(" · ")}
                   {item.sku || item.brand ? " · " : ""}
                   {t("prod.suppliers.from", { name: item.source.name })}
+                  {item.status === "linked" && ` · ${t("search.sources.inCatalog")}`}
+                  {item.status === "ignored" && ` · ${t("search.sources.ignored")}`}
                   {inStock === true && ` · ${t("prod.suppliers.inStock")}`}
                   {inStock === false && ` · ${t("prod.suppliers.outOfStock")}`}
                 </p>
@@ -88,14 +102,25 @@ export function SupplierMatches({ data, query }: { data: SupplierSearch | null; 
                 )}
               </div>
               <div className="flex w-full gap-2 sm:w-auto">
-                <Form method="post" className="flex-1 sm:flex-none">
-                  <input type="hidden" name="intent" value="publishItem" />
-                  <input type="hidden" name="source" value={item.source.id} />
-                  <input type="hidden" name="item" value={item.id} />
-                  <Button type="submit" size="sm" className="w-full" disabled={!item.price || busy}>
-                    <Plus className="size-4" aria-hidden /> {t("prod.suppliers.create")}
-                  </Button>
-                </Form>
+                {item.status === "linked" && item.product_id ? (
+                  // уже товар каталога — к его карточке
+                  <ButtonLink
+                    size="sm"
+                    className="flex-1 sm:flex-none"
+                    to={`/seller/products/${item.product_id}`}
+                  >
+                    <Package className="size-4" aria-hidden /> {t("search.sources.openProduct")}
+                  </ButtonLink>
+                ) : (
+                  <Form method="post" className="flex-1 sm:flex-none">
+                    <input type="hidden" name="intent" value="publishItem" />
+                    <input type="hidden" name="source" value={item.source.id} />
+                    <input type="hidden" name="item" value={item.id} />
+                    <Button type="submit" size="sm" className="w-full" disabled={!item.price || busy}>
+                      <Plus className="size-4" aria-hidden /> {t("prod.suppliers.create")}
+                    </Button>
+                  </Form>
+                )}
                 <ButtonLink
                   size="sm"
                   variant="secondary"

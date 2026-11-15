@@ -97,8 +97,13 @@ export function Input({ className, ...props }: ComponentProps<"input">) {
 export function SearchBox({
   className,
   buttonLabel,
+  compact = false,
   ...props
-}: ComponentProps<"input"> & { buttonLabel?: string }) {
+}: ComponentProps<"input"> & {
+  buttonLabel?: string;
+  /** на кнопке только лупа — для узкого меню кабинета */
+  compact?: boolean;
+}) {
   const t = useT();
   return (
     <div
@@ -118,10 +123,14 @@ export function SearchBox({
       />
       <button
         type="submit"
-        className="from-brand-500 to-brand-700 shadow-brand-600/30 inline-flex shrink-0 items-center gap-1.5 rounded-full bg-linear-to-r px-4 py-2 text-sm font-semibold text-white shadow-md transition hover:shadow-lg hover:brightness-110 active:scale-95"
+        aria-label={compact ? (buttonLabel ?? t("search.find")) : undefined}
+        className={clsx(
+          "from-brand-500 to-brand-700 shadow-brand-600/30 inline-flex shrink-0 items-center gap-1.5 rounded-full bg-linear-to-r py-2 text-sm font-semibold text-white shadow-md transition hover:shadow-lg hover:brightness-110 active:scale-95",
+          compact ? "px-2.5" : "px-4",
+        )}
       >
         <Search className="size-4" strokeWidth={2.5} aria-hidden />
-        {buttonLabel ?? t("search.find")}
+        {!compact && (buttonLabel ?? t("search.find"))}
       </button>
     </div>
   );

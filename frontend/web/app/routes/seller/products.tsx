@@ -22,6 +22,7 @@ import {
 import { langFromRequest, makeT, tFromMatches, type TKey } from "~/i18n";
 import { Link, useLocalPath, useT } from "~/i18n/react";
 import { ApiError } from "~/lib/api.server";
+import { publishSupplierItem } from "~/lib/supplier.server";
 import { formatPrice, formatQty, pluralize } from "~/lib/format";
 import { pageOf, pagesOf, paged, requireSeller } from "~/lib/seller.server";
 import type { Category, ManageProductRow, ProductFacets, SearchPage } from "~/lib/types";
@@ -73,30 +74,7 @@ export async function action({ request, context }: Route.ActionArgs) {
   const form = await request.formData();
   const ids = form.getAll("ids").map(Number).filter(Boolean);
   const kind = String(form.get("intent"));
-  if (kind === "publishItem") {
-    // «Створити товар» из блока «Є у постачальників»: та же логика, что на странице поставщика
-    try {
-      const r = await api.post<{
-        created: number;
-        linked: number;
-        skipped: number;
-        no_rate: Record<string, number>;
-      }>(`/imports/sources/${Number(form.get("source"))}/publish/`, { ids: [Number(form.get("item"))] });
-      const noRate = Object.keys(r.no_rate ?? {});
-      if (r.created) return { ok: true as const, message: t("prod.suppliers.created") };
-      if (r.linked) return { ok: true as const, message: t("prod.suppliers.linked") };
-      const message = noRate.length
-        ? t("src.noRate", { currencies: noRate.join(", ") })
-        : t("prod.suppliers.noName");
-      return data({ ok: false as const, message }, { status: 400 });
-    } catch (e) {
-      if (!(e instanceof ApiError)) throw e;
-      return data(
-        { ok: false as const, message: Object.values(e.fieldErrors)[0] ?? t("error.generic") },
-        { status: 400 },
-      );
-    }
-  }
+  if (kind === "publishItem") return publishSupplierItem(api, form, t);
   try {
     const r = await api.post<{ changed: number }>("/manage/products/bulk/", {
       ids,

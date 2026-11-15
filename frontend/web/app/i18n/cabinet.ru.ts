@@ -25,6 +25,25 @@ export const cabinetRu: CabinetDict = {
   "prod.sort.-price": "Сначала дорогие",
   "prod.empty": "Товары не найдены",
   "prod.emptyText": "Добавьте товар вручную, загрузите шаблон в «Импорте товаров» или проведите накладную.",
+  "search.cabinet.title": "Поиск по кабинету",
+  "search.cabinet.subtitle":
+    "Ваши товары и все загруженные источники товаров (прайсы, фиды поставщиков) — даже то, чего нет на складе.",
+  "search.cabinet.placeholder": "Название, артикул, штрихкод или бренд",
+  "search.cabinet.short": "Поиск везде",
+  "search.cabinet.nothing": "По «{query}» ничего не нашли",
+  "search.cabinet.nothingText":
+    "Ни среди ваших товаров, ни в источниках товаров. Попробуйте короче: часть артикула или одно слово.",
+  "search.own.title": "Ваши товары: {n}",
+  "search.own.all": "Все {n} в «Товарах» →",
+  "search.own.visible": "на сайте",
+  "search.own.hidden": "скрыт",
+  "search.own.stock": "остаток {n}",
+  "search.sources.title": "В источниках товаров: {n}",
+  "search.sources.hint":
+    "Позиции из всех ваших прайсов и фидов поставщиков. Ещё не товар — «Создать товар»; уже в каталоге — «Открыть товар».",
+  "search.sources.inCatalog": "уже в каталоге",
+  "search.sources.ignored": "пропущено",
+  "search.sources.openProduct": "Открыть товар",
   "prod.suppliers.title": "Есть у поставщиков — ещё не в вашем каталоге: {n}",
   "prod.suppliers.hint":
     "Это позиции из прайсов и фидов поставщиков, а не ваш склад. Нажмите «Создать товар» — и он появится в вашем каталоге.",
