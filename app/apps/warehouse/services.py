@@ -30,6 +30,7 @@ from django.utils.translation import gettext as _
 from rapidfuzz import fuzz, process
 
 from app.apps.products.models import Product, ProductVariant
+from app.apps.products.search import compact_q
 from app.apps.sellers.models import Seller
 from app.apps.warehouse import duplicates, stock
 from app.apps.warehouse.models import (
@@ -591,13 +592,11 @@ def suggest_variants(query, limit=10):
     query = (query or "").strip()
     if not query:
         return ProductVariant.objects.none()
+    found = Q(variant_name__icontains=query) | Q(product__name__icontains=query) | Q(code__iexact=query) | Q(barcode__iexact=query)
+    if (glued := compact_q(query, "variant_name", "product__name", "code")) is not None:
+        found |= glued  # «twbkt» = «TWB KT»
     return (
-        ProductVariant.objects.filter(
-            Q(variant_name__icontains=query)
-            | Q(product__name__icontains=query)
-            | Q(code__iexact=query)
-            | Q(barcode__iexact=query)
-        )
+        ProductVariant.objects.filter(found)
         .select_related("product")
         .order_by("variant_name")[:limit]
     )

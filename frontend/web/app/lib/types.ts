@@ -9,6 +9,9 @@ export interface Paginated<T> {
   results: T[];
 }
 
+/** Список с поиском: по запросу с опечаткой («twb») сервер показал результаты по исправленному («tbw») */
+export type SearchPage<T> = Paginated<T> & { suggestion?: string | null; did_you_mean?: string | null };
+
 export interface Category {
   id: number;
   slug: string;
@@ -278,12 +281,26 @@ export interface SalesStats {
   canceled: number;
   previous: { revenue: Money; orders: number; avg_check: Money; profit: Money };
   by_day: { date: string; revenue: Money; orders: number }[];
-  top_products: { variant_id: number; product_id: number | null; name: string; qty: Money; revenue: Money; profit: Money }[];
+  top_products: {
+    variant_id: number;
+    product_id: number | null;
+    name: string;
+    qty: Money;
+    revenue: Money;
+    profit: Money;
+  }[];
   top_categories: { category: string; qty: Money; revenue: Money }[];
   dead_stock: {
     count: number;
     value: Money;
-    items: { variant_id: number; product_id: number; name: string; stock: Money; value: Money; last_sold: string | null }[];
+    items: {
+      variant_id: number;
+      product_id: number;
+      name: string;
+      stock: Money;
+      value: Money;
+      last_sold: string | null;
+    }[];
   };
   low_stock: { variant_id: number; product_id: number; name: string; available: Money; sold: Money }[];
   on_order_open: { lines: number; orders: number };
@@ -431,7 +448,12 @@ export interface InvoiceDoc {
     reversals?: InvoiceReversal[];
   } | null;
   column_map: ColumnMap | null;
-  ai: { enabled: boolean; status: "" | "queued" | "running" | "done" | "failed"; error: string; has_result: boolean };
+  ai: {
+    enabled: boolean;
+    status: "" | "queued" | "running" | "done" | "failed";
+    error: string;
+    has_result: boolean;
+  };
   /** похожие накладные (та же поставка?) — только у непроведённого документа */
   duplicates: InvoiceDuplicate[];
 }
@@ -731,7 +753,12 @@ export interface ManageOrder extends ManageOrderRow {
   ttn_status: string;
   ttn_status_code: string;
   ttn_updated_at: string | null;
-  delivery_tools: { can_create_ttn: boolean; np_key: boolean; sender_ready: boolean; has_requisites: boolean };
+  delivery_tools: {
+    can_create_ttn: boolean;
+    np_key: boolean;
+    sender_ready: boolean;
+    has_requisites: boolean;
+  };
   notifications: CustomerNotification[];
   notify_customers: boolean;
   language: string;

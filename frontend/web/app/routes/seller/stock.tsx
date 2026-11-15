@@ -3,7 +3,7 @@ import { Form, useNavigation } from "react-router";
 
 import { Table, TableWrap, Td, Th } from "~/components/seller/Table";
 import { Pagination } from "~/components/Pagination";
-import { Button, EmptyState, Input, PageTitle, Select } from "~/components/ui";
+import { applyOnPick, EmptyState, PageTitle, SearchBox, Select } from "~/components/ui";
 import { tFromMatches } from "~/i18n";
 import { Link, useT } from "~/i18n/react";
 import { formatPrice, formatQty, pluralize } from "~/lib/format";
@@ -25,7 +25,9 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     ordering: q.get("ordering") ?? "",
   };
   const page = pageOf(request);
-  const data = await paged(api.get<Paginated<StockRow>>("/warehouse/balances/", { query: { ...filters, page } }));
+  const data = await paged(
+    api.get<Paginated<StockRow>>("/warehouse/balances/", { query: { ...filters, page } }),
+  );
   return { ...data, page, pages: pagesOf(data), filters };
 }
 
@@ -37,13 +39,24 @@ export default function Stock({ loaderData }: Route.ComponentProps) {
 
   return (
     <div className="space-y-4">
-      <PageTitle subtitle={`${count} ${pluralize(count, t("plural.position"))}`} help="stock">{t("wh.nav.stock")}</PageTitle>
+      <PageTitle subtitle={`${count} ${pluralize(count, t("plural.position"))}`} help="stock">
+        {t("wh.nav.stock")}
+      </PageTitle>
 
-      <Form method="get" className="flex flex-wrap items-end gap-3 rounded-2xl border border-line bg-white p-4">
-        <label className="min-w-48 flex-1 space-y-1.5">
+      <Form
+        method="get"
+        onChange={applyOnPick}
+        className="border-line flex flex-wrap items-end gap-3 rounded-2xl border bg-white p-4"
+      >
+        <div className="min-w-64 flex-1 space-y-1.5">
           <span className="text-sm font-medium">{t("catalog.search")}</span>
-          <Input name="search" type="search" defaultValue={filters.search} placeholder={t("catalog.searchPlaceholder")} />
-        </label>
+          <SearchBox
+            name="search"
+            defaultValue={filters.search}
+            placeholder={t("catalog.searchPlaceholder")}
+            aria-label={t("catalog.search")}
+          />
+        </div>
         <label className="space-y-1.5">
           <span className="text-sm font-medium">{t("wh.col.warehouse")}</span>
           <Select name="warehouse" defaultValue={filters.warehouse}>
@@ -64,10 +77,15 @@ export default function Stock({ loaderData }: Route.ComponentProps) {
           </Select>
         </label>
         <label className="flex h-11 items-center gap-2 text-sm">
-          <input type="checkbox" name="in_stock" value="1" defaultChecked={filters.in_stock === "1"} className="size-4 accent-brand-600" />
+          <input
+            type="checkbox"
+            name="in_stock"
+            value="1"
+            defaultChecked={filters.in_stock === "1"}
+            className="accent-brand-600 size-4"
+          />
           {t("wh.filter.inStockOnly")}
         </label>
-        <Button type="submit">{t("common.show")}</Button>
       </Form>
 
       {results.length === 0 ? (
@@ -91,10 +109,13 @@ export default function Stock({ loaderData }: Route.ComponentProps) {
                 {results.map((r) => (
                   <tr key={r.id} className="hover:bg-surface">
                     <Td>
-                      <Link to={`/seller/movements?variant=${r.variant}`} className="font-medium hover:text-brand-600">
+                      <Link
+                        to={`/seller/movements?variant=${r.variant}`}
+                        className="hover:text-brand-600 font-medium"
+                      >
                         {r.variant_name}
                       </Link>
-                      {r.barcode && <p className="text-xs text-muted">{r.barcode}</p>}
+                      {r.barcode && <p className="text-muted text-xs">{r.barcode}</p>}
                     </Td>
                     <Td className="text-muted">{r.sku ?? "—"}</Td>
                     <Td>{r.warehouse_name}</Td>

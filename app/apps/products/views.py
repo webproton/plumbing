@@ -10,6 +10,7 @@ from app.apps.storefronts.resolve import current
 from app.apps.storefronts.scope import scope_categories, scope_products, with_products
 
 from .filters import ProductFilters
+from .search import cached_vocab, with_suggestion
 from .models import Category, Product, ProductVariant, Wishlist
 from .serializers import (
     CategorySerializer,
@@ -112,6 +113,20 @@ class ProductListView(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.Ret
 
     def get_serializer_class(self):
         return ProductDetailSerializer if self.action == "retrieve" else ProductListSerializer
+
+    def list(self, request, *args, **kwargs):
+        """Ничего не нашлось по ?search= с опечаткой («twb») — показываем товары по исправленному («tbw») и suggestion."""
+        storefront = current(request)
+        base = super().list
+
+        def texts():
+            rows = scope_products(Product.objects.filter(variants__available=True), storefront).values_list(
+                "name", "variants__variant_name", "variants__code", "variants__brand__name"
+            )
+            return (text for row in rows for text in row)
+
+        key = f"search:vocab:catalog:{storefront.pk if storefront else 0}"
+        return with_suggestion(lambda: base(request, *args, **kwargs), request, "search", lambda: cached_vocab(key, texts))
 
 
 class WishlistViewSet(

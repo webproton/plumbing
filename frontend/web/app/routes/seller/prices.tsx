@@ -5,7 +5,18 @@ import { data, Form, useActionData, useNavigation } from "react-router";
 
 import { Pagination } from "~/components/Pagination";
 import { Table, TableWrap, Td, Th } from "~/components/seller/Table";
-import { Alert, Badge, Button, Card, EmptyState, Input, PageTitle, Select } from "~/components/ui";
+import {
+  Alert,
+  applyOnPick,
+  Badge,
+  Button,
+  Card,
+  EmptyState,
+  Input,
+  PageTitle,
+  SearchBox,
+  Select,
+} from "~/components/ui";
 import { langFromRequest, LOCALE, makeT, tFromMatches, type TKey } from "~/i18n";
 import { Link, useLang, useT } from "~/i18n/react";
 import { ApiError } from "~/lib/api.server";
@@ -85,12 +96,18 @@ export default function Prices({ loaderData, actionData }: Route.ComponentProps)
 
       <Form
         method="get"
+        onChange={applyOnPick}
         className="border-line flex flex-wrap items-end gap-3 rounded-2xl border bg-white p-4"
       >
-        <label className="min-w-48 flex-1 space-y-1.5">
+        <div className="min-w-64 flex-1 space-y-1.5">
           <span className="text-sm font-medium">{t("catalog.search")}</span>
-          <Input name="search" type="search" defaultValue={filters.search} placeholder={t("pr.search")} />
-        </label>
+          <SearchBox
+            name="search"
+            defaultValue={filters.search}
+            placeholder={t("pr.search")}
+            aria-label={t("catalog.search")}
+          />
+        </div>
         <label className="space-y-1.5">
           <span className="text-sm font-medium">{t("pr.sort")}</span>
           <Select name="sort" defaultValue={filters.sort}>
@@ -109,7 +126,6 @@ export default function Prices({ loaderData, actionData }: Route.ComponentProps)
           />
           {t("pr.multi")}
         </label>
-        <Button type="submit">{t("common.show")}</Button>
       </Form>
 
       {actionData && <Alert tone={actionData.ok ? "success" : "danger"}>{actionData.message}</Alert>}

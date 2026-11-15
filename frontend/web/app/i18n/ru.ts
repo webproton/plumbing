@@ -6,7 +6,8 @@ import type { Dict } from "./uk";
 // Русский. Тип Dict гарантирует, что переведены все ключи украинского словаря.
 const base: Omit<Dict, keyof typeof sellerRu | keyof typeof importRu | keyof typeof cabinetRu> = {
   "site.tagline": "Сантехника и мебель с доставкой по Украине",
-  "site.description": "Сантехника, отопление, генераторы и мебель: смесители, трубы, котлы, бойлеры. Наличие на складе, доставка Новой Почтой по Украине.",
+  "site.description":
+    "Сантехника, отопление, генераторы и мебель: смесители, трубы, котлы, бойлеры. Наличие на складе, доставка Новой Почтой по Украине.",
   "common.currencyFrom": "от ",
   "common.notAvailable": "—",
   "common.toCatalog": "Перейти в каталог",
@@ -32,13 +33,16 @@ const base: Omit<Dict, keyof typeof sellerRu | keyof typeof importRu | keyof typ
 
   // демо-витрины для показа клиентам (/demo)
   "demo.title": "Демо-витрины",
-  "demo.subtitle": "Один магазин — разные тематики. Откройте витрину, которую увидят покупатели вашего бизнеса.",
+  "demo.subtitle":
+    "Один магазин — разные тематики. Откройте витрину, которую увидят покупатели вашего бизнеса.",
   "demo.open": "Открыть витрину",
   "demo.all": "Общий магазин",
   "demo.allText": "Все тематики вместе: сантехника, инструмент, велосипеды, мебель.",
   "demo.bar": "Демо-витрина «{name}»",
   "demo.others": "Другие тематики",
   "demo.exit": "Выйти из демо",
+  "store.bar": "Витрина «{name}»",
+  "store.exit": "Ко всему магазину",
   "demo.empty": "Демо-витрин пока нет — их создаёт команда seed_storefronts.",
   "nav.menu": "Меню",
   "nav.catalog": "Каталог",
@@ -47,6 +51,10 @@ const base: Omit<Dict, keyof typeof sellerRu | keyof typeof importRu | keyof typ
   "nav.deliveryPayment": "Доставка и оплата",
   "nav.contacts": "Контакты",
   "nav.search": "Поиск",
+  "search.find": "Найти",
+  "search.didYouMean": "Возможно, вы искали",
+  "search.suggestion":
+    "По «{query}» ничего не нашли. Возможно, вы искали «{suggestion}» — показываем эти товары.",
   "nav.searchPlaceholder": "Поиск по названию или артикулу",
   "nav.searchLabel": "Поиск товаров",
   "nav.wishlist": "Избранное",
@@ -194,7 +202,8 @@ const base: Omit<Dict, keyof typeof sellerRu | keyof typeof importRu | keyof typ
   "auth.register.submit": "Создать аккаунт",
   "auth.register.haveAccount": "Уже есть аккаунт?",
   "auth.register.sentTitle": "Проверьте почту",
-  "auth.register.sentText": "Мы отправили письмо на {email}. Перейдите по ссылке из письма, чтобы подтвердить адрес.",
+  "auth.register.sentText":
+    "Мы отправили письмо на {email}. Перейдите по ссылке из письма, чтобы подтвердить адрес.",
   "auth.confirm.ok": "Email подтверждён",
   "auth.confirm.okNotice": "Email подтверждён — теперь можно войти.",
   "auth.confirm.bad": "Ссылка недействительна",
@@ -248,11 +257,14 @@ const base: Omit<Dict, keyof typeof sellerRu | keyof typeof importRu | keyof typ
   "page.delivery.npText":
     "Отправляем в день подтверждения заказа (в рабочие дни). Срок — 1–3 дня, стоимость — по тарифам перевозчика.",
   "page.delivery.pickup": "Самовывоз",
-  "page.delivery.pickupText": "Заберите заказ со склада после звонка менеджера — товар будет собран и проверен.",
+  "page.delivery.pickupText":
+    "Заберите заказ со склада после звонка менеджера — товар будет собран и проверен.",
   "page.delivery.payment": "Оплата",
-  "page.delivery.paymentText": "Полная оплата или предоплата 50 % по реквизитам, которые пришлёт менеджер после подтверждения.",
+  "page.delivery.paymentText":
+    "Полная оплата или предоплата 50 % по реквизитам, которые пришлёт менеджер после подтверждения.",
   "page.delivery.return": "Возврат",
-  "page.delivery.returnText": "Товар надлежащего качества можно вернуть в течение 14 дней, если он не был в использовании.",
+  "page.delivery.returnText":
+    "Товар надлежащего качества можно вернуть в течение 14 дней, если он не был в использовании.",
   "page.contacts.title": "Контакты",
   "page.contacts.hours": "Пн–Пт 9:00–18:00",
   "page.contacts.unavailable": "Контакты временно недоступны.",

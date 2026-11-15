@@ -4,24 +4,27 @@ import { data, Form, useNavigation, useSearchParams } from "react-router";
 
 import { Pagination } from "~/components/Pagination";
 import { SearchSelect } from "~/components/SearchSelect";
+import { SupplierMatches, type SupplierSearch } from "~/components/seller/SupplierMatches";
 import { Table, TableWrap, Td, Th } from "~/components/seller/Table";
 import {
   Alert,
+  applyOnPick,
   Badge,
   Button,
   ButtonLink,
   buttonClass,
   EmptyState,
-  Input,
   PageTitle,
+  SearchBox,
   Select,
+  SuggestionNote,
 } from "~/components/ui";
 import { langFromRequest, makeT, tFromMatches, type TKey } from "~/i18n";
 import { Link, useLocalPath, useT } from "~/i18n/react";
 import { ApiError } from "~/lib/api.server";
 import { formatPrice, formatQty, pluralize } from "~/lib/format";
 import { pageOf, pagesOf, paged, requireSeller } from "~/lib/seller.server";
-import type { Category, ManageProductRow, Paginated, ProductFacets } from "~/lib/types";
+import type { Category, ManageProductRow, ProductFacets, SearchPage } from "~/lib/types";
 import { categoryOptions } from "~/lib/categories";
 import { thumb } from "~/lib/thumb";
 
@@ -36,9 +39,10 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   const api = requireSeller(request, context);
   const q = new URL(request.url).searchParams;
   const page = pageOf(request);
-  const [products, categories, facets] = await Promise.all([
+  const query = q.get("q")?.trim() ?? "";
+  const [products, categories, facets, suppliers] = await Promise.all([
     paged(
-      api.get<Paginated<ManageProductRow>>("/manage/products/", {
+      api.get<SearchPage<ManageProductRow>>("/manage/products/", {
         query: {
           q: q.get("q") || undefined,
           category: q.get("category") || undefined,
@@ -52,9 +56,15 @@ export async function loader({ request, context }: Route.LoaderArgs) {
       }),
     ),
     api.get<Category[]>("/category/"),
-    api.get<ProductFacets>("/manage/products/facets/").catch(() => ({ categories: [], brands: [] }) as ProductFacets),
+    api
+      .get<ProductFacets>("/manage/products/facets/")
+      .catch(() => ({ categories: [], brands: [] }) as ProductFacets),
+    // поиск сразу и по прайсам поставщиков: что можно продавать, но ещё нет в каталоге (нет доступа к импорту — пусто)
+    query && page === 1
+      ? api.get<SupplierSearch>("/imports/sources/search-items/", { query: { q: query } }).catch(() => null)
+      : Promise.resolve(null),
   ]);
-  return { ...products, page, pages: pagesOf(products), categories, facets };
+  return { ...products, page, pages: pagesOf(products), categories, facets, suppliers, query };
 }
 
 export async function action({ request, context }: Route.ActionArgs) {
@@ -63,6 +73,30 @@ export async function action({ request, context }: Route.ActionArgs) {
   const form = await request.formData();
   const ids = form.getAll("ids").map(Number).filter(Boolean);
   const kind = String(form.get("intent"));
+  if (kind === "publishItem") {
+    // «Створити товар» из блока «Є у постачальників»: та же логика, что на странице поставщика
+    try {
+      const r = await api.post<{
+        created: number;
+        linked: number;
+        skipped: number;
+        no_rate: Record<string, number>;
+      }>(`/imports/sources/${Number(form.get("source"))}/publish/`, { ids: [Number(form.get("item"))] });
+      const noRate = Object.keys(r.no_rate ?? {});
+      if (r.created) return { ok: true as const, message: t("prod.suppliers.created") };
+      if (r.linked) return { ok: true as const, message: t("prod.suppliers.linked") };
+      const message = noRate.length
+        ? t("src.noRate", { currencies: noRate.join(", ") })
+        : t("prod.suppliers.noName");
+      return data({ ok: false as const, message }, { status: 400 });
+    } catch (e) {
+      if (!(e instanceof ApiError)) throw e;
+      return data(
+        { ok: false as const, message: Object.values(e.fieldErrors)[0] ?? t("error.generic") },
+        { status: 400 },
+      );
+    }
+  }
   try {
     const r = await api.post<{ changed: number }>("/manage/products/bulk/", {
       ids,
@@ -266,7 +300,9 @@ export default function Products({ loaderData, actionData }: Route.ComponentProp
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-start justify-between gap-4">
-        <PageTitle subtitle={t("prod.subtitle")} help="products">{t("prod.nav")}</PageTitle>
+        <PageTitle subtitle={t("prod.subtitle")} help="products">
+          {t("prod.nav")}
+        </PageTitle>
         <ButtonLink to="/seller/products/new">
           <Plus className="size-4" aria-hidden /> {t("prod.add")}
         </ButtonLink>
@@ -280,31 +316,35 @@ export default function Products({ loaderData, actionData }: Route.ComponentProp
               <Link
                 key={s.id}
                 to={withCategory(s.id || undefined)}
-                className={`rounded-full border px-3 py-1 text-sm ${active ? "border-brand-600 bg-brand-600 text-white" : "border-line bg-white hover:border-brand-500"}`}
+                className={`rounded-full border px-3 py-1 text-sm ${active ? "border-brand-600 bg-brand-600 text-white" : "border-line hover:border-brand-500 bg-white"}`}
               >
                 {s.name}
-                {s.count > 0 && <span className={active ? "ml-1.5 opacity-80" : "ml-1.5 text-muted"}>{s.count}</span>}
+                {s.count > 0 && (
+                  <span className={active ? "ml-1.5 opacity-80" : "text-muted ml-1.5"}>{s.count}</span>
+                )}
               </Link>
             );
           })}
         </nav>
       )}
 
-      <Form ref={filterForm} method="get" className="flex flex-wrap items-center gap-3">
-        <Input
+      <Form
+        ref={filterForm}
+        method="get"
+        onChange={applyOnPick}
+        className="flex flex-wrap items-center gap-3"
+      >
+        <SearchBox
           name="q"
           defaultValue={params.get("q") ?? ""}
           placeholder={t("prod.search")}
-          className="w-64 py-2"
+          className="w-full sm:w-[28rem]"
           aria-label={t("nav.search")}
         />
         <SearchSelect
           key={`c${params.get("category") ?? ""}`}
           name="category"
-          options={[
-            { value: "none", label: t("prod.noCategory") },
-            ...categoryOptions(categories, counts),
-          ]}
+          options={[{ value: "none", label: t("prod.noCategory") }, ...categoryOptions(categories, counts)]}
           defaultValue={params.get("category") ?? ""}
           placeholder={t("prod.allCategories")}
           ariaLabel={t("prod.col.category")}
@@ -324,7 +364,7 @@ export default function Products({ loaderData, actionData }: Route.ComponentProp
         <Select
           name="visible"
           defaultValue={params.get("visible") ?? ""}
-          className="w-40 py-2"
+          className="max-w-44 py-2"
           aria-label={t("prod.visibility")}
         >
           <option value="">{t("prod.visibility.all")}</option>
@@ -334,7 +374,7 @@ export default function Products({ loaderData, actionData }: Route.ComponentProp
         <Select
           name="ordering"
           defaultValue={params.get("ordering") ?? "updated"}
-          className="w-48 py-2"
+          className="max-w-56 py-2"
           aria-label={t("catalog.sort")}
         >
           {SORTS.map((s) => (
@@ -363,14 +403,25 @@ export default function Products({ loaderData, actionData }: Route.ComponentProp
           />
           {t("prod.inStock")}
         </label>
-        <Button type="submit" variant="secondary" size="sm">
-          {t("common.show")}
-        </Button>
       </Form>
 
       {actionData?.message && <Alert tone={actionData.ok ? "success" : "danger"}>{actionData.message}</Alert>}
 
-      {results.length === 0 ? (
+      {loaderData.suggestion && (
+        <SuggestionNote query={loaderData.query} suggestion={loaderData.suggestion} />
+      )}
+      {loaderData.did_you_mean && (
+        <SuggestionNote
+          query={loaderData.query}
+          suggestion={loaderData.did_you_mean}
+          href={`/seller/products?q=${encodeURIComponent(loaderData.did_you_mean)}`}
+        />
+      )}
+
+      {results.length === 0 && loaderData.suppliers?.count ? (
+        // в каталоге нет, у поставщиков есть — сразу к ним
+        <p className="text-muted text-sm">{t("prod.notInCatalog")}</p>
+      ) : results.length === 0 ? (
         <EmptyState icon={Package} title={t("prod.empty")}>
           {t("prod.emptyText")}
         </EmptyState>
@@ -380,6 +431,8 @@ export default function Products({ loaderData, actionData }: Route.ComponentProp
           <Pagination page={page} pages={pages} />
         </>
       )}
+
+      <SupplierMatches data={loaderData.suppliers} query={loaderData.query} />
     </div>
   );
 }

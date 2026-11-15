@@ -15,12 +15,13 @@ from datetime import timedelta
 from decimal import ROUND_HALF_UP, Decimal
 
 from django.db import transaction
-from django.db.models import Count, Q
+from django.db.models import Count, F, Q
 from django.utils import timezone
 from django.utils.translation import gettext as _
 
 from app.apps.products.catalog.services import CategoryResolver
 from app.apps.products.models import Brand, Category, Product, ProductVariant
+from app.apps.products.search import cached_vocab, compact_q, match_all, suggest
 from app.apps.products.services import discount_fields, editable_variants
 from app.apps.warehouse.models import CurrencyRate, ProductBarcode
 from app.core.http import FetchError
@@ -507,7 +508,7 @@ def publish_items(source: ImportSource, item_ids, *, category: Category | None =
     by_barcode, by_sku = _variant_index(source.seller)
     taken = set(source.items.filter(variant__isnull=False).values_list("variant_id", flat=True))
     brands: dict = {}
-    result = {"created": [], "linked": 0, "skipped": 0}
+    result = {"created": [], "linked": 0, "skipped": 0, "no_rate": {}}
 
     items = source.items.filter(pk__in=item_ids, variant__isnull=True).exclude(status=SupplierItem.LINKED)
     for item in items:
@@ -522,6 +523,9 @@ def publish_items(source: ImportSource, item_ids, *, category: Category | None =
         sale = pricing.sale(item)
         if not item.name or sale is None:
             result["skipped"] += 1
+            currency = (item.currency or "").upper()
+            if item.name and (item.price or item.cost) and pricing.rate(currency) is None:
+                result["no_rate"][currency] = result["no_rate"].get(currency, 0) + 1  # цена в EUR/USD, курса нет
             continue
         with transaction.atomic():
             product = Product.objects.create(
@@ -580,3 +584,50 @@ def item_counts(source) -> dict:
         ignored=Count("id", filter=Q(status=SupplierItem.IGNORED)),
         missing=Count("id", filter=Q(missing=True)),
     )
+
+
+# --- поиск по позициям поставщиков: как в каталоге — слова в любом порядке, слитно/раздельно, с опечаткой ---
+def item_search_q(query: str) -> Q:
+    query = query.strip()
+    found = Q(sku__icontains=query) | Q(barcode__icontains=query)
+    words = match_all(query, lambda w: Q(name__icontains=w) | Q(brand__icontains=w) | Q(sku__icontains=w))
+    if words is not None:
+        found |= words
+    if (glued := compact_q(query, "name", "sku")) is not None:
+        found |= glued
+    return found
+
+
+def search_supplier_items(user, seller, query: str, limit: int = 20) -> dict:
+    """Позиции поставщиков продавца, которых ещё нет в его каталоге (не связаны), по запросу.
+    → {"count", "results": [{id, name, sku, brand, source, price (грн), raw_price, currency, quantity, available, photo}], "suggestion"}"""
+    sources = sources_for(user, seller)
+    base = SupplierItem.objects.filter(source__in=sources, missing=False, status=SupplierItem.NEW).select_related("source")
+    found, suggestion = base.filter(item_search_q(query)), None
+    if not found.exists():
+        key = f"search:vocab:items:{'all' if user.is_superuser else (seller.pk if seller else 0)}"
+        texts = lambda: (t for row in base.values_list("name", "sku", "brand") for t in row)  # noqa: E731
+        fixed = suggest(query, cached_vocab(key, texts))
+        if fixed and (retry := base.filter(item_search_q(fixed))).exists():
+            found, suggestion = retry, fixed
+    pricing: dict = {}
+    results = []
+    for item in found.order_by(F("available").desc(nulls_last=True), "name", "id")[:limit]:  # что есть у поставщика — выше
+        price = pricing.setdefault(item.source_id, Pricing(item.source)).sale(item)
+        results.append(
+            {
+                "id": item.pk,
+                "name": item.name,
+                "sku": item.sku,
+                "brand": item.brand,
+                "source": {"id": item.source_id, "name": item.source.name},
+                "price": str(price) if price is not None else None,
+                "raw_price": str(item.price) if item.price is not None else None,
+                "currency": item.currency,
+                "quantity": str(item.quantity) if item.quantity is not None else None,
+                "available": item.available,
+                "photo": (item.photos or [None])[0],
+            }
+        )
+    return {"count": found.count(), "results": results, "suggestion": suggestion}
+

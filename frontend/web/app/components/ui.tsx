@@ -1,6 +1,6 @@
 import { clsx } from "clsx";
-import { AlertCircle, CheckCircle2, CircleHelp, Info, Loader2 } from "lucide-react";
-import { useId, type ComponentProps, type ReactNode } from "react";
+import { AlertCircle, CheckCircle2, CircleHelp, Info, Loader2, Search } from "lucide-react";
+import { useId, type ComponentProps, type FormEvent, type ReactNode } from "react";
 import { type LinkProps } from "react-router";
 
 import { Link, useT } from "~/i18n/react";
@@ -74,11 +74,11 @@ export function Field({ label, error, hint, children }: FieldProps) {
       </label>
       {children({ id, "aria-invalid": Boolean(error), "aria-describedby": describedBy })}
       {error ? (
-        <p id={`${id}-error`} className="text-sm text-danger">
+        <p id={`${id}-error`} className="text-danger text-sm">
           {error}
         </p>
       ) : hint ? (
-        <p id={`${id}-hint`} className="text-sm text-muted">
+        <p id={`${id}-hint`} className="text-muted text-sm">
           {hint}
         </p>
       ) : null}
@@ -88,6 +88,85 @@ export function Field({ label, error, hint, children }: FieldProps) {
 
 export function Input({ className, ...props }: ComponentProps<"input">) {
   return <input className={clsx(inputClass, className)} {...props} />;
+}
+
+/**
+ * Поле поиска с яркой кнопкой «Знайти» внутри: одна «таблетка» в цвете бренда — видно сразу, удобно пальцем.
+ * Ставится в форму GET вместо обычного Input; Enter или кнопка отправляют форму.
+ */
+export function SearchBox({
+  className,
+  buttonLabel,
+  ...props
+}: ComponentProps<"input"> & { buttonLabel?: string }) {
+  const t = useT();
+  return (
+    <div
+      role="search"
+      className={clsx(
+        "border-brand-500 flex min-h-11 min-w-0 items-center gap-1 rounded-full border-2 bg-white py-1 pr-1 pl-3.5 shadow-sm transition",
+        "focus-within:border-brand-600 focus-within:ring-brand-100 focus-within:ring-4",
+        className,
+      )}
+    >
+      <Search className="text-brand-600 size-5 shrink-0" aria-hidden />
+      <input
+        type="search"
+        size={1} // иначе браузер держит ширину ~20 знаков, и поле с кнопкой вылезает за экран телефона
+        className="text-ink placeholder:text-muted/70 w-full min-w-0 flex-1 bg-transparent px-1.5 py-1 focus:outline-none"
+        {...props}
+      />
+      <button
+        type="submit"
+        className="from-brand-500 to-brand-700 shadow-brand-600/30 inline-flex shrink-0 items-center gap-1.5 rounded-full bg-linear-to-r px-4 py-2 text-sm font-semibold text-white shadow-md transition hover:shadow-lg hover:brightness-110 active:scale-95"
+      >
+        <Search className="size-4" strokeWidth={2.5} aria-hidden />
+        {buttonLabel ?? t("search.find")}
+      </button>
+    </div>
+  );
+}
+
+/**
+ * Над результатами поиска с опечаткой: «Нічого не знайшли за «twb». Показуємо результати для «tbw»».
+ * С href — «Можливо, ви шукали «змішувач»?» ссылкой (нашлось мало по редкому написанию).
+ */
+export function SuggestionNote({
+  query,
+  suggestion,
+  href,
+}: {
+  query: string;
+  suggestion: string;
+  href?: string;
+}) {
+  const t = useT();
+  return (
+    <p
+      role="status"
+      className="border-brand-100 bg-brand-50 text-brand-700 rounded-xl border px-4 py-3 text-sm"
+    >
+      {href ? (
+        <>
+          {t("search.didYouMean")}{" "}
+          <Link to={href} className="font-semibold underline underline-offset-2">
+            «{suggestion}»
+          </Link>
+          ?
+        </>
+      ) : (
+        t("search.suggestion", { query, suggestion })
+      )}
+    </p>
+  );
+}
+
+/** Форма фильтров: выбор в списке или галочка — сразу показать (текст поиска — по Enter или «Знайти»). */
+export function applyOnPick(event: FormEvent<HTMLFormElement>) {
+  const el = event.target;
+  if (el instanceof HTMLSelectElement || (el instanceof HTMLInputElement && el.type === "checkbox")) {
+    event.currentTarget.requestSubmit();
+  }
 }
 
 export function Textarea({ className, ...props }: ComponentProps<"textarea">) {
@@ -111,7 +190,10 @@ const toneIcon = { info: Info, success: CheckCircle2, danger: AlertCircle };
 export function Alert({ tone = "info", children }: { tone?: Tone; children: ReactNode }) {
   const Icon = toneIcon[tone];
   return (
-    <div role={tone === "danger" ? "alert" : "status"} className={clsx("flex gap-3 rounded-xl border p-4", toneClass[tone])}>
+    <div
+      role={tone === "danger" ? "alert" : "status"}
+      className={clsx("flex gap-3 rounded-xl border p-4", toneClass[tone])}
+    >
       <Icon className="mt-0.5 size-5 shrink-0" aria-hidden />
       <div className="text-sm leading-relaxed">{children}</div>
     </div>
@@ -141,20 +223,30 @@ export function EmptyState({
   children?: ReactNode;
 }) {
   return (
-    <div className="flex flex-col items-center gap-3 rounded-[var(--radius-card)] border border-dashed border-line bg-white px-6 py-14 text-center">
-      <Icon className="size-10 text-muted" aria-hidden />
+    <div className="border-line flex flex-col items-center gap-3 rounded-[var(--radius-card)] border border-dashed bg-white px-6 py-14 text-center">
+      <Icon className="text-muted size-10" aria-hidden />
       <h2 className="text-lg font-semibold">{title}</h2>
-      {children && <div className="max-w-md text-muted">{children}</div>}
+      {children && <div className="text-muted max-w-md">{children}</div>}
     </div>
   );
 }
 
 export function Card({ className, ...props }: ComponentProps<"div">) {
-  return <div className={clsx("rounded-[var(--radius-card)] border border-line bg-white", className)} {...props} />;
+  return (
+    <div className={clsx("border-line rounded-[var(--radius-card)] border bg-white", className)} {...props} />
+  );
 }
 
 /** help — раздел справки кабинета (/seller/help#…): рядом с заголовком появится «Как это работает?» */
-export function PageTitle({ children, subtitle, help }: { children: ReactNode; subtitle?: ReactNode; help?: string }) {
+export function PageTitle({
+  children,
+  subtitle,
+  help,
+}: {
+  children: ReactNode;
+  subtitle?: ReactNode;
+  help?: string;
+}) {
   const t = useT();
   const title = <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{children}</h1>;
   return (

@@ -1,6 +1,6 @@
 from django.db.models import Q
 
-from .search import match_all
+from .search import compact_q, match_all
 from django_filters import rest_framework as filters
 
 from .models import (
@@ -174,4 +174,8 @@ class ProductFilters(filters.FilterSet):
             | Q(variants__variant_name__icontains=w)
             | Q(variants__brand__name__icontains=w),
         )
-        return queryset.filter(found | words if words is not None else found).distinct()
+        if words is not None:
+            found |= words
+        if (glued := compact_q(value, "name", "variants__variant_name", "variants__code", "variants__brand__name")) is not None:
+            found |= glued  # «twbkt» = «TWB KT», «ab125» = «AB-12/5»
+        return queryset.filter(found).distinct()

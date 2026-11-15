@@ -68,6 +68,42 @@ def test_search_by_sku(client):
     assert names == ["Сифон"]
 
 
+def test_search_glued_or_spaced(client):
+    """Код пишут слитно или раздельно: «twbkt» находит «TWB KT», «ab125» — артикул «AB-12/5»."""
+    _product("Змішувач TWB KT 35 хром")
+    siphon = _product("Сифон")
+    ProductVariant.objects.filter(product=siphon).update(code="AB-12/5")
+    _product("Кран")
+    find = lambda q: [p["name"] for p in _results(client.get(reverse("products:product-list"), {"search": q}))]  # noqa: E731
+    for query in ("twbkt", "TWBKT", "twb-kt", "twb kt", "twb.kt 35"):
+        assert find(query) == ["Змішувач TWB KT 35 хром"], query
+    assert find("ab125") == ["Сифон"]
+    assert find("ab 12 5") == ["Сифон"]
+    assert find("zz") == []  # короткий запрос не превращается в «всё подряд»
+
+
+def test_search_typo_suggestion(client):
+    """Ошибся в артикуле («twb» вместо «tbw») или в слове — показываем товар и подсказку."""
+    _product("Змішувач TBW-KT-35 хром")
+    _product("Кран кульовий Koer")
+    url = reverse("products:product-list")
+    data = client.get(url, {"search": "twb"}).json()
+    assert [p["name"] for p in data["results"]] == ["Змішувач TBW-KT-35 хром"] and data["suggestion"] == "tbw"
+    data = client.get(url, {"search": "кран кульвий"}).json()
+    assert [p["name"] for p in data["results"]] == ["Кран кульовий Koer"] and data["suggestion"] == "кран кульовий"
+    assert "suggestion" not in client.get(url, {"search": "tbw"}).json()  # нашлось сразу — без подсказки
+    assert client.get(url, {"search": "qqqqq"}).json()["count"] == 0
+
+
+def test_search_did_you_mean_when_card_has_typo(client):
+    """Опечатка в самой карточке: «змішуач» находит её одну — предлагаем частое «змішувач» ссылкой."""
+    _product("Душова колона зі змішуачем")
+    for n in range(6):
+        _product(f"Змішувач для кухні {n}")
+    data = client.get(reverse("products:product-list"), {"search": "змішуач"}).json()
+    assert data["count"] == 1 and data["did_you_mean"] == "змішувач" and "suggestion" not in data
+
+
 def test_variant_stock_flags(client):
     product = _product("Кран")
     variant = product.variants.get()

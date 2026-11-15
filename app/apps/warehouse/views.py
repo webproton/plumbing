@@ -18,6 +18,7 @@ from rest_framework.views import APIView
 
 from app.apps.products.manage import _image
 from app.apps.products.models import Category, Product, ProductVariant
+from app.apps.products.search import compact_q
 from app.apps.products.serializers import ProductVariantSerializer
 from app.apps.products.services import brand_by_name
 from app.core.pagination import StandardPagination
@@ -418,12 +419,14 @@ class StockMovementViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, vie
             qs = qs.filter(seller=seller) if seller else qs.none()
         search = self.request.query_params.get("search", "").strip()
         if search:
-            qs = qs.filter(
+            found = (
                 Q(variant__variant_name__icontains=search)
                 | Q(variant__code__iexact=search)
                 | Q(variant__barcode__iexact=search)
                 | Q(document_number__icontains=search)
             )
+            glued = compact_q(search, "variant__variant_name", "variant__product__name", "variant__code")
+            qs = qs.filter(found | glued if glued is not None else found)  # «twbkt» = «TWB KT»
         return qs
 
     def create(self, request, *args, **kwargs):
@@ -765,12 +768,14 @@ class StockBalanceViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
             qs = qs.filter(quantity__gt=0)
         search = params.get("search", "").strip()
         if search:
-            qs = qs.filter(
+            found = (
                 Q(variant__variant_name__icontains=search)
                 | Q(variant__product__name__icontains=search)
                 | Q(variant__code__iexact=search)
                 | Q(variant__barcode__iexact=search)
             )
+            glued = compact_q(search, "variant__variant_name", "variant__product__name", "variant__code")
+            qs = qs.filter(found | glued if glued is not None else found)  # «twbkt» = «TWB KT»
         ordering = {"quantity": "quantity", "-quantity": "-quantity", "name": "variant__variant_name"}.get(
             params.get("ordering", ""), "variant__variant_name"
         )

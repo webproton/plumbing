@@ -264,7 +264,7 @@ def test_api_flow_and_isolation(client, seller, photo_requests):
     resp = client.post(
         reverse("imports:source-publish", args=[source.pk]), {"ids": [item["id"]], "visible": True}, format="json"
     )
-    assert resp.json() == {"created": 1, "linked": 0, "skipped": 0, "photos_queued": 1}
+    assert resp.json() == {"created": 1, "linked": 0, "skipped": 0, "no_rate": {}, "photos_queued": 1}
     assert photo_requests == ["https://cdn.example.com/p.jpg"]
     assert ProductVariant.objects.get(code="S-1").available is True
 
@@ -500,3 +500,43 @@ def test_one_product_two_suppliers_main_offer(seller):
     services.sync_source(b)  # снова есть у B → показан, цена B
     variant.refresh_from_db()
     assert (variant.available, variant.price) == (True, Decimal("140.00"))
+
+
+def test_search_supplier_items_everywhere_with_typos(seller):
+    """Кабинет: товара ещё нет в каталоге, но он есть у поставщика — находим по словам, слитно, с опечаткой."""
+    source = make_source(
+        seller,
+        yml(
+            offer("A", "GEBO ANB врізка в трубу DN100", "66.42", sku="GB-100", currency="EUR")
+            + offer("B", "Змішувач TBW-KT-35", "1200", sku="TBW-KT-35")
+            + offer("C", "Кран кульовий", "210", sku="KK-1")
+        ),
+    )
+    services.sync_source(source)
+    services.publish_items(source, [SupplierItem.objects.get(external_id="C").pk])  # уже в каталоге — не показываем
+    alien = make_source(SellerFactory(), yml(offer("Z", "GEBO чужий", "5")))
+    services.sync_source(alien)
+    client = APIClient()
+    client.force_authenticate(seller.user)
+    url = reverse("imports:source-search-items")
+    find = lambda q: client.get(url, {"q": q}).json()  # noqa: E731
+
+    data = find("gebo")
+    assert [r["name"] for r in data["results"]] == ["GEBO ANB врізка в трубу DN100"]  # чужого поставщика не видно
+    row = data["results"][0]
+    assert row["source"]["name"] == "Фід" and row["price"] is None and row["raw_price"] == "66.4200" and row["currency"] == "EUR"
+    assert find("anb gebo dn100")["count"] == 1  # слова в любом порядке
+    assert find("tbwkt35")["results"][0]["name"] == "Змішувач TBW-KT-35"  # слитно
+    typo = find("twb")
+    assert typo["suggestion"] == "tbw" and typo["results"][0]["name"] == "Змішувач TBW-KT-35"
+    assert find("кран кульовий")["count"] == 0  # уже товар каталога
+
+
+def test_publish_explains_missing_currency_rate(seller):
+    source = make_source(seller, yml(offer("A", "GEBO ANB", "66.42", currency="EUR"), currency="EUR"))
+    services.sync_source(source)
+    result = services.publish_items(source, [SupplierItem.objects.get(external_id="A").pk])
+    assert result["skipped"] == 1 and result["no_rate"] == {"EUR": 1}
+    CurrencyRate.objects.create(code="EUR", rate=Decimal("48.50"))
+    result = services.publish_items(source, [SupplierItem.objects.get(external_id="A").pk])
+    assert len(result["created"]) == 1 and result["no_rate"] == {}

@@ -142,3 +142,16 @@ def test_single_default_warehouse(client, seller):
     assert rows == {first["id"]: False, second["id"]: True}
     third = client.post(url, {"name": "Подвал"}, format="json").json()
     assert third["is_default"] is False
+
+
+def test_search_glued_or_spaced(client, wh):
+    """Склад: «gr1» находит артикул «GR-1», «twbkt» — «TWB KT»; подбор товара — «ppr20» = «PPR-20»."""
+    a = _stocked(wh, 5, variant_name="Змішувач TWB KT", code="GR-1")
+    b = _stocked(wh, 2, variant_name="Труба PPR 20", code="PPR-20")
+    ids = lambda q: [r["variant"] for r in client.get(reverse("warehouse:balances-list"), {"search": q}).json()["results"]]  # noqa: E731
+    assert ids("gr1") == [a.pk]
+    assert ids("twbkt") == [a.pk]
+    moves = client.get(reverse("warehouse:stock-movements-list"), {"search": "twbkt"}).json()["results"]
+    assert {m["variant"] for m in moves} == {a.pk}
+    found = client.get(reverse("warehouse:variant_search"), {"q": "ppr20"}).json()
+    assert [v["id"] for v in found] == [b.pk]
