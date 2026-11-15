@@ -23,7 +23,7 @@ from app.apps.warehouse.permissions import IsWarehouseStaff, get_active_seller
 from app.core.pagination import StandardPagination
 
 from .models import Brand, Category, Product, ProductPhoto, ProductVariant
-from .search import compact_q, match_all
+from .search import cached_vocab, compact_q, match_all, with_suggestion
 from .services import brand_by_name, discount_fields, editable_products
 
 MAX_PHOTO_BYTES = 10 * 1024 * 1024
@@ -223,6 +223,22 @@ class ManageProductViewSet(viewsets.ModelViewSet):
 
     def get_serializer_class(self):
         return ProductListSerializer if self.action == "list" else ProductSerializer
+
+    def list(self, request, *args, **kwargs):
+        """Опечатка в ?q= («twb») — товары по исправленному запросу («tbw») и suggestion."""
+        from app.apps.imports.models import SupplierItem
+        from app.apps.imports.services import sources_for
+
+        user, base = request.user, super().list
+        seller = get_active_seller(user)
+
+        def texts():
+            own = editable_products(user, seller).values_list("name", "variants__code", "variants__brand__name")
+            items = SupplierItem.objects.filter(source__in=sources_for(user, seller)).values_list("name", "sku", "brand")
+            return (text for rows in (own, items) for row in rows for text in row)
+
+        key = f"search:vocab:seller:{'all' if user.is_superuser else (seller.pk if seller else 0)}"
+        return with_suggestion(lambda: base(request, *args, **kwargs), request, "q", lambda: cached_vocab(key, texts))
 
     def get_queryset(self):
         user = self.request.user

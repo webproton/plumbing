@@ -112,7 +112,8 @@ export function SearchBox({
       <Search className="text-brand-600 size-5 shrink-0" aria-hidden />
       <input
         type="search"
-        className="text-ink placeholder:text-muted/70 min-w-0 flex-1 bg-transparent px-1.5 py-1 focus:outline-none"
+        size={1} // иначе браузер держит ширину ~20 знаков, и поле с кнопкой вылезает за экран телефона
+        className="text-ink placeholder:text-muted/70 w-full min-w-0 flex-1 bg-transparent px-1.5 py-1 focus:outline-none"
         {...props}
       />
       <button
@@ -123,6 +124,40 @@ export function SearchBox({
         {buttonLabel ?? t("search.find")}
       </button>
     </div>
+  );
+}
+
+/**
+ * Над результатами поиска с опечаткой: «Нічого не знайшли за «twb». Показуємо результати для «tbw»».
+ * С href — «Можливо, ви шукали «змішувач»?» ссылкой (нашлось мало по редкому написанию).
+ */
+export function SuggestionNote({
+  query,
+  suggestion,
+  href,
+}: {
+  query: string;
+  suggestion: string;
+  href?: string;
+}) {
+  const t = useT();
+  return (
+    <p
+      role="status"
+      className="border-brand-100 bg-brand-50 text-brand-700 rounded-xl border px-4 py-3 text-sm"
+    >
+      {href ? (
+        <>
+          {t("search.didYouMean")}{" "}
+          <Link to={href} className="font-semibold underline underline-offset-2">
+            «{suggestion}»
+          </Link>
+          ?
+        </>
+      ) : (
+        t("search.suggestion", { query, suggestion })
+      )}
+    </p>
   );
 }
 

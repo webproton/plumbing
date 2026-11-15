@@ -140,7 +140,8 @@ export const importUk = {
   "src.form.partnerDiscountHint":
     "Якщо в прайсі тільки РРЦ: закупка = РРЦ мінус знижка. Напр. РРЦ 6240, закупка 5135,65 → 17,7 %",
   "src.form.brandDiscounts": "Знижка по брендах",
-  "src.form.brandDiscountsHint": "Кожен бренд з нового рядка: «KOER 17,7». Решта брендів — із загальною знижкою",
+  "src.form.brandDiscountsHint":
+    "Кожен бренд з нового рядка: «KOER 17,7». Решта брендів — із загальною знижкою",
   "src.form.rounding": "Округлення",
   "src.round.cents": "до копійок",
   "src.round.1": "до гривні",
@@ -149,7 +150,8 @@ export const importUk = {
   "src.form.currency": "Валюта цін постачальника",
   "src.form.currencyHint": "Якщо в прайсі не вказано",
   "src.form.rates": "Курс постачальника",
-  "src.form.ratesHint": "Кожна валюта з нового рядка: «USD 46,55». Порожньо — курс із самого прайсу (якщо є), інакше — загальний з адмінки",
+  "src.form.ratesHint":
+    "Кожна валюта з нового рядка: «USD 46,55». Порожньо — курс із самого прайсу (якщо є), інакше — загальний з адмінки",
   "src.form.feedRates": "У прайсі: {rates}",
   "src.form.behaviour": "Нові товари й оновлення",
   "src.form.category": "Категорія для нових товарів",
@@ -226,6 +228,8 @@ export const importUk = {
   "src.bulk.restore": "Повернути в нові",
   "src.published":
     "Створено товарів: {created}. Зв'язано з наявними: {linked}. Пропущено без назви чи ціни: {skipped}.",
+  "src.noRate":
+    "Немає курсу {currencies} — ціни в цій валюті не перерахувати в гривні. Вкажіть його в налаштуваннях постачальника, поле «Курс постачальника», напр. «EUR 48,50».",
   "src.photosQueued": "Фото завантажуються у фоні.",
   "src.statusChanged": "Змінено позицій: {n}",
   "src.linkedOk": "Позицію зв'язано з товаром",

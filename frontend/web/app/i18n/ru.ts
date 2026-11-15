@@ -52,6 +52,9 @@ const base: Omit<Dict, keyof typeof sellerRu | keyof typeof importRu | keyof typ
   "nav.contacts": "Контакты",
   "nav.search": "Поиск",
   "search.find": "Найти",
+  "search.didYouMean": "Возможно, вы искали",
+  "search.suggestion":
+    "По «{query}» ничего не нашли. Возможно, вы искали «{suggestion}» — показываем эти товары.",
   "nav.searchPlaceholder": "Поиск по названию или артикулу",
   "nav.searchLabel": "Поиск товаров",
   "nav.wishlist": "Избранное",

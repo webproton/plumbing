@@ -52,6 +52,9 @@ const base = {
   "nav.contacts": "Контакти",
   "nav.search": "Пошук",
   "search.find": "Знайти",
+  "search.didYouMean": "Можливо, ви шукали",
+  "search.suggestion":
+    "За «{query}» нічого не знайшли. Можливо, ви шукали «{suggestion}» — показуємо ці товари.",
   "nav.searchPlaceholder": "Пошук за назвою або артикулом",
   "nav.searchLabel": "Пошук товарів",
   "nav.wishlist": "Обране",

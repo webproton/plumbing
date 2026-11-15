@@ -250,7 +250,7 @@ class ImportSourceViewSet(viewsets.ModelViewSet):
         if p.get("status") in (SupplierItem.NEW, SupplierItem.LINKED, SupplierItem.IGNORED):
             qs = qs.filter(status=p["status"])
         if q := p.get("q", "").strip():
-            qs = qs.filter(Q(name__icontains=q) | Q(sku__icontains=q) | Q(barcode__icontains=q))
+            qs = qs.filter(services.item_search_q(q))  # слова в любом порядке, слитно/раздельно
         if "category" in p:
             qs = qs.filter(category_name=p["category"])
         if p.get("missing") == "1":
@@ -260,6 +260,15 @@ class ImportSourceViewSet(viewsets.ModelViewSet):
         page = self.paginate_queryset(qs.order_by("name", "id"))
         context = {**self.get_serializer_context(), "pricing": services.Pricing(source)}
         return self.get_paginated_response(SupplierItemSerializer(page, many=True, context=context).data)
+
+    @action(detail=False, methods=["get"], url_path="search-items")
+    def search_items(self, request):
+        """Позиции всех поставщиков продавца, которых ещё нет в каталоге: ?q= (до 20, с подсказкой при опечатке)."""
+        q = request.query_params.get("q", "").strip()
+        if not q:
+            return Response({"count": 0, "results": [], "suggestion": None})
+        user = request.user
+        return Response(services.search_supplier_items(user, get_active_seller(user), q))
 
     @action(detail=True, methods=["get"])
     def categories(self, request, pk=None):
@@ -320,6 +329,7 @@ class ImportSourceViewSet(viewsets.ModelViewSet):
                 "created": len(result["created"]),
                 "linked": result["linked"],
                 "skipped": result["skipped"],
+                "no_rate": result["no_rate"],  # {"EUR": 3} — пропущены: цена в валюте, курса нет
                 "photos_queued": photos_queued,
             }
         )

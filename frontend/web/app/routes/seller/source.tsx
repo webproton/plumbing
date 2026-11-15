@@ -109,7 +109,13 @@ export async function action({ request, params, context }: Route.ActionArgs) {
       return { ok: true as const, intent, message: t("src.linkedOk") };
     }
     if (intent === "publish") {
-      const r = await api.post<{ created: number; linked: number; skipped: number; photos_queued: number }>(
+      const r = await api.post<{
+        created: number;
+        linked: number;
+        skipped: number;
+        no_rate?: Record<string, number>;
+        photos_queued: number;
+      }>(
         `${base}/publish/`,
         {
           ids,
@@ -119,7 +125,10 @@ export async function action({ request, params, context }: Route.ActionArgs) {
         { timeoutMs: LONG_TIMEOUT },
       );
       const photos = r.photos_queued > 0 ? ` ${t("src.photosQueued")}` : "";
-      return { ok: true as const, intent, message: t("src.published", r) + photos };
+      const noRate = Object.keys(r.no_rate ?? {});
+      const rate = noRate.length ? ` ${t("src.noRate", { currencies: noRate.join(", ") })}` : "";
+      const counts = { created: r.created, linked: r.linked, skipped: r.skipped };
+      return { ok: true as const, intent, message: t("src.published", counts) + rate + photos };
     }
     if (intent === "ignored" || intent === "new") {
       const r = await api.post<{ changed: number }>(`${base}/items-status/`, { ids, status: intent });

@@ -21,11 +21,12 @@ export function pagesOf<T>(page: Paginated<T>, size = PAGE_SIZE): number {
 }
 
 /** Список с пагинацией; несуществующая страница → пустой результат, а не ошибка */
-export async function paged<T>(promise: Promise<Paginated<T>>): Promise<Paginated<T>> {
+export async function paged<P extends Paginated<unknown>>(promise: Promise<P>): Promise<P> {
   try {
     return await promise;
   } catch (e) {
-    if ((e as { status?: number }).status === 404) return { count: 0, next: null, previous: null, results: [] };
+    if ((e as { status?: number }).status === 404)
+      return { count: 0, next: null, previous: null, results: [] } as unknown as P;
     throw e;
   }
 }

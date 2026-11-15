@@ -82,6 +82,28 @@ def test_search_glued_or_spaced(client):
     assert find("zz") == []  # короткий запрос не превращается в «всё подряд»
 
 
+def test_search_typo_suggestion(client):
+    """Ошибся в артикуле («twb» вместо «tbw») или в слове — показываем товар и подсказку."""
+    _product("Змішувач TBW-KT-35 хром")
+    _product("Кран кульовий Koer")
+    url = reverse("products:product-list")
+    data = client.get(url, {"search": "twb"}).json()
+    assert [p["name"] for p in data["results"]] == ["Змішувач TBW-KT-35 хром"] and data["suggestion"] == "tbw"
+    data = client.get(url, {"search": "кран кульвий"}).json()
+    assert [p["name"] for p in data["results"]] == ["Кран кульовий Koer"] and data["suggestion"] == "кран кульовий"
+    assert "suggestion" not in client.get(url, {"search": "tbw"}).json()  # нашлось сразу — без подсказки
+    assert client.get(url, {"search": "qqqqq"}).json()["count"] == 0
+
+
+def test_search_did_you_mean_when_card_has_typo(client):
+    """Опечатка в самой карточке: «змішуач» находит её одну — предлагаем частое «змішувач» ссылкой."""
+    _product("Душова колона зі змішуачем")
+    for n in range(6):
+        _product(f"Змішувач для кухні {n}")
+    data = client.get(reverse("products:product-list"), {"search": "змішуач"}).json()
+    assert data["count"] == 1 and data["did_you_mean"] == "змішувач" and "suggestion" not in data
+
+
 def test_variant_stock_flags(client):
     product = _product("Кран")
     variant = product.variants.get()

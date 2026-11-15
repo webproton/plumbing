@@ -139,7 +139,8 @@ export const importRu: ImportDict = {
   "src.form.partnerDiscountHint":
     "Если в прайсе только РРЦ: закупка = РРЦ минус скидка. Напр. РРЦ 6240, закупка 5135,65 → 17,7 %",
   "src.form.brandDiscounts": "Скидка по брендам",
-  "src.form.brandDiscountsHint": "Каждый бренд с новой строки: «KOER 17,7». Остальные бренды — с общей скидкой",
+  "src.form.brandDiscountsHint":
+    "Каждый бренд с новой строки: «KOER 17,7». Остальные бренды — с общей скидкой",
   "src.form.rounding": "Округление",
   "src.round.cents": "до копеек",
   "src.round.1": "до гривны",
@@ -148,7 +149,8 @@ export const importRu: ImportDict = {
   "src.form.currency": "Валюта цен поставщика",
   "src.form.currencyHint": "Если в прайсе не указана",
   "src.form.rates": "Курс поставщика",
-  "src.form.ratesHint": "Каждая валюта с новой строки: «USD 46,55». Пусто — курс из самого прайса (если есть), иначе — общий из админки",
+  "src.form.ratesHint":
+    "Каждая валюта с новой строки: «USD 46,55». Пусто — курс из самого прайса (если есть), иначе — общий из админки",
   "src.form.feedRates": "В прайсе: {rates}",
   "src.form.behaviour": "Новые товары и обновления",
   "src.form.category": "Категория для новых товаров",
@@ -225,6 +227,8 @@ export const importRu: ImportDict = {
   "src.bulk.restore": "Вернуть в новые",
   "src.published":
     "Создано товаров: {created}. Связано с существующими: {linked}. Пропущено без названия или цены: {skipped}.",
+  "src.noRate":
+    "Нет курса {currencies} — цены в этой валюте не пересчитать в гривны. Укажите его в настройках поставщика, поле «Курс поставщика», напр. «EUR 48,50».",
   "src.photosQueued": "Фото загружаются в фоне.",
   "src.statusChanged": "Изменено позиций: {n}",
   "src.linkedOk": "Позиция связана с товаром",

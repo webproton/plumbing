@@ -210,6 +210,12 @@ def test_search_glued_or_spaced(client, seller):
     assert _names(client, q="grohepro") == ["Душова лійка"]
 
 
+def test_search_typo_suggestion(client, seller):
+    ProductVariantFactory(product__seller=seller, product__name="Змішувач TBW-KT-35", code="X1")
+    data = client.get(reverse(LIST), {"q": "twb"}).json()
+    assert [r["name"] for r in data["results"]] == ["Змішувач TBW-KT-35"] and data["suggestion"] == "tbw"
+
+
 def test_facets_count_with_parents_and_brands(client, seller):
     mixers = CategoryFactory(name="Змішувачі")
     kitchen = CategoryFactory(name="Для кухні", parent=mixers)

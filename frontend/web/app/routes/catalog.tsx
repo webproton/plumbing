@@ -3,13 +3,13 @@ import { Form, useNavigation, useSubmit } from "react-router";
 
 import { Pagination } from "~/components/Pagination";
 import { ProductCard } from "~/components/ProductCard";
-import { Button, EmptyState, Input, PageTitle, Select } from "~/components/ui";
+import { Button, EmptyState, Input, PageTitle, SearchBox, Select, SuggestionNote } from "~/components/ui";
 import { localizePath, makeT } from "~/i18n";
 import { Link, useT } from "~/i18n/react";
 import { apiContext } from "~/lib/context.server";
 import { pluralize } from "~/lib/format";
 import { breadcrumbJsonLd } from "~/lib/seo";
-import type { Paginated, ProductListItem } from "~/lib/types";
+import type { ProductListItem, SearchPage } from "~/lib/types";
 import { useRootData, type RootData } from "~/root";
 
 import type { Route } from "./+types/catalog";
@@ -34,13 +34,16 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     max_price: params.get("max_price") ?? "",
   };
   const api = context.get(apiContext);
-  const data = await api.get<Paginated<ProductListItem>>("/products/", {
-    query: { ...filters, page, page_size: PAGE_SIZE },
-  }).catch((e) => {
-    // несуществующая страница / неверный фильтр — пустой результат, а не ошибка
-    if (e?.status === 404 || e?.status === 400) return { count: 0, next: null, previous: null, results: [] };
-    throw e;
-  });
+  const data: SearchPage<ProductListItem> = await api
+    .get<SearchPage<ProductListItem>>("/products/", {
+      query: { ...filters, page, page_size: PAGE_SIZE },
+    })
+    .catch((e) => {
+      // несуществующая страница / неверный фильтр — пустой результат, а не ошибка
+      if (e?.status === 404 || e?.status === 400)
+        return { count: 0, next: null, previous: null, results: [] };
+      throw e;
+    });
   return { ...data, page, pages: Math.ceil(data.count / PAGE_SIZE), filters };
 }
 
@@ -68,7 +71,10 @@ export function meta({ loaderData, matches }: Route.MetaArgs) {
             "script:ld+json": breadcrumbJsonLd([
               { name: t("seo.home"), url: `${origin}${localizePath(lang, "/")}` },
               { name: t("catalog.title"), url: `${origin}${localizePath(lang, "/catalog")}` },
-              { name: category.name, url: `${origin}${localizePath(lang, `/catalog?category=${category.slug}`)}` },
+              {
+                name: category.name,
+                url: `${origin}${localizePath(lang, `/catalog?category=${category.slug}`)}`,
+              },
             ]),
           },
         ]
@@ -88,13 +94,15 @@ export default function Catalog({ loaderData }: Route.ComponentProps) {
   return (
     <div>
       <PageTitle subtitle={`${count} ${pluralize(count, t("plural.product"))}`}>
-        {filters.search ? t("catalog.searchTitle", { query: filters.search }) : (category?.name ?? t("catalog.title"))}
+        {filters.search
+          ? t("catalog.searchTitle", { query: filters.search })
+          : (category?.name ?? t("catalog.title"))}
       </PageTitle>
 
       <div className="grid gap-6 lg:grid-cols-[16rem_1fr]">
         <Form
           method="get"
-          className="space-y-5 self-start rounded-2xl border border-line bg-white p-4 lg:sticky lg:top-24"
+          className="border-line space-y-5 self-start rounded-2xl border bg-white p-4 lg:sticky lg:top-24"
           onChange={(e) => {
             // списки применяются сразу, текстовые поля — по Enter или кнопке
             if ((e.target as HTMLElement).tagName === "SELECT") {
@@ -107,7 +115,11 @@ export default function Catalog({ loaderData }: Route.ComponentProps) {
           </p>
           <label className="block space-y-1.5">
             <span className="text-sm font-medium">{t("catalog.search")}</span>
-            <Input name="search" type="search" defaultValue={filters.search} placeholder={t("catalog.searchPlaceholder")} autoFocus={false} />
+            <SearchBox
+              name="search"
+              defaultValue={filters.search}
+              placeholder={t("catalog.searchPlaceholder")}
+            />
           </label>
           <label className="block space-y-1.5">
             <span className="text-sm font-medium">{t("catalog.category")}</span>
@@ -124,8 +136,22 @@ export default function Catalog({ loaderData }: Route.ComponentProps) {
           <fieldset className="space-y-1.5">
             <legend className="text-sm font-medium">{t("catalog.price")}</legend>
             <div className="flex gap-2">
-              <Input name="min_price" type="number" min={0} inputMode="numeric" placeholder={t("catalog.priceFrom")} defaultValue={filters.min_price} />
-              <Input name="max_price" type="number" min={0} inputMode="numeric" placeholder={t("catalog.priceTo")} defaultValue={filters.max_price} />
+              <Input
+                name="min_price"
+                type="number"
+                min={0}
+                inputMode="numeric"
+                placeholder={t("catalog.priceFrom")}
+                defaultValue={filters.min_price}
+              />
+              <Input
+                name="max_price"
+                type="number"
+                min={0}
+                inputMode="numeric"
+                placeholder={t("catalog.priceTo")}
+                defaultValue={filters.max_price}
+              />
             </div>
           </fieldset>
           <label className="block space-y-1.5">
@@ -142,13 +168,26 @@ export default function Catalog({ loaderData }: Route.ComponentProps) {
             {t("common.show")}
           </Button>
           {(filters.search || filters.category || filters.min_price || filters.max_price) && (
-            <Link to="/catalog" className="block text-center text-sm text-brand-600 hover:underline">
+            <Link to="/catalog" className="text-brand-600 block text-center text-sm hover:underline">
               {t("catalog.reset")}
             </Link>
           )}
         </Form>
 
-        <section aria-busy={loading} className={loading ? "opacity-60 transition-opacity" : "transition-opacity"}>
+        <section
+          aria-busy={loading}
+          className={loading ? "space-y-4 opacity-60 transition-opacity" : "space-y-4 transition-opacity"}
+        >
+          {loaderData.suggestion && (
+            <SuggestionNote query={filters.search} suggestion={loaderData.suggestion} />
+          )}
+          {loaderData.did_you_mean && (
+            <SuggestionNote
+              query={filters.search}
+              suggestion={loaderData.did_you_mean}
+              href={`/catalog?search=${encodeURIComponent(loaderData.did_you_mean)}`}
+            />
+          )}
           {results.length === 0 ? (
             <EmptyState icon={PackageSearch} title={t("catalog.empty.title")}>
               {t("catalog.empty.text")}
