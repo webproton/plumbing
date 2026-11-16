@@ -1,10 +1,11 @@
 import { ImageOff, Package, Search as SearchIcon } from "lucide-react";
-import { Form } from "react-router";
+import { Form, useNavigate, useSearchParams } from "react-router";
 
+import { CameraScanner } from "~/components/seller/CameraScanner";
 import { SupplierMatches, type SupplierSearch } from "~/components/seller/SupplierMatches";
 import { Alert, EmptyState, PageTitle, SearchBox, SuggestionNote } from "~/components/ui";
 import { langFromRequest, makeT, tFromMatches } from "~/i18n";
-import { Link, useT } from "~/i18n/react";
+import { Link, useLocalPath, useT } from "~/i18n/react";
 import { formatPrice, formatQty } from "~/lib/format";
 import { requireSeller } from "~/lib/seller.server";
 import { publishSupplierItem } from "~/lib/supplier.server";
@@ -44,6 +45,10 @@ export default function CabinetSearch({ loaderData, actionData }: Route.Componen
   const { query, own, sources } = loaderData;
   const t = useT();
   const nothing = query && !own?.count && !sources?.count;
+  const navigate = useNavigate();
+  const local = useLocalPath();
+  const [params] = useSearchParams();
+  const camera = params.get("camera") === "1";
 
   return (
     <div className="space-y-5">
@@ -59,6 +64,12 @@ export default function CabinetSearch({ loaderData, actionData }: Route.Componen
           className="w-full"
         />
       </Form>
+      <CameraScanner
+        key={`${query}-${camera}`}
+        autoStart={camera}
+        label={t("search.camera")}
+        onScan={(code) => navigate(local(`/seller/search?q=${encodeURIComponent(code)}`))}
+      />
 
       {actionData?.message && <Alert tone={actionData.ok ? "success" : "danger"}>{actionData.message}</Alert>}
       {own?.suggestion && <SuggestionNote query={query} suggestion={own.suggestion} />}

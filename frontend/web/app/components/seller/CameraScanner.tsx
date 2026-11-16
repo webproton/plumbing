@@ -18,11 +18,22 @@ declare global {
 const FORMATS = ["ean_13", "ean_8", "upc_a", "upc_e", "code_128", "code_39", "qr_code"];
 const SAME_CODE_PAUSE_MS = 2000;
 
-/** Сканирование камерой телефона. Код отдаётся в onScan; повтор того же кода игнорируется 2 секунды. */
-export function CameraScanner({ onScan }: { onScan: (code: string) => void }) {
+/**
+ * Сканирование камерой телефона. Код отдаётся в onScan; повтор того же кода игнорируется 2 секунды.
+ * autoStart — камера включается сразу (поиск по кабинету из кнопки 📷); label — своя подпись кнопки.
+ */
+export function CameraScanner({
+  onScan,
+  autoStart = false,
+  label,
+}: {
+  onScan: (code: string) => void;
+  autoStart?: boolean;
+  label?: string;
+}) {
   const t = useT();
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [active, setActive] = useState(false);
+  const [active, setActive] = useState(autoStart);
   const [error, setError] = useState<string | null>(null);
   const supported = typeof window !== "undefined" && "BarcodeDetector" in window;
   const onScanRef = useRef(onScan);
@@ -39,7 +50,10 @@ export function CameraScanner({ onScan }: { onScan: (code: string) => void }) {
 
     (async () => {
       try {
-        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: false });
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: "environment" },
+          audio: false,
+        });
         if (stopped || !videoRef.current) return;
         videoRef.current.srcObject = stream;
         await videoRef.current.play();
@@ -72,16 +86,27 @@ export function CameraScanner({ onScan }: { onScan: (code: string) => void }) {
     };
   }, [active]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (!supported) return <p className="text-sm text-muted">{t("wh.scan.cameraUnsupported")}</p>;
+  if (!supported) return <p className="text-muted text-sm">{t("wh.scan.cameraUnsupported")}</p>;
 
   return (
     <div className="space-y-2">
-      <Button type="button" variant={active ? "danger" : "secondary"} onClick={() => (setError(null), setActive((a) => !a))}>
+      <Button
+        type="button"
+        variant={active ? "danger" : "secondary"}
+        onClick={() => (setError(null), setActive((a) => !a))}
+      >
         {active ? <CameraOff className="size-4" aria-hidden /> : <Camera className="size-4" aria-hidden />}
-        {active ? t("wh.scan.cameraOff") : t("wh.scan.cameraOn")}
+        {active ? t("wh.scan.cameraOff") : (label ?? t("wh.scan.cameraOn"))}
       </Button>
-      {error && <p className="text-sm text-danger">{error}</p>}
-      {active && <video ref={videoRef} playsInline muted className="aspect-video w-full max-w-md rounded-2xl bg-black object-cover" />}
+      {error && <p className="text-danger text-sm">{error}</p>}
+      {active && (
+        <video
+          ref={videoRef}
+          playsInline
+          muted
+          className="aspect-video w-full max-w-md rounded-2xl bg-black object-cover"
+        />
+      )}
     </div>
   );
 }
