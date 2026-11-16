@@ -1,6 +1,14 @@
 from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
+from .purchase_views import (
+    PurchaseAssembleView,
+    PurchaseLineOptionsView,
+    PurchaseLinesView,
+    PurchaseLineView,
+    PurchaseListView,
+    PurchaseOrderedView,
+)
 from .views import (
     InventoryDocumentViewSet,
     LabelsView,
@@ -32,6 +40,12 @@ router.register(r"inventory-documents", InventoryDocumentViewSet, basename="inve
 
 urlpatterns = [
     path("me/", WarehouseMeAPIView.as_view(), name="me"),
+    path("purchase/", PurchaseListView.as_view(), name="purchase"),
+    path("purchase/lines/", PurchaseLinesView.as_view(), name="purchase_lines"),
+    path("purchase/lines/<int:pk>/", PurchaseLineView.as_view(), name="purchase_line"),
+    path("purchase/lines/<int:pk>/options/", PurchaseLineOptionsView.as_view(), name="purchase_line_options"),
+    path("purchase/assemble/", PurchaseAssembleView.as_view(), name="purchase_assemble"),
+    path("purchase/ordered/", PurchaseOrderedView.as_view(), name="purchase_ordered"),
     path("dashboard/", WarehouseDashboardAPIView.as_view(), name="dashboard"),
     path("labels/", LabelsView.as_view(), name="labels"),
     path("variants/search/", VariantSearchAPIView.as_view(), name="variant_search"),

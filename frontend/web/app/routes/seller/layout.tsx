@@ -14,6 +14,7 @@ import {
   ScanBarcode,
   Settings,
   ShoppingBag,
+  ShoppingCart,
   Truck,
   Warehouse,
 } from "lucide-react";
@@ -62,6 +63,7 @@ const NAV: { to: string; label: TKey; icon: typeof Warehouse; end?: boolean }[] 
   { to: "/seller/stats", label: "st.nav", icon: BarChart3 },
   { to: "/seller/products", label: "prod.nav", icon: Package },
   { to: "/seller/stock", label: "wh.nav.stock", icon: PackageSearch },
+  { to: "/seller/purchase", label: "pur.nav", icon: ShoppingCart },
   { to: "/seller/documents", label: "wh.nav.documents", icon: FileText },
   { to: "/seller/operations", label: "wh.nav.operations", icon: ArrowLeftRight },
   { to: "/seller/scanner", label: "wh.nav.scanner", icon: ScanBarcode },
