@@ -1,6 +1,7 @@
 import {
   ArrowLeftRight,
   BarChart3,
+  Camera,
   Building2,
   ClipboardList,
   FileSpreadsheet,
@@ -22,7 +23,7 @@ import { createContext, data, Form, Outlet, useRouteLoaderData, useSearchParams 
 
 import { SearchBox } from "~/components/ui";
 import { tFromMatches, type TKey } from "~/i18n";
-import { NavLink, useLocalPath, useT } from "~/i18n/react";
+import { Link, NavLink, useLocalPath, useT } from "~/i18n/react";
 import { requireSeller } from "~/lib/seller.server";
 import type { WarehouseMe } from "~/lib/types";
 
@@ -93,7 +94,7 @@ export default function SellerLayout({ loaderData }: Route.ComponentProps) {
       <aside className="border-line self-start rounded-2xl border bg-white p-3 lg:sticky lg:top-24">
         <p className="truncate px-3 pb-2 text-sm font-semibold">{me.seller?.shop_name ?? t("wh.admin")}</p>
         {/* поиск по всему кабинету: свои товары и все загруженные источники товаров — с любой страницы */}
-        <Form method="get" action={local("/seller/search")} className="px-1 pb-3">
+        <Form method="get" action={local("/seller/search")} className="flex items-center gap-1.5 px-1 pb-3">
           <SearchBox
             key={params.get("q") ?? ""}
             name="q"
@@ -101,8 +102,16 @@ export default function SellerLayout({ loaderData }: Route.ComponentProps) {
             placeholder={t("search.cabinet.short")}
             aria-label={t("search.cabinet.title")}
             compact
-            className="w-full"
+            className="min-w-0 flex-1"
           />
+          <Link
+            to="/seller/search?camera=1"
+            aria-label={t("search.camera")}
+            title={t("search.camera")}
+            className="border-brand-500 text-brand-600 hover:bg-brand-50 grid size-11 shrink-0 place-items-center rounded-full border-2"
+          >
+            <Camera className="size-5" aria-hidden />
+          </Link>
         </Form>
         <nav className="flex gap-1 overflow-x-auto lg:flex-col" aria-label={t("wh.title")}>
           {(me.is_superuser ? [...NAV, ADMIN_NAV] : NAV).map(({ to, label, icon: Icon, end }) => (

@@ -80,6 +80,7 @@ export const cabinetRu: CabinetDict = {
   "pur.addedFromStock": "«{name}» добавлен в закупку.",
   "pur.openList": "Открыть список →",
   "search.cabinet.title": "Поиск по кабинету",
+  "search.camera": "Сканировать штрихкод или QR камерой",
   "search.cabinet.subtitle":
     "Ваши товары и все загруженные источники товаров (прайсы, фиды поставщиков) — даже то, чего нет на складе.",
   "search.cabinet.placeholder": "Название, артикул, штрихкод или бренд",

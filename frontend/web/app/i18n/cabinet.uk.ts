@@ -80,6 +80,7 @@ export const cabinetUk = {
   "pur.addedFromStock": "«{name}» додано в закупку.",
   "pur.openList": "Відкрити список →",
   "search.cabinet.title": "Пошук по кабінету",
+  "search.camera": "Сканувати штрихкод або QR камерою",
   "search.cabinet.subtitle":
     "Ваші товари і всі завантажені джерела товарів (прайси, фіди постачальників) — навіть те, чого немає на складі.",
   "search.cabinet.placeholder": "Назва, артикул, штрихкод або бренд",
