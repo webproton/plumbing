@@ -1,11 +1,12 @@
-import { PackageSearch } from "lucide-react";
-import { Form, useNavigation } from "react-router";
+import { PackageSearch, ShoppingCart } from "lucide-react";
+import { data, Form, useNavigation } from "react-router";
 
 import { Table, TableWrap, Td, Th } from "~/components/seller/Table";
 import { Pagination } from "~/components/Pagination";
-import { applyOnPick, EmptyState, PageTitle, SearchBox, Select } from "~/components/ui";
-import { tFromMatches } from "~/i18n";
+import { Alert, applyOnPick, EmptyState, PageTitle, SearchBox, Select } from "~/components/ui";
+import { langFromRequest, makeT, tFromMatches } from "~/i18n";
 import { Link, useT } from "~/i18n/react";
+import { ApiError } from "~/lib/api.server";
 import { formatPrice, formatQty, pluralize } from "~/lib/format";
 import { pageOf, pagesOf, paged, requireSeller } from "~/lib/seller.server";
 import type { Paginated, StockRow } from "~/lib/types";
@@ -31,7 +32,23 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   return { ...data, page, pages: pagesOf(data), filters };
 }
 
-export default function Stock({ loaderData }: Route.ComponentProps) {
+export async function action({ request, context }: Route.ActionArgs) {
+  const api = requireSeller(request, context);
+  const t = makeT(langFromRequest(request));
+  const form = await request.formData();
+  try {
+    await api.post("/warehouse/purchase/lines/", { variants: [Number(form.get("variant"))] });
+    return { ok: true as const, message: t("pur.addedFromStock", { name: String(form.get("name") ?? "") }) };
+  } catch (e) {
+    if (!(e instanceof ApiError)) throw e;
+    return data(
+      { ok: false as const, message: Object.values(e.fieldErrors)[0] ?? t("error.generic") },
+      { status: 400 },
+    );
+  }
+}
+
+export default function Stock({ loaderData, actionData }: Route.ComponentProps) {
   const { results, count, page, pages, filters } = loaderData;
   const me = useSellerMe();
   const t = useT();
@@ -88,6 +105,17 @@ export default function Stock({ loaderData }: Route.ComponentProps) {
         </label>
       </Form>
 
+      {actionData?.message && (
+        <Alert tone={actionData.ok ? "success" : "danger"}>
+          {actionData.message}{" "}
+          {actionData.ok && (
+            <Link to="/seller/purchase" className="font-semibold underline">
+              {t("pur.openList")}
+            </Link>
+          )}
+        </Alert>
+      )}
+
       {results.length === 0 ? (
         <EmptyState icon={PackageSearch} title={t("wh.empty.stock")} />
       ) : (
@@ -103,6 +131,9 @@ export default function Stock({ loaderData }: Route.ComponentProps) {
                   <Th align="right">{t("wh.col.reserved")}</Th>
                   <Th align="right">{t("wh.col.cost")}</Th>
                   <Th align="right">{t("wh.col.value")}</Th>
+                  <Th>
+                    <span className="sr-only">{t("pur.nav")}</span>
+                  </Th>
                 </tr>
               </thead>
               <tbody>
@@ -127,6 +158,18 @@ export default function Stock({ loaderData }: Route.ComponentProps) {
                     </Td>
                     <Td align="right">{formatPrice(r.cost_price)}</Td>
                     <Td align="right">{formatPrice(r.value)}</Td>
+                    <Td>
+                      <Form method="post" preventScrollReset>
+                        <input type="hidden" name="variant" value={r.variant} />
+                        <input type="hidden" name="name" value={r.variant_name} />
+                        <button
+                          type="submit"
+                          className="border-brand-500 text-brand-700 hover:bg-brand-50 inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-medium whitespace-nowrap"
+                        >
+                          <ShoppingCart className="size-4" aria-hidden /> {t("pur.toList")}
+                        </button>
+                      </Form>
+                    </Td>
                   </tr>
                 ))}
               </tbody>

@@ -309,3 +309,56 @@ class SupplierQuote(models.Model):
 
     def __str__(self):
         return f"{self.supplier}: {self.variant} — {self.price} {self.currency}"
+
+
+class PurchaseList(models.Model):
+    """
+    Список закупки продавца: «що докупити». Пишут как удобно («футорки 20 1/2 в — 10 шт»), каждая строка сразу
+    становится объектом заказа — товар, поставщик, цена подбираются (app.apps.warehouse.purchase).
+    «Зібрати замовлення» — группировка по поставщикам; «Замовлено» — список в архив, начинается новый.
+    """
+
+    DRAFT, ORDERED = "draft", "ordered"
+    STATUSES = [(DRAFT, "Составляется"), (ORDERED, "Заказано")]
+
+    seller = models.ForeignKey(Seller, on_delete=models.CASCADE, related_name="purchase_lists")
+    status = models.CharField(max_length=10, choices=STATUSES, default=DRAFT, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    ordered_at = models.DateTimeField(null=True, blank=True)
+    created_by = models.ForeignKey("accounts.User", on_delete=models.SET_NULL, null=True, blank=True)
+
+    class Meta:
+        verbose_name = _("Список закупки")
+        verbose_name_plural = _("Списки закупки")
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.seller} · {self.created_at:%d.%m.%Y} · {self.get_status_display()}"
+
+
+class PurchaseLine(models.Model):
+    """Строка списка: как написали + что это за товар, у кого и почём брать."""
+
+    purchase_list = models.ForeignKey(PurchaseList, on_delete=models.CASCADE, related_name="lines")
+    position = models.PositiveIntegerField(default=0)
+    text = models.CharField(max_length=255, verbose_name="Как написали")
+    quantity = models.DecimalField(max_digits=12, decimal_places=3, default=1)
+    unit = models.CharField(max_length=16, blank=True, verbose_name="Единица (шт, м, пар…)")
+    variant = models.ForeignKey(ProductVariant, on_delete=models.SET_NULL, null=True, blank=True, related_name="+")
+    # позиция прайса поставщика, которой ещё нет в каталоге (товар создадут, когда привезут)
+    supplier_item = models.ForeignKey(
+        "imports.SupplierItem", on_delete=models.SET_NULL, null=True, blank=True, related_name="+"
+    )
+    supplier = models.ForeignKey(Supplier, on_delete=models.SET_NULL, null=True, blank=True, related_name="+")
+    supplier_label = models.CharField(max_length=255, blank=True, help_text="Поставщик/прайс, если его нет в справочнике")
+    price_uah = models.DecimalField(max_digits=14, decimal_places=2, null=True, blank=True, verbose_name="Закупка, грн")
+    auto = models.BooleanField(default=False, help_text="Подобрано само («як минулого разу») — человек может поменять")
+
+    class Meta:
+        verbose_name = _("Строка списка закупки")
+        verbose_name_plural = _("Строки списка закупки")
+        ordering = ["position", "id"]
+
+    def __str__(self):
+        return self.text
+
