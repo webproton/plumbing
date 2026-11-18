@@ -73,7 +73,14 @@ export function SupplierMatches({
                 </span>
               )}
               <div className="min-w-0 flex-1 basis-48">
-                <p className="font-medium">{item.name}</p>
+                <p className="font-medium">
+                  <Link
+                    to={`/seller/sources/${item.source.id}?status=all&item=${item.id}`}
+                    className="hover:text-brand-700 hover:underline"
+                  >
+                    {item.name}
+                  </Link>
+                </p>
                 <p className="text-muted text-xs">
                   {[item.sku, item.brand].filter(Boolean).join(" · ")}
                   {item.sku || item.brand ? " · " : ""}

@@ -211,6 +211,22 @@ class SupplierItemSerializer(serializers.ModelSerializer):
         return obj.photos[0] if obj.photos else None
 
 
+class SupplierItemDetailSerializer(SupplierItemSerializer):
+    """Карточка позиции поставщика: всё, что пришло в прайсе, — фото, описание, характеристики, цены."""
+
+    our_cost = serializers.SerializerMethodField(help_text="Закупка в гривнах по правилам источника")
+    product = serializers.IntegerField(source="variant.product_id", read_only=True, default=None)
+
+    class Meta(SupplierItemSerializer.Meta):
+        fields = [*SupplierItemSerializer.Meta.fields, "description", "photos", "our_cost", "product",
+                  "first_seen_at", "last_seen_at"]  # fmt: skip
+
+    def get_our_cost(self, obj):
+        pricing = self.context.get("pricing")
+        value = pricing.cost(obj) if pricing else None
+        return str(value.quantize(Decimal("0.01"))) if value is not None else None
+
+
 class ImportRunSerializer(serializers.ModelSerializer):
     source_name = serializers.CharField(source="source.name", read_only=True, default=None)
     created_by_email = serializers.CharField(source="created_by.email", read_only=True, default=None)

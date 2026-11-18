@@ -2,6 +2,7 @@ from datetime import date
 
 from django.db.models import Count, Q
 from django.http import HttpResponse
+from django.shortcuts import get_object_or_404
 from django.utils.translation import gettext as _
 from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action
@@ -22,6 +23,7 @@ from .formats import FormatError
 from .models import ImportRun, SupplierItem
 from .permissions import IsImportStaff
 from .serializers import (
+    SupplierItemDetailSerializer,
     ImportRunSerializer,
     ImportSourceSerializer,
     ItemStatusSerializer,
@@ -260,6 +262,14 @@ class ImportSourceViewSet(viewsets.ModelViewSet):
         page = self.paginate_queryset(qs.order_by("name", "id"))
         context = {**self.get_serializer_context(), "pricing": services.Pricing(source)}
         return self.get_paginated_response(SupplierItemSerializer(page, many=True, context=context).data)
+
+    @action(detail=True, methods=["get"], url_path=r"items/(?P<item_id>\d+)")
+    def item(self, request, pk=None, item_id=None):
+        """Карточка одной позиции: все фото, описание, характеристики, закупка и продажа по правилам источника."""
+        source = self.get_object()
+        item = get_object_or_404(source.items.select_related("variant__product"), pk=item_id)
+        context = {**self.get_serializer_context(), "pricing": services.Pricing(source)}
+        return Response(SupplierItemDetailSerializer(item, context=context).data)
 
     @action(detail=False, methods=["get"], url_path="search-items")
     def search_items(self, request):

@@ -556,3 +556,17 @@ def test_linked_products_without_photo_get_photos_from_feed(seller):
     mine.product.photo = "products/already.jpg"
     mine.product.save(update_fields=["photo"])
     assert services.missing_photos(source) == []  # фото уже есть — не трогаем
+
+
+def test_item_card_has_everything_from_the_feed(seller):
+    source = make_source(seller, yml(offer("A", "Змішувач Koer", "1000", sku="KR-1", cost="600")))
+    services.sync_source(source)
+    item = SupplierItem.objects.get(external_id="A")
+    client = APIClient()
+    client.force_authenticate(seller.user)
+    data = client.get(reverse("imports:source-item", args=[source.pk, item.pk])).json()
+    assert data["name"] == "Змішувач Koer" and data["photos"] == ["https://cdn.example.com/p.jpg"]
+    assert data["our_cost"] == "600.00" and data["our_price"] == "1000.00" and data["product"] is None
+    stranger = APIClient()
+    stranger.force_authenticate(SellerFactory().user)
+    assert stranger.get(reverse("imports:source-item", args=[source.pk, item.pk])).status_code == 404
