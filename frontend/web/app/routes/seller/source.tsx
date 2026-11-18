@@ -13,6 +13,7 @@ import { data, Form, useFetcher, useNavigation, useSearchParams } from "react-ro
 
 import { Pagination } from "~/components/Pagination";
 import { RunStatusBadge, SourceStatusBadge, usePolling } from "~/components/seller/imports";
+import { SupplierItemCard, type SupplierItemDetail } from "~/components/seller/SupplierItemCard";
 import { StatCard, Table, TableWrap, Td, Th } from "~/components/seller/Table";
 import { VariantPicker } from "~/components/seller/VariantPicker";
 import {
@@ -55,7 +56,8 @@ export async function loader({ request, params, context }: Route.LoaderArgs) {
   const page = pageOf(request);
   const base = `/imports/sources/${params.id}`;
   try {
-    const [source, items, supplierCategories, runs, categories] = await Promise.all([
+    const itemId = Number(q.get("item")) || null;
+    const [source, items, supplierCategories, runs, categories, card] = await Promise.all([
       api.get<ImportSource>(`${base}/`),
       paged(
         api.get<Paginated<SupplierItemRow>>(`${base}/items/`, {
@@ -72,8 +74,13 @@ export async function loader({ request, params, context }: Route.LoaderArgs) {
       api.get<SupplierCategory[]>(`${base}/categories/`),
       api.get<ImportRun[]>(`${base}/runs/`),
       api.get<Category[]>("/category/"),
+      // карточка позиции (?item=): всё, что пришло в прайсе
+      itemId
+        ? api.get<SupplierItemDetail>(`${base}/items/${itemId}/`).catch(() => null)
+        : Promise.resolve(null),
     ]);
     return {
+      card,
       source,
       items,
       supplierCategories,
@@ -170,6 +177,14 @@ function LinkRow({ item, onDone }: { item: SupplierItemRow; onDone: () => void }
       </Td>
     </tr>
   );
+}
+
+/** Ссылка на карточку позиции: те же фильтры и страница + ?item= (или без него — закрыть) */
+function itemQuery(params: URLSearchParams, id: number | null): string {
+  const next = new URLSearchParams(params);
+  if (id) next.set("item", String(id));
+  else next.delete("item");
+  return next.toString();
 }
 
 function stockLabel(item: SupplierItemRow, t: ReturnType<typeof useT>) {
@@ -319,6 +334,7 @@ function ItemRow({
 }) {
   const t = useT();
   const foreign = item.currency && item.currency !== "UAH" ? ` ${item.currency}` : "";
+  const [searchParams] = useSearchParams();
   return (
     <>
       <tr className="hover:bg-surface align-top">
@@ -349,7 +365,13 @@ function ItemRow({
             )}
             <div className="min-w-0">
               <p className="font-medium">
-                {item.name || item.external_id}
+                <Link
+                  to={`?${itemQuery(searchParams, item.id)}`}
+                  preventScrollReset
+                  className="hover:text-brand-700 hover:underline"
+                >
+                  {item.name || item.external_id}
+                </Link>
                 {item.url && (
                   <a
                     href={item.url}
@@ -425,6 +447,7 @@ export default function SourcePage({ loaderData, actionData }: Route.ComponentPr
 
   return (
     <div className="space-y-5">
+      {loaderData.card && <SupplierItemCard item={loaderData.card} closeTo={`?${itemQuery(params, null)}`} />}
       <div>
         <Link to="/seller/sources" className="text-brand-700 text-sm hover:underline">
           ← {t("src.nav")}
