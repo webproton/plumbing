@@ -4,7 +4,7 @@
 Поставщик дал ссылку на сайт как каталог (цены дилера — отдельным прайсом): адаптер проходит от главной по
 разделам и их страницам (?page=N), страница с разметкой schema.org Product — товар. Берём название, код товару,
 описание, все фото, характеристики (вкладка «Характеристики»), цену, бренд, раздел (хлебные крошки).
-Вежливо: пауза между запросами, не больше max_pages страниц и max_products товаров за синхронизацию,
+Вежливо: пауза между запросами (0,5 с), не больше max_pages страниц и max_products товаров за синхронизацию,
 служебные адреса (корзина, сравнение, сортировка, фильтры) не открываем — как велит robots.txt сайта.
 """
 
@@ -142,7 +142,7 @@ class OpencartSiteAdapter(SiteAdapter):
     option_fields = {
         "start_urls": gettext_lazy("Разделы, с которых начать (по одному в строке; пусто — с главной)"),
         "max_products": gettext_lazy("Максимум товаров за синхронизацию (по умолчанию 3000)"),
-        "delay_seconds": gettext_lazy("Пауза между запросами, сек (по умолчанию 1)"),
+        "delay_seconds": gettext_lazy("Пауза между запросами, сек (по умолчанию 0,5)"),
     }
 
     def login(self) -> None:  # сайт открытый
@@ -159,7 +159,7 @@ class OpencartSiteAdapter(SiteAdapter):
         starts = [u.strip() for u in str(self.option("start_urls", "") or "").splitlines() if u.strip()] or [root]
         max_products = int(self.option("max_products", 3000) or 3000)
         max_pages = max(max_products * 3, 300)
-        delay = float(self.option("delay_seconds", 1) or 0)
+        delay = float(self.option("delay_seconds", 0.5) or 0)
         queue, seen, items, errors = [urljoin(root, u) for u in starts], set(), [], 0
         menu: set[str] = set()  # ссылки, которые есть на каждой странице (меню) — обходим в последнюю очередь
         while queue and len(seen) < max_pages and len(items) < max_products:

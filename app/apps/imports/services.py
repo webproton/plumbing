@@ -443,7 +443,7 @@ def due_sources(now=None):
     )
 
 
-def fail_stale_runs(hours: int = 2) -> int:
+def fail_stale_runs(hours: int = 3) -> int:  # дольше самой длинной синхронизации (2 ч)
     """Запуски, «зависшие» после перезапуска воркера/Redis, помечаются ошибкой."""
     cutoff = timezone.now() - timedelta(hours=hours)
     stale = ImportRun.objects.filter(status__in=ImportRun.ACTIVE, created_at__lt=cutoff)
