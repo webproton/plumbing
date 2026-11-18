@@ -543,3 +543,16 @@ def test_publish_explains_missing_currency_rate(seller):
     CurrencyRate.objects.create(code="EUR", rate=Decimal("48.50"))
     result = services.publish_items(source, [SupplierItem.objects.get(external_id="A").pk])
     assert len(result["created"]) == 1 and result["no_rate"] == {}
+
+
+def test_linked_products_without_photo_get_photos_from_feed(seller):
+    """sanwell отдал фото только в B2B-выгрузке: у уже созданных товаров фото нет — после синхронизации докачиваем."""
+    source = make_source(seller, yml(offer("A", "Змішувач", "1000", sku="SW-1")))
+    services.sync_source(source)
+    item = SupplierItem.objects.get(external_id="A")
+    mine = ProductVariantFactory(product__seller=seller)
+    services.link_item(item, mine.pk)
+    assert services.missing_photos(source) == [(mine.pk, ["https://cdn.example.com/p.jpg"])]
+    mine.product.photo = "products/already.jpg"
+    mine.product.save(update_fields=["photo"])
+    assert services.missing_photos(source) == []  # фото уже есть — не трогаем

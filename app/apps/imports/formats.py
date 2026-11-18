@@ -391,8 +391,37 @@ def _xml_records(content: bytes, items_tag: str = "") -> list[dict]:
                 record[key] = text
             for attr, value in child.attrib.items():
                 record.setdefault(f"{key}@{attr}", value)
+            _nested(record, key, child)
         records.append(record)
     return records
+
+
+def _append(record: dict, key: str, value: str) -> None:
+    if key not in record:
+        record[key] = value
+    else:
+        previous = record[key] if isinstance(record[key], list) else [record[key]]
+        record[key] = [*previous, value]
+
+
+def _nested(record: dict, key: str, child) -> None:
+    """Второй уровень вложенности (B2B-выгрузки вроде SW-B2B-Export: sanwell):
+    <media><media-item url="…1.jpg"/><media-item url="…2.jpg"/></media> → «media.media-item@url»: [1.jpg, 2.jpg]
+    (и «media.media-item.@url» — так путь пишут в соответствии полей);
+    <properties><property name="Бренд">Ecosoft</property></properties> → «Бренд»: Ecosoft (характеристика)."""
+    for grand in child:
+        gkey = _local(grand.tag)
+        text = (grand.text or "").strip()
+        label = (grand.attrib.get("name") or grand.attrib.get("Name") or "").strip()
+        if label and text and len(grand) == 0:
+            record.setdefault(label, text)
+            continue
+        path = f"{key}.{gkey}"
+        if text:
+            _append(record, path, text)
+        for attr, value in grand.attrib.items():
+            _append(record, f"{path}@{attr}", value)
+            _append(record, f"{path}.@{attr}", value)
 
 
 # ---------------------------------------------------------------------------

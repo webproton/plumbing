@@ -1,4 +1,4 @@
-import { Plus, RefreshCw, Rss } from "lucide-react";
+import { Pencil, Plus, RefreshCw, Rss, Trash2 } from "lucide-react";
 import { data, Form, useNavigation } from "react-router";
 
 import { Pagination } from "~/components/Pagination";
@@ -27,9 +27,14 @@ export async function action({ request, context }: Route.ActionArgs) {
   const api = requireSeller(request, context);
   const t = makeT(langFromRequest(request));
   const form = await request.formData();
+  const id = Number(form.get("id"));
   try {
-    await api.post(`/imports/sources/${Number(form.get("id"))}/sync/`);
-    return { ok: true as const, error: null };
+    if (form.get("intent") === "delete") {
+      await api.delete(`/imports/sources/${id}/`);
+      return { ok: true as const, error: null, deleted: true };
+    }
+    await api.post(`/imports/sources/${id}/sync/`);
+    return { ok: true as const, error: null, deleted: false };
   } catch (e) {
     if (!(e instanceof ApiError)) throw e;
     return data(
@@ -44,18 +49,25 @@ export default function Sources({ loaderData, actionData }: Route.ComponentProps
   const t = useT();
   const lang = useLang();
   const nav = useNavigation();
-  const syncing = nav.state === "submitting" ? Number(nav.formData?.get("id")) : null;
+  const syncing =
+    nav.state === "submitting" && nav.formData?.get("intent") === "sync"
+      ? Number(nav.formData?.get("id"))
+      : null;
   usePolling(results.some((s) => s.last_status === "running"));
 
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-start justify-between gap-4">
-        <PageTitle subtitle={t("src.subtitle")} help="sources">{t("src.nav")}</PageTitle>
+        <PageTitle subtitle={t("src.subtitle")} help="sources">
+          {t("src.nav")}
+        </PageTitle>
         <ButtonLink to="/seller/sources/new">
           <Plus className="size-4" aria-hidden /> {t("src.add")}
         </ButtonLink>
       </div>
-      {actionData?.ok && <Alert tone="success">{t("src.syncQueued")}</Alert>}
+      {actionData?.ok && (
+        <Alert tone="success">{actionData.deleted ? t("src.deleted") : t("src.syncQueued")}</Alert>
+      )}
       {actionData?.error && <Alert tone="danger">{actionData.error}</Alert>}
 
       {results.length === 0 ? (
@@ -107,18 +119,40 @@ export default function Sources({ loaderData, actionData }: Route.ComponentProps
                       )}
                     </Td>
                     <Td className="text-right">
-                      <Form method="post">
-                        <input type="hidden" name="id" value={s.id} />
-                        <Button
-                          type="submit"
-                          size="sm"
-                          variant="secondary"
-                          loading={syncing === s.id}
-                          disabled={s.last_status === "running"}
+                      <div className="flex flex-wrap justify-end gap-2">
+                        <Form method="post">
+                          <input type="hidden" name="intent" value="sync" />
+                          <input type="hidden" name="id" value={s.id} />
+                          <Button
+                            type="submit"
+                            size="sm"
+                            variant="secondary"
+                            loading={syncing === s.id}
+                            disabled={s.last_status === "running"}
+                          >
+                            <RefreshCw className="size-3.5" aria-hidden /> {t("src.sync")}
+                          </Button>
+                        </Form>
+                        <ButtonLink to={`/seller/sources/${s.id}/edit`} size="sm" variant="secondary">
+                          <Pencil className="size-3.5" aria-hidden /> {t("src.editShort")}
+                        </ButtonLink>
+                        <Form
+                          method="post"
+                          onSubmit={(e) => !confirm(t("src.form.deleteConfirm")) && e.preventDefault()}
                         >
-                          <RefreshCw className="size-3.5" aria-hidden /> {t("src.sync")}
-                        </Button>
-                      </Form>
+                          <input type="hidden" name="intent" value="delete" />
+                          <input type="hidden" name="id" value={s.id} />
+                          <Button
+                            type="submit"
+                            size="sm"
+                            variant="ghost"
+                            aria-label={t("src.form.delete")}
+                            title={t("src.form.delete")}
+                          >
+                            <Trash2 className="text-danger size-3.5" aria-hidden />
+                          </Button>
+                        </Form>
+                      </div>
                     </Td>
                   </tr>
                 ))}

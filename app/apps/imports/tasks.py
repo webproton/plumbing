@@ -26,6 +26,9 @@ def sync_source_task(source_id: int, run_id: int | None = None):
         source = ImportSource.objects.select_related("seller__user").filter(pk=source_id).first()
         if source:
             services.sync_source(source, run)
+            # у уже созданных товаров нет фото, а в прайсе появились — докачать (по одному товару на задачу)
+            for variant_id, urls in services.missing_photos(source):
+                download_photos_task.delay(variant_id, urls)
     finally:
         cache.delete(lock)
 

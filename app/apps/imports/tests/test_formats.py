@@ -197,3 +197,37 @@ def test_1c_price_list_with_group_rows():
     assert (by_sku["71001"].category, by_sku["71001"].currency, by_sku["71001"].cost) == (
         "Змішувачі", "UAH", Decimal("1100.5000"))
     assert len(items) == 2 and info["columns"]["name"] == "Номенклатура"
+
+
+SW_B2B = """<?xml version="1.0" encoding="UTF-8"?>
+<catalog version="1.3.1" generator="SW-B2B-Export-Service/1.4.1">
+  <metadata><generation-time>2026-11-18T07:00:02Z</generation-time><currency>UAH</currency></metadata>
+  <products>
+    <product code="45062" name="Потрійний фільтр Ecosoft Standard FMV3ECOSTD">
+      <description>Потрійний фільтр для очищення води</description>
+      <recommended-retail-price currency="UAH">2340</recommended-retail-price>
+      <stock>101</stock>
+      <properties><property name="Бренд">Ecosoft</property><property name="Країна">Україна</property></properties>
+      <media><media-item type="image" url="https://cdn.sanwell.example/45062-1.jpg"/>
+             <media-item type="image" url="https://cdn.sanwell.example/45062-2.jpg"/></media>
+    </product>
+    <product code="45063" name="Картридж Ecosoft">
+      <recommended-retail-price currency="UAH">150</recommended-retail-price>
+      <stock>0</stock>
+      <media><media-item type="image" url="https://cdn.sanwell.example/45063-1.jpg"/></media>
+    </product>
+  </products>
+</catalog>""".encode()
+
+
+def test_b2b_xml_with_nested_photos_and_properties():
+    """sanwell (SW-B2B-Export): фото во вложенном <media><media-item url>, характеристики — <property name>."""
+    field_map = {"sku": "@code", "name": "@name", "price": "recommended-retail-price", "photos": "media.media-item.@url",
+                 "quantity": "stock", "description": "description", "external_id": "@code"}
+    items, info = parse_items(SW_B2B, "xml", field_map, {"items_tag": "product"})
+    first, second = items
+    assert first.sku == "45062" and first.price == Decimal("2340") and first.currency == "UAH"
+    assert first.photos == ["https://cdn.sanwell.example/45062-1.jpg", "https://cdn.sanwell.example/45062-2.jpg"]
+    assert second.photos == ["https://cdn.sanwell.example/45063-1.jpg"]  # одно фото — тоже находится
+    assert first.params.get("Країна") == "Україна"
+    assert first.brand == "Ecosoft" or first.params.get("Бренд") == "Ecosoft"
