@@ -7,10 +7,12 @@ from . import services, template
 from .models import ImportRun, ImportSource
 from .photos import download_product_photos
 
-SYNC_LOCK_TTL = 45 * 60
+# обход сайта поставщика (svit-mebliv: сотни страниц с паузой) идёт дольше общего лимита задач (25 мин)
+SYNC_SOFT_LIMIT = 110 * 60
+SYNC_LOCK_TTL = 125 * 60
 
 
-@shared_task(name="imports.sync_source")
+@shared_task(name="imports.sync_source", soft_time_limit=SYNC_SOFT_LIMIT, time_limit=SYNC_SOFT_LIMIT + 10 * 60)
 def sync_source_task(source_id: int, run_id: int | None = None):
     run = ImportRun.objects.filter(pk=run_id).first() if run_id else None
     lock = f"imports:sync:{source_id}"
