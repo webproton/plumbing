@@ -157,6 +157,8 @@ class ImportSourceSerializer(serializers.ModelSerializer):
             adapter = attrs.get("adapter", getattr(self.instance, "adapter", ""))
             if adapter not in ADAPTERS:
                 raise serializers.ValidationError({"adapter": _("Выберите адаптер сайта поставщика")})
+            if not ADAPTERS[adapter].needs_login and not url:
+                raise serializers.ValidationError({"url": _("Укажите ссылку на сайт поставщика")})
         elif kind == ImportSource.KIND_API and not url:
             raise serializers.ValidationError({"url": _("Укажите адрес API")})
         elif kind == ImportSource.KIND_FEED and not url and not has_file:

@@ -300,7 +300,7 @@ def test_source_validation(client):
     }
     assert client.post(url, ok, format="json").status_code == 201
     adapters = client.get(reverse("imports:adapters")).json()
-    assert [a["code"] for a in adapters] == ["form_login"] and "export_url" in adapters[0]["options"]
+    assert [a["code"] for a in adapters] == ["form_login", "opencart_site"] and "export_url" in adapters[0]["options"]
 
 
 def test_form_login_adapter(seller, monkeypatch):

@@ -378,7 +378,8 @@ export default function SourceEdit({ loaderData, actionData }: Route.ComponentPr
                 )}
               </Field>
             )}
-            {(kind === "web" || auth !== "none") && (
+            {/* открытый сайт (адаптер без входа) — логин и пароль не нужны */}
+            {((kind === "web" && adapter?.needs_login !== false) || (kind !== "web" && auth !== "none")) && (
               <>
                 {(kind === "web" || auth !== "bearer") && (
                   <Field
@@ -530,7 +531,11 @@ export default function SourceEdit({ loaderData, actionData }: Route.ComponentPr
                 </Select>
               )}
             </Field>
-            <Field label={t("src.form.orderDays")} error={errors.order_days} hint={t("src.form.orderDaysHint")}>
+            <Field
+              label={t("src.form.orderDays")}
+              error={errors.order_days}
+              hint={t("src.form.orderDaysHint")}
+            >
               {(p) => (
                 <Input
                   {...p}

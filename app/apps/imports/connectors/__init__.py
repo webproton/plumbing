@@ -2,6 +2,7 @@
 
 from .base import Connector, ConnectorError
 from .web import ADAPTERS, SiteAdapter, register
+from . import opencart  # noqa: E402,F401 — регистрирует адаптер «сайт на OpenCart»
 
 
 def get_connector(source) -> Connector:

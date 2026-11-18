@@ -30,6 +30,7 @@ def register(cls):
 
 class SiteAdapter:
     code = ""
+    needs_login = True  # публичный сайт (каталог без входа) — False
     title = ""
     description = ""
     # настройки, которые адаптер читает из source.options: {имя: подсказка}
@@ -123,7 +124,7 @@ class WebConnector(Connector):
             raise ConnectorError(
                 _("Адаптер «{adapter}» для сайта поставщика не подключён").format(adapter=self.source.adapter or "—")
             )
-        if not self.source.auth_login:
+        if adapter_cls.needs_login and not self.source.auth_login:
             raise ConnectorError(_("Укажите логин для входа на сайт поставщика"))
         adapter = adapter_cls(self.source, self)
         adapter.login()
