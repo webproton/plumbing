@@ -80,6 +80,7 @@ class AdaptersView(APIView):
                     "title": str(cls.title),
                     "description": str(cls.description),
                     "options": {k: str(v) for k, v in cls.option_fields.items()},
+                    "needs_login": cls.needs_login,
                 }
                 for code, cls in sorted(ADAPTERS.items())
             ]

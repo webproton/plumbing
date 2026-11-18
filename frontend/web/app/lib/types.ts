@@ -594,6 +594,8 @@ export interface SiteAdapterInfo {
   title: string;
   description: string;
   options: Record<string, string>;
+  /** false — открытый сайт без входа (логин и пароль не нужны) */
+  needs_login?: boolean;
 }
 
 export type SupplierItemStatus = "new" | "linked" | "ignored";
