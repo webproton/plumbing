@@ -180,6 +180,8 @@ export const importRu: ImportDict = {
   "src.form.save": "Сохранить",
   "src.form.createSync": "Сохранить и загрузить товары",
   "src.form.delete": "Удалить источник",
+  "src.editShort": "Настройки",
+  "src.deleted": "Источник удалён. Уже созданные из него товары остались на сайте.",
   "src.form.deleteConfirm": "Удалить источник? Уже созданные товары останутся на сайте.",
   "src.field.external_id": "ID товара",
   "src.field.sku": "Артикул",

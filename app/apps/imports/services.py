@@ -637,3 +637,20 @@ def search_supplier_items(user, seller, query: str, limit: int = 20, everything:
         )
     return {"count": found.count(), "results": results, "suggestion": suggestion}
 
+
+MISSING_PHOTOS_PER_SYNC = 300  # за одну синхронизацию — не больше (фото качаются в фоне по очереди)
+
+
+def missing_photos(source) -> list[tuple[int, list[str]]]:
+    """Товары, связанные с позициями источника, у которых ещё нет фото, а в прайсе фото есть (sanwell дал фото
+    в B2B-выгрузке только с токеном) → [(id варианта, ссылки)]. Скачивание само пропустит товар с фото."""
+    rows = (
+        source.items.filter(status=SupplierItem.LINKED, variant__isnull=False, missing=False)
+        .exclude(photos=[])
+        .filter(Q(variant__product__photo="") | Q(variant__product__photo__isnull=True))
+        .filter(variant__product__photos__isnull=True)
+        .values_list("variant_id", "photos")
+        .distinct()[:MISSING_PHOTOS_PER_SYNC]
+    )
+    return [(variant_id, photos) for variant_id, photos in rows if photos]
+

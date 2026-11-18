@@ -181,6 +181,8 @@ export const importUk = {
   "src.form.save": "Зберегти",
   "src.form.createSync": "Зберегти й завантажити товари",
   "src.form.delete": "Видалити джерело",
+  "src.editShort": "Налаштування",
+  "src.deleted": "Джерело видалено. Уже створені з нього товари залишились на сайті.",
   "src.form.deleteConfirm": "Видалити джерело? Уже створені товари залишаться на сайті.",
   "src.field.external_id": "ID товару",
   "src.field.sku": "Артикул",
